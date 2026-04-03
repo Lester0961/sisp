@@ -1,0 +1,16 @@
+{
+  "name": "sisp-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SISP — Student Information and Services Portal monorepo",
+  "scripts": {
+    "dev:frontend": "cd sisp-frontend && npm run dev",
+    "dev:backend": "cd sisp-backend && npm run start:dev",
+    "install:frontend": "cd sisp-frontend && npm install",
+    "install:backend": "cd sisp-backend && npm install"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
