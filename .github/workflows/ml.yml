@@ -1,0 +1,40 @@
+name: ML Service CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sisp-ml/**"
+      - ".github/workflows/ml.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "sisp-ml/**"
+
+jobs:
+  build:
+    name: Lint & Test FastAPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: sisp-ml/requirements.txt
+
+      - name: Install dependencies
+        working-directory: sisp-ml
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check syntax with py_compile
+        working-directory: sisp-ml
+        run: |
+          python -m py_compile app/main.py
+          echo "Syntax check passed"
