@@ -5,11 +5,7 @@ This document contains the complete directory structure and files of the SISP pr
 ## Complete File Tree
 
 ```
-.github/
-  workflows/
-    backend.yml
-    frontend.yml
-    ml.yml
+.editorconfig
 
 .vscode/
   settings.json
@@ -21,197 +17,31 @@ docs/
 package.json
 README.md
 sisp_dir.md
+SISP_Master_Build_Checklist..md
 
 sisp-backend/
-  dist/
-    common/
-      decorators/
-        current-user.decorator.d.ts
-        current-user.decorator.js
-        current-user.decorator.js.map
-        public.decorator.d.ts
-        public.decorator.js
-        public.decorator.js.map
-        roles.decorator.d.ts
-        roles.decorator.js
-        roles.decorator.js.map
-      guards/
-        jwt-auth.guard.d.ts
-        jwt-auth.guard.js
-        jwt-auth.guard.js.map
-        roles.guard.d.ts
-        roles.guard.js
-        roles.guard.js.map
-    modules/
-      admin/
-        admin.controller.d.ts
-        admin.controller.js
-        admin.controller.js.map
-        admin.module.d.ts
-        admin.module.js
-        admin.module.js.map
-        admin.service.d.ts
-        admin.service.js
-        admin.service.js.map
-      analytics/
-        analytics.controller.d.ts
-        analytics.controller.js
-        analytics.controller.js.map
-        analytics.module.d.ts
-        analytics.module.js
-        analytics.module.js.map
-        analytics.service.d.ts
-        analytics.service.js
-        analytics.service.js.map
-      auth/
-        auth.controller.d.ts
-        auth.controller.js
-        auth.controller.js.map
-        auth.module.d.ts
-        auth.module.js
-        auth.module.js.map
-        auth.service.d.ts
-        auth.service.js
-        auth.service.js.map
-        dto/
-          login.dto.d.ts
-          login.dto.js
-          login.dto.js.map
-          refresh.dto.d.ts
-          refresh.dto.js
-          refresh.dto.js.map
-          register.dto.d.ts
-          register.dto.js
-          register.dto.js.map
-        strategies/
-          jwt.strategy.d.ts
-          jwt.strategy.js
-          jwt.strategy.js.map
-      chat/
-        chatbot.controller.d.ts
-        chatbot.controller.js
-        chatbot.controller.js.map
-        chatbot.module.d.ts
-        chatbot.module.js
-        chatbot.module.js.map
-        chatbot.service.d.ts
-        chatbot.service.js
-        chatbot.service.js.map
-        dto/
-          send-message.dto.d.ts
-          send-message.dto.js
-          send-message.dto.js.map
-      documents/
-        documents.controller.d.ts
-        documents.controller.js
-        documents.controller.js.map
-        documents.module.d.ts
-        documents.module.js
-        documents.module.js.map
-        documents.service.d.ts
-        documents.service.js
-        documents.service.js.map
-        dto/
-          create-request.dto.d.ts
-          create-request.dto.js
-          create-request.dto.js.map
-          update-request.dto.d.ts
-          update-request.dto.js
-          update-request.dto.js.map
-      enrollment/
-        dto/
-          enroll.dto.d.ts
-          enroll.dto.js
-          enroll.dto.js.map
-        enrollment.controller.d.ts
-        enrollment.controller.js
-        enrollment.controller.js.map
-        enrollment.module.d.ts
-        enrollment.module.js
-        enrollment.module.js.map
-        enrollment.service.d.ts
-        enrollment.service.js
-        enrollment.service.js.map
-      grades/
-        dto/
-          create-grade.dto.d.ts
-          create-grade.dto.js
-          create-grade.dto.js.map
-        grades.controller.d.ts
-        grades.controller.js
-        grades.controller.js.map
-        grades.module.d.ts
-        grades.module.js
-        grades.module.js.map
-        grades.service.d.ts
-        grades.service.js
-        grades.service.js.map
-      notifications/
-        notifications.controller.d.ts
-        notifications.controller.js
-        notifications.controller.js.map
-        notifications.module.d.ts
-        notifications.module.js
-        notifications.module.js.map
-        notifications.service.d.ts
-        notifications.service.js
-        notifications.service.js.map
-      students/
-        dto/
-          update-student.dto.d.ts
-          update-student.dto.js
-          update-student.dto.js.map
-        students.controller.d.ts
-        students.controller.js
-        students.controller.js.map
-        students.module.d.ts
-        students.module.js
-        students.module.js.map
-        students.service.d.ts
-        students.service.js
-        students.service.js.map
-      users/
-        dto/
-          update-user.dto.d.ts
-          update-user.dto.js
-          update-user.dto.js.map
-        users.controller.d.ts
-        users.controller.js
-        users.controller.js.map
-        users.module.d.ts
-        users.module.js
-        users.module.js.map
-        users.service.d.ts
-        users.service.js
-        users.service.js.map
-    prisma/
-      prisma.module.d.ts
-      prisma.module.js
-      prisma.module.js.map
-      prisma.service.d.ts
-      prisma.service.js
-      prisma.service.js.map
-    app.controller.d.ts
-    app.controller.js
-    app.controller.js.map
-    app.module.d.ts
-    app.module.js
-    app.module.js.map
-    app.service.d.ts
-    app.service.js
-    app.service.js.map
-    main.d.ts
-    main.js
-    main.js.map
-    tsconfig.build.tsbuildinfo
+  .prettierrc
   eslint.config.mjs
   nest-cli.json
   package.json
   package-lock.json
+  README.md
+  tsconfig.build.json
+  tsconfig.json
+
+  dist/
+    (all compiled JavaScript files - excluded for brevity)
+
   prisma/
     schema.prisma
-  README.md
+
   src/
+    app.controller.spec.ts
+    app.controller.ts
+    app.module.ts
+    app.service.ts
+    main.ts
+
     common/
       decorators/
         current-user.decorator.ts
@@ -222,17 +52,25 @@ sisp-backend/
         jwt-auth.guard.ts
         roles.guard.ts
       interceptors/
+        audit-log.interceptor.ts
       pipes/
+
     modules/
       admin/
         admin.controller.ts
         admin.module.ts
         admin.service.ts
+
       analytics/
         analytics.controller.ts
         analytics.module.ts
         analytics.service.ts
+
       audit/
+        audit.controller.ts
+        audit.module.ts
+        audit.service.ts
+
       auth/
         auth.controller.ts
         auth.module.ts
@@ -244,12 +82,14 @@ sisp-backend/
           register.dto.ts
         strategies/
           jwt.strategy.ts
+
       chat/
         chatbot.controller.ts
         chatbot.module.ts
         chatbot.service.ts
         dto/
           send-message.dto.ts
+
       documents/
         documents.controller.ts
         documents.module.ts
@@ -258,74 +98,101 @@ sisp-backend/
         dto/
           create-request.dto.ts
           update-request.dto.ts
+
       enrollment/
-        dto/
-          enroll.dto.ts
         enrollment.controller.ts
         enrollment.module.ts
         enrollment.service.ts
-      grades/
         dto/
-          create-grade.dto.ts
+          create-history.dto.ts
+          enroll.dto.ts
+          update-enrollment.dto.ts
+
+      grades/
         grades.controller.ts
         grades.module.ts
         grades.service.spec.ts
         grades.service.ts
+        dto/
+          bulk-grade.dto.ts
+          create-grade.dto.ts
+          update-grade.dto.ts
+
       notifications/
         notifications.controller.ts
         notifications.module.ts
         notifications.service.ts
-      requests/
-      students/
         dto/
-          update-student.dto.ts
+          send-notification.dto.ts
+
+      requests/
+
+      students/
         students.controller.ts
         students.module.ts
         students.service.ts
-      users/
         dto/
-          update-user.dto.ts
+          create-student-profile.dto.ts
+          update-student.dto.ts
+
+      users/
         users.controller.ts
         users.module.ts
         users.service.ts
+        dto/
+          update-user.dto.ts
+
     prisma/
       prisma.module.ts
       prisma.service.ts
-    app.controller.spec.ts
-    app.controller.ts
-    app.module.ts
-    app.service.ts
-    main.ts
+
   test/
     app.e2e-spec.ts
     auth.e2e-spec.ts
     jest-e2e.json
-  tsconfig.build.json
-  tsconfig.json
 
 sisp-frontend/
+  .eslintrc.json
+  middleware.ts
+  next.config.mjs
+  next-env.d.ts
+  package.json
+  package-lock.json
+  postcss.config.mjs
+  README.md
+  tailwind.config.ts
+  tsconfig.json
+
   app/
     (auth)/
+      layout.tsx
       login/
         page.tsx
       register/
         page.tsx
+
     (protected)/
       admin/
         dashboard/
           page.tsx
-        dean/
-          exceptions/
-            page.tsx
-        faculty/
-          grades/
-            page.tsx
+      curriculum/
+        page.tsx
       dashboard/
         page.tsx
+      dean/
+        exceptions/
+          page.tsx
+      faculty/
+        grades/
+          page.tsx
       grades/
         page.tsx
+      layout.tsx
       requests/
         page.tsx
+      schedule/
+        page.tsx
+
     favicon.ico
     fonts/
       GeistMonoVF.woff
@@ -333,8 +200,21 @@ sisp-frontend/
     globals.css
     layout.tsx
     page.tsx
-  components.json
+
   components/
+    components.json
+
+    curriculum/
+      CurriculumChecklist.tsx
+
+    providers/
+      AuthProvider.tsx
+
+    shared/
+      Navbar.tsx
+      NotificationBell.tsx
+      RequestStatusTracker.tsx
+
     ui/
       avatar.tsx
       badge.tsx
@@ -347,49 +227,66 @@ sisp-frontend/
       label.tsx
       select.tsx
       separator.tsx
+      sonner.tsx
       table.tsx
       tabs.tsx
+
   hooks/
-    .gitkeep
+    useAuth.ts
+
   lib/
     utils.ts
+
     api/
-      .gitkeep
-  next.config.mjs
-  next-env.d.ts
-  package.json
-  package-lock.json
-  postcss.config.mjs
+      auth.ts
+      client.ts
+      curricula.ts
+      enrollments.ts
+      grades.ts
+      notifications.ts
+      requests.ts
+      students.ts
+
   public/
-    .gitkeep
-  README.md
+
   stores/
-    .gitkeep
-  tailwind.config.ts
-  tsconfig.json
+    authStore.ts
+    chatStore.ts
+    notificationStore.ts
+    requestStore.ts
+    studentStore
+
   types/
-    .gitkeep
+    index.ts
 
 sisp-ml/
   README.md
   requirements.txt
+
   app/
     __init__.py
     config.py
     main.py
+
     data/
       knowledge_base/
         document_requests.txt
         enrollment_policy.txt
         grading_policy.txt
       training_data.json
+
     ml/
       __init__.py
       embed_documents.py
       retrain.py
       train_classifier.py
+
       models/
         __init__.py
+
+    models/
+      __init__.py
+
     routers/
       __init__.py
       admin.py
@@ -397,6 +294,7 @@ sisp-ml/
       classify.py
       feedback.py
       retrieve.py
+
     services/
       __init__.py
       cache_service.py
@@ -404,6 +302,7 @@ sisp-ml/
       classifier_service.py
       groq_service.py
       retrieval_service.py
+
   tests/
     __init__.py
     test_classifier.py
@@ -415,6 +314,7 @@ sisp-ml/
 The SISP project consists of three main components:
 
 ### 1. **sisp-backend/** - NestJS Backend Application
+
 - **Architecture**: Modular NestJS application with TypeScript
 - **Key Features**:
   - Authentication system with JWT strategies
@@ -425,17 +325,29 @@ The SISP project consists of three main components:
   - Document management system
   - Enrollment and grading functionality
   - Analytics and notifications
+  - Audit logging capabilities
+  - Enhanced DTOs for bulk operations and student profiles
 
 ### 2. **sisp-frontend/** - Next.js 14+ Frontend Application
+
 - **Framework**: Next.js with App Router and TypeScript
 - **UI**: Tailwind CSS with shadcn/ui components
 - **Structure**:
   - Route groups for authentication (`(auth)`) and protected routes (`(protected)`)
   - Role-based pages (admin dashboard, faculty grades, dean exceptions)
   - Component library with reusable UI components
-  - State management and API integration ready
+  - State management with Zustand stores
+  - API integration layer
+- **Key Features**:
+  - Curriculum management interface
+  - Schedule management
+  - Authentication provider
+  - Notification system
+  - Request tracking
+  - Enhanced UI components with Sonner toast notifications
 
 ### 3. **sisp-ml/** - Python FastAPI ML Application
+
 - **Framework**: FastAPI with Python
 - **ML Capabilities**:
   - Document classification and retrieval
@@ -444,10 +356,32 @@ The SISP project consists of three main components:
   - Training data management
   - Embedding services
   - Feedback system for continuous improvement
+  - Admin endpoints for model management
 
-### Infrastructure
-- **GitHub Workflows**: CI/CD pipelines for backend, frontend, and ML components
-- **Documentation**: Development notes and benchmarks
-- **Testing**: E2E tests for backend, unit tests for ML components
+### Infrastructure & Development
+
+- **Configuration**:
+  - ESLint configurations for both frontend and backend
+  - TypeScript configurations
+  - Tailwind CSS setup
+  - Middleware for authentication and routing
+- **Documentation**:
+  - Development notes and benchmarks
+  - README files for each component
+  - Master build checklist
+- **Testing**:
+  - E2E tests for backend
+  - Unit tests for ML components
+  - Service specifications
+
+### Notable Updates & Enhancements
+
+- **Backend**: Added audit module with logging interceptor, enhanced enrollment and grading DTOs, new bulk operations
+- **Frontend**: Comprehensive state management, curriculum features, enhanced UI components, proper authentication flow
+- **ML**: Structured service architecture, proper model management, comprehensive API endpoints
 
 This architecture provides a comprehensive Student Information System with modern web technologies, AI/ML capabilities, and a scalable microservices approach.
+
+---
+
+_Last updated: April 5, 2026_

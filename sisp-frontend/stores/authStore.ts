@@ -3,33 +3,35 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { User } from '@/types';
 
 interface AuthState {
-  // State
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  // Actions
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
   setAccessToken: (accessToken: string) => void;
   setLoading: (isLoading: boolean) => void;
   logout: () => void;
 }
 
+// Store cleanup callbacks registered by other stores
+const cleanupCallbacks: Array<() => void> = [];
+
+export const registerLogoutCleanup = (cb: () => void) => {
+  cleanupCallbacks.push(cb);
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      // Initial state
       user: null,
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
 
-      // Set full auth state after login or register
       setAuth: (user, accessToken, refreshToken) => {
-        // Also sync tokens to localStorage for the axios interceptor
         if (typeof window !== 'undefined') {
           localStorage.setItem('accessToken', accessToken);
           localStorage.setItem('refreshToken', refreshToken);
@@ -43,7 +45,6 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
-      // Update access token after refresh
       setAccessToken: (accessToken) => {
         if (typeof window !== 'undefined') {
           localStorage.setItem('accessToken', accessToken);
@@ -51,15 +52,15 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken });
       },
 
-      // Set loading state
       setLoading: (isLoading) => set({ isLoading }),
 
-      // Clear all auth state on logout
       logout: () => {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
         }
+        // Clear all registered stores on logout
+        cleanupCallbacks.forEach((cb) => cb());
         set({
           user: null,
           accessToken: null,
@@ -72,7 +73,6 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'sisp-auth-storage',
       storage: createJSONStorage(() => localStorage),
-      // Only persist these fields — do not persist isLoading
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,

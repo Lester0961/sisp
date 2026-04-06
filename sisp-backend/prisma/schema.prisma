@@ -48,23 +48,29 @@ model RolePermission {
 // ============================================================
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  roleId       String    @map("role_id")
-  role         Role      @relation(fields: [roleId], references: [id])
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  firstName    String   @default("") @map("first_name")
+  lastName     String   @default("") @map("last_name")
+  roleId       String   @map("role_id")
+  role         Role     @relation(fields: [roleId], references: [id])
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  // Relations to be added in Phase 2
-  auditLogs    AuditLog[]
+  // Relations
+  studentProfile StudentProfile?
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+  escalations    EscalationQueue[]
+  chatLogs       ChatLog[]
 
   @@map("users")
 }
 
 // ============================================================
-// AUDIT LOG (RA 10173 compliance — added in FIX #4)
+// AUDIT LOG
 // ============================================================
 
 model AuditLog {
@@ -78,4 +84,216 @@ model AuditLog {
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@map("audit_logs")
+}
+
+// ============================================================
+// ACADEMIC — PROGRAMS
+// ============================================================
+
+model Program {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  curricula       Curriculum[]
+  studentProfiles StudentProfile[]
+
+  @@map("programs")
+}
+
+// ============================================================
+// STUDENT PROFILE
+// ============================================================
+
+model StudentProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  user          User     @relation(fields: [userId], references: [id])
+  studentNumber String   @unique @map("student_number")
+  programId     String   @map("program_id")
+  program       Program  @relation(fields: [programId], references: [id])
+  yearLevel     Int      @map("year_level")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  enrollments       Enrollment[]
+  enrollmentHistory EnrollmentHistory[]
+  accountBalance    AccountBalance?
+  documentRequests  DocumentRequest[]
+
+  @@map("student_profiles")
+}
+
+// ============================================================
+// COURSES & CURRICULUM
+// ============================================================
+
+model Course {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  title     String
+  units     Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  curriculumCourses CurriculumCourse[]
+  enrollments       Enrollment[]
+
+  @@map("courses")
+}
+
+model Curriculum {
+  id            String   @id @default(uuid())
+  programId     String   @map("program_id")
+  program       Program  @relation(fields: [programId], references: [id])
+  effectiveYear Int      @map("effective_year")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  curriculumCourses CurriculumCourse[]
+
+  @@map("curricula")
+}
+
+model CurriculumCourse {
+  curriculumId String     @map("curriculum_id")
+  courseId     String     @map("course_id")
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  yearLevel    Int        @map("year_level")
+  semester     Int
+
+  @@id([curriculumId, courseId])
+  @@map("curriculum_courses")
+}
+
+// ============================================================
+// ENROLLMENT
+// ============================================================
+
+model EnrollmentHistory {
+  id        String         @id @default(uuid())
+  studentId String         @map("student_id")
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+  term      String
+  status    String
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  @@map("enrollment_history")
+}
+
+model Enrollment {
+  id        String         @id @default(uuid())
+  studentId String         @map("student_id")
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+  courseId  String         @map("course_id")
+  course    Course         @relation(fields: [courseId], references: [id])
+  section   String?
+  status    String         @default("enrolled")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  grade Grade?
+
+  @@map("enrollments")
+}
+
+// ============================================================
+// GRADES — 3NF: student derived via enrollment → no student_id
+// ============================================================
+
+model Grade {
+  id           String     @id @default(uuid())
+  enrollmentId String     @unique @map("enrollment_id")
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id])
+  prelim       Float?
+  midterm      Float?
+  finals       Float?
+  finalGrade   Float?     @map("final_grade")
+  isVisible    Boolean    @default(false) @map("is_visible")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@map("grades")
+}
+
+// ============================================================
+// FINANCIAL
+// ============================================================
+
+model AccountBalance {
+  id        String         @id @default(uuid())
+  studentId String         @unique @map("student_id")
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+  balance   Decimal        @db.Decimal(10, 2)
+  status    String         @default("active")
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  @@map("account_balances")
+}
+
+// ============================================================
+// DOCUMENT REQUESTS
+// ============================================================
+
+model DocumentRequest {
+  id        String         @id @default(uuid())
+  studentId String         @map("student_id")
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+  type      String
+  status    String         @default("pending")
+  remarks   String?
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  @@map("document_requests")
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+// ============================================================
+// CHAT SYSTEM (scaffold — fully built in Phase 3)
+// ============================================================
+
+model ChatLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id])
+  message    String
+  response   String
+  intent     String?
+  confidence Float?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  escalation EscalationQueue?
+
+  @@map("chat_logs")
+}
+
+model EscalationQueue {
+  id         String   @id @default(uuid())
+  chatId     String   @unique @map("chat_id")
+  chat       ChatLog  @relation(fields: [chatId], references: [id])
+  status     String   @default("pending")
+  assignedTo String?  @map("assigned_to")
+  assignee   User?    @relation(fields: [assignedTo], references: [id])
+  resolution String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("escalation_queue")
 }

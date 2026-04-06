@@ -1,0 +1,26 @@
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+
+# Database
+psycopg2-binary==2.9.10
+pgvector==0.3.6
+sqlalchemy==2.0.36
+
+# HTTP & API
+httpx==0.28.0
+groq==0.13.0
+
+# Environment & Config
+python-dotenv==1.0.1
+pydantic==2.10.3
+pydantic-settings==2.7.0
+
+# Utilities
+python-multipart==0.0.20
+
+# ML & NLP (pre-built wheels)
+numpy==1.26.4
+joblib==1.4.2
+scikit-learn==1.5.2
+sentence-transformers==3.3.1

@@ -39,21 +39,20 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = async (data: LoginFormData) => {
-    setServerError(null);
-    try {
-      await login(data.email, data.password);
-      toast.success('Welcome back!');
-      redirectByRole();
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string } } };
-      const message =
-        err?.response?.data?.message ?? 'Login failed. Please try again.';
-      setServerError(message);
-      toast.error(message);
-    }
-  };
-
+const onSubmit = async (data: LoginFormData) => {
+  setServerError(null);
+  try {
+    const response = await login(data.email, data.password);
+    toast.success('Welcome back!');
+    redirectByRole(response.user.role);
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } } };
+    const message =
+      err?.response?.data?.message ?? 'Login failed. Please try again.';
+    setServerError(message);
+    toast.error(message);
+  }
+};
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md space-y-6">

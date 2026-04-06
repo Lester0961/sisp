@@ -70,25 +70,26 @@ export function useAuth() {
     router.push('/login');
   }, [clearAuth, router]);
 
-  const redirectByRole = useCallback(() => {
-    if (!user) return;
-    switch (user.role) {
-      case 'student':
-        router.push('/dashboard');
-        break;
-      case 'faculty':
-        router.push('/faculty/grades');
-        break;
-      case 'admin_staff':
-        router.push('/admin/dashboard');
-        break;
-      case 'dean':
-        router.push('/dean/exceptions');
-        break;
-      default:
-        router.push('/dashboard');
-    }
-  }, [user, router]);
+const redirectByRole = useCallback((roleOverride?: string) => {
+  const role = roleOverride ?? user?.role;
+  if (!role) return;
+  switch (role) {
+    case 'student':
+      router.push('/dashboard');
+      break;
+    case 'faculty':
+      router.push('/faculty/grades');
+      break;
+    case 'admin_staff':
+      router.push('/admin/dashboard');
+      break;
+    case 'dean':
+      router.push('/dean/exceptions');
+      break;
+    default:
+      router.push('/dashboard');
+  }
+}, [user, router]);
 
   return {
     user,

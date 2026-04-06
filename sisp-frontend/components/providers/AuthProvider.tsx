@@ -1,7 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore, registerLogoutCleanup } from '@/stores/authStore';
+import { useStudentStore } from '@/stores/studentStore';
+import { useRequestStore } from '@/stores/requestStore';
+import { useChatStore } from '@/stores/chatStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -9,15 +13,25 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const { accessToken, isAuthenticated } = useAuthStore();
+  const clearStudent = useStudentStore((s) => s.clearStudent);
+  const clearRequests = useRequestStore((s) => s.clearRequests);
+  const clearMessages = useChatStore((s) => s.clearMessages);
+  const clearNotifications = useNotificationStore(
+    (s) => s.clearNotifications,
+  );
+
+  useEffect(() => {
+    registerLogoutCleanup(clearStudent);
+    registerLogoutCleanup(clearRequests);
+    registerLogoutCleanup(clearMessages);
+    registerLogoutCleanup(clearNotifications);
+  }, [clearStudent, clearRequests, clearMessages, clearNotifications]);
 
   useEffect(() => {
     if (accessToken && isAuthenticated) {
-      // Sync access token to localStorage for axios interceptor
       localStorage.setItem('accessToken', accessToken);
-      // Sync access token to cookie for Next.js middleware
       document.cookie = `sisp-auth-token=${accessToken}; path=/; SameSite=Strict`;
     } else {
-      // Clear the cookie on logout
       document.cookie =
         'sisp-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
