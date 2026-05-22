@@ -83,15 +83,15 @@ export default function RequestsPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="mx-auto max-w-4xl px-6 py-8">
-        <div className="mb-8 flex items-center justify-between">
+      <main className="mx-auto max-w-4xl px-6 py-8 pb-24 md:pb-8">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Document Requests</h1>
             <p className="text-muted-foreground">
               Request official academic documents
             </p>
           </div>
-          <Button onClick={() => setShowForm(!showForm)} size="sm">
+          <Button onClick={() => setShowForm(!showForm)} size="sm" className="w-full md:w-auto h-10 bg-[#1e3a8a] text-white rounded-xl shadow-sm">
             <Plus className="mr-2 h-4 w-4" />
             New Request
           </Button>
@@ -156,25 +156,25 @@ export default function RequestsPage() {
 
         {/* Summary */}
         {!isLoading && (
-          <div className="mb-6 grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pb-4 pt-4">
+          <div className="mb-6 grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+            <Card className="border-slate-100 shadow-sm bg-slate-50/50">
+              <CardContent className="pb-4 pt-4 text-center">
                 <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold">{requests.length}</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pb-4 pt-4">
-                <p className="text-xs text-muted-foreground">In Progress</p>
-                <p className="text-2xl font-bold text-primary">
+            <Card className="border-slate-100 shadow-sm bg-blue-50/30 border-blue-100/50">
+              <CardContent className="pb-4 pt-4 text-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">In Progress</p>
+                <p className="text-2xl font-black text-[#1e3a8a]">
                   {pendingCount}
                 </p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pb-4 pt-4">
-                <p className="text-xs text-muted-foreground">Released</p>
-                <p className="text-2xl font-bold text-green-600">
+            <Card className="border-slate-100 shadow-sm bg-emerald-50/30 border-emerald-100/50 col-span-2 md:col-span-1">
+              <CardContent className="pb-4 pt-4 text-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Released</p>
+                <p className="text-2xl font-black text-emerald-600">
                   {requests.filter((r) => r.status === 'released').length}
                 </p>
               </CardContent>
@@ -200,11 +200,11 @@ export default function RequestsPage() {
         ) : (
           <div className="space-y-4">
             {requests.map((request) => (
-              <Card key={request.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
+              <Card key={request.id} className="border-slate-100 shadow-sm overflow-hidden">
+                <CardHeader className="pb-3 bg-white">
+                  <div className="flex items-start justify-between gap-2">
                     <div>
-                      <CardTitle className="text-base">
+                      <CardTitle className="text-sm font-bold text-slate-800 leading-tight">
                         {request.typeLabel}
                       </CardTitle>
                       <CardDescription>
@@ -219,19 +219,23 @@ export default function RequestsPage() {
                         )}
                       </CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-end gap-2 shrink-0">
                       <Badge
-                        variant={
+                        variant="outline"
+                        className={`text-[9px] px-1.5 py-0 rounded font-bold border-0 ${
                           request.status === 'rejected'
-                            ? 'destructive'
-                            : 'secondary'
-                        }
+                            ? 'bg-rose-50 text-rose-600'
+                            : request.status === 'released'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : 'bg-blue-50 text-[#1e3a8a]'
+                        }`}
                       >
                         {request.status.replace('_', ' ')}
                       </Badge>
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-8 w-8 p-0 rounded-full hover:bg-slate-100 text-slate-400"
                         onClick={() =>
                           setExpandedId(
                             expandedId === request.id ? null : request.id,

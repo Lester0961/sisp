@@ -71,28 +71,28 @@ export default function RegisterPage() {
       <div className="flex justify-start">
         <Link 
           href="/"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-indigo-300 hover:text-white transition-all duration-300 group shadow-sm"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-[#1e3a8a] transition-all duration-300 group shadow-sm"
         >
           <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform duration-300" />
           Back to Home
         </Link>
       </div>
 
-      {/* Glassmorphic Portal Panel */}
-      <div className="bg-white/[0.02] border border-white/[0.07] backdrop-blur-2xl rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:border-white/10 transition-all duration-300 w-full text-left space-y-6">
+      {/* Card Panel */}
+      <div className="bg-white border border-slate-100 rounded-3xl p-6 sm:p-8 shadow-xl hover:shadow-2xl transition-all duration-300 w-full text-left space-y-6">
         
         {/* Header */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-              <GraduationCap className="h-4 w-4 text-indigo-400" />
+            <div className="h-7 w-7 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center">
+              <GraduationCap className="h-4 w-4 text-[#1e3a8a]" />
             </div>
-            <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">SISP REGISTER PORTAL</span>
+            <span className="text-[10px] font-bold text-[#1e3a8a] uppercase tracking-widest">SISP REGISTER PORTAL</span>
           </div>
-          <h2 className="text-2xl font-black bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+          <h2 className="text-2xl font-black text-slate-900">
             Create Account
           </h2>
-          <p className="text-xs text-slate-400 font-medium">
+          <p className="text-xs text-slate-500 font-medium">
             Register with your institutional credentials.
           </p>
         </div>
@@ -108,7 +108,7 @@ export default function RegisterPage() {
 
           {/* Email */}
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-bold text-slate-300 uppercase tracking-wide">
+            <label htmlFor="email" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
               Email Address
             </label>
             <input
@@ -117,7 +117,7 @@ export default function RegisterPage() {
               placeholder="you@rmc.edu.ph"
               autoComplete="email"
               disabled={isLoading}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 hover:border-white/20 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 backdrop-blur-md rounded-xl text-xs transition-all duration-300 outline-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-900 placeholder-slate-400 focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 rounded-xl text-xs transition-all duration-300 outline-none"
               {...register('email')}
             />
             {errors.email && (
@@ -129,13 +129,13 @@ export default function RegisterPage() {
 
           {/* Role */}
           <div className="space-y-1.5">
-            <label htmlFor="role" className="text-xs font-bold text-slate-300 uppercase tracking-wide">
+            <label htmlFor="role" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
               Institutional Role
             </label>
             <select
               id="role"
               disabled={isLoading}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 hover:border-white/20 text-white focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 backdrop-blur-md rounded-xl text-xs transition-all duration-300 outline-none appearance-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-900 focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 rounded-xl text-xs transition-all duration-300 outline-none appearance-none"
               defaultValue=""
               onChange={(e) =>
                 setValue(
@@ -145,11 +145,11 @@ export default function RegisterPage() {
                 )
               }
             >
-              <option value="" disabled className="bg-slate-900 text-slate-400">Select your role</option>
-              <option value="student" className="bg-slate-900 text-white">Student</option>
-              <option value="faculty" className="bg-slate-900 text-white">Faculty</option>
-              <option value="admin_staff" className="bg-slate-900 text-white">Admin Staff</option>
-              <option value="dean" className="bg-slate-900 text-white">Dean</option>
+              <option value="" disabled className="bg-white text-slate-400">Select your role</option>
+              <option value="student" className="bg-white text-slate-900">Student</option>
+              <option value="faculty" className="bg-white text-slate-900">Faculty</option>
+              <option value="admin_staff" className="bg-white text-slate-900">Admin Staff</option>
+              <option value="dean" className="bg-white text-slate-900">Dean</option>
             </select>
             {errors.roleName && (
               <p className="text-[10px] font-semibold text-red-400">
@@ -160,7 +160,7 @@ export default function RegisterPage() {
 
           {/* Password */}
           <div className="space-y-1.5">
-            <label htmlFor="password" className="text-xs font-bold text-slate-300 uppercase tracking-wide">
+            <label htmlFor="password" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
               Password
             </label>
             <input
@@ -169,7 +169,7 @@ export default function RegisterPage() {
               placeholder="••••••••"
               autoComplete="new-password"
               disabled={isLoading}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 hover:border-white/20 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 backdrop-blur-md rounded-xl text-xs transition-all duration-300 outline-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-900 placeholder-slate-400 focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 rounded-xl text-xs transition-all duration-300 outline-none"
               {...register('password')}
             />
             {errors.password && (
@@ -181,7 +181,7 @@ export default function RegisterPage() {
 
           {/* Confirm Password */}
           <div className="space-y-1.5">
-            <label htmlFor="confirmPassword" className="text-xs font-bold text-slate-300 uppercase tracking-wide">
+            <label htmlFor="confirmPassword" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
               Confirm Password
             </label>
             <input
@@ -190,7 +190,7 @@ export default function RegisterPage() {
               placeholder="••••••••"
               autoComplete="new-password"
               disabled={isLoading}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 hover:border-white/20 text-white placeholder-slate-500 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 backdrop-blur-md rounded-xl text-xs transition-all duration-300 outline-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-900 placeholder-slate-400 focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 rounded-xl text-xs transition-all duration-300 outline-none"
               {...register('confirmPassword')}
             />
             {errors.confirmPassword && (
@@ -208,7 +208,7 @@ export default function RegisterPage() {
                 type="checkbox"
                 checked={consentChecked}
                 disabled={isLoading}
-                className="mt-0.5 h-3.5 w-3.5 rounded border-white/10 bg-white/5 text-indigo-600 focus:ring-indigo-500/20 focus:ring-opacity-25 accent-indigo-600"
+                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 bg-white text-[#1e3a8a] focus:ring-[#1e3a8a]/20 focus:ring-opacity-25 accent-[#1e3a8a]"
                 onChange={(e) => {
                   const value = e.target.checked;
                   setConsentChecked(value);
@@ -217,10 +217,10 @@ export default function RegisterPage() {
               />
               <label
                 htmlFor="consent"
-                className="text-[10px] leading-relaxed text-slate-400 cursor-pointer select-none"
+                className="text-[10px] leading-relaxed text-slate-500 cursor-pointer select-none"
               >
                 I consent to the collection and processing of my personal data by Regis Marie College in accordance with{' '}
-                <span className="font-bold text-slate-200">
+                <span className="font-bold text-slate-800">
                   RA 10173 (Data Privacy Act of 2012)
                 </span>
                 . My data will be used solely for academic and administrative purposes.
@@ -236,7 +236,7 @@ export default function RegisterPage() {
           {/* Submit */}
           <button 
             type="submit" 
-            className="w-full mt-4 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-700 hover:from-indigo-500 hover:to-violet-600 text-white font-bold text-xs rounded-xl shadow-lg hover:shadow-indigo-500/20 active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-1.5 disabled:opacity-55 disabled:pointer-events-none"
+            className="w-full mt-4 py-3.5 bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-1.5 disabled:opacity-55 disabled:pointer-events-none"
             disabled={isLoading || !consentChecked}
           >
             {isLoading ? (
@@ -250,13 +250,12 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        {/* Footer info inside card */}
-        <div className="border-t border-white/[0.06] pt-4 text-center">
-          <p className="text-xs text-slate-400 font-medium">
+        <div className="border-t border-slate-100 pt-4 text-center">
+          <p className="text-xs text-slate-500 font-medium">
             Already have an account?{' '}
             <Link
               href="/login"
-              className="font-bold text-indigo-400 hover:text-indigo-300 underline underline-offset-4 transition-colors"
+              className="font-bold text-[#1e3a8a] hover:text-[#1e3a8a]/80 underline underline-offset-4 transition-colors"
             >
               Sign in
             </Link>

@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Loader2 } from 'lucide-react';
 
-import ChatWidget from '@/components/chat/ChatWidget';
-
+import { MobileBottomNav } from '@/components/shared/MobileBottomNav';
 export default function ProtectedLayout({
   children,
 }: {
@@ -30,9 +29,9 @@ export default function ProtectedLayout({
   }
 
   return (
-    <>
+    <div className="flex min-h-screen flex-col pb-20 md:pb-0">
       {children}
-      <ChatWidget />
-    </>
+      <MobileBottomNav />
+    </div>
   );
 }
