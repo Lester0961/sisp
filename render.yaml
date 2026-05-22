@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: sisp-backend
+    env: node
+    rootDir: sisp-backend
+    buildCommand: pnpm install && npx prisma generate && pnpm build
+    startCommand: pnpm start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: PORT
+        value: "3001"
+      - key: FRONTEND_URL
+        sync: false # Set this to the Vercel URL later

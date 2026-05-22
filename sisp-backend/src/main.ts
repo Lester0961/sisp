@@ -9,9 +9,10 @@ async function bootstrap() {
   // Global prefix for all routes
   app.setGlobalPrefix('api');
 
-  // Enable CORS for frontend dev server
+  // Enable CORS for frontend dev server and production
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   app.enableCors({
-    origin: ['http://localhost:3000'],
+    origin: [frontendUrl, 'http://localhost:3000'],
     credentials: true,
   });
 
