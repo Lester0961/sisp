@@ -81,7 +81,7 @@ export default function RequestsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar unreadCount={unreadCount} />
+      <Navbar />
 
       <main className="mx-auto max-w-4xl px-6 py-8">
         <div className="mb-8 flex items-center justify-between">

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Loader2 } from 'lucide-react';
 
+import ChatWidget from '@/components/chat/ChatWidget';
+
 export default function ProtectedLayout({
   children,
 }: {
@@ -27,5 +29,10 @@ export default function ProtectedLayout({
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <ChatWidget />
+    </>
+  );
 }

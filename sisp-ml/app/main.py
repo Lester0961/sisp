@@ -11,20 +11,20 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print(f"🚀 {settings.app_name} v{settings.app_version} starting...")
+    print(f"[STARTING] {settings.app_name} v{settings.app_version} starting...")
     print(f"   Embedding model: {settings.embedding_model}")
     print(f"   Confidence threshold: {settings.confidence_threshold}")
 
     db_ok = check_db_connection()
     if db_ok:
-        print("   ✅ Database connection: OK")
+        print("   [OK] Database connection: OK")
     else:
-        print("   ⚠️  Database connection: FAILED (will retry on requests)")
+        print("   [WARNING] Database connection: FAILED (will retry on requests)")
 
     yield
 
     # Shutdown
-    print("👋 ARIA ML Service shutting down...")
+    print("[SHUTDOWN] ARIA ML Service shutting down...")
 
 
 app = FastAPI(

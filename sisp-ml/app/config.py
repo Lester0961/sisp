@@ -2,6 +2,11 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
+import os
+
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_path = os.path.join(base_dir, ".env")
+
 class Settings(BaseSettings):
     # Application
     app_name: str = "SISP ML Service — ARIA"
@@ -25,7 +30,7 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
 
     class Config:
-        env_file = ".env"
+        env_file = env_path
         env_file_encoding = "utf-8"
         case_sensitive = False
 

@@ -13,6 +13,8 @@ import { EnrollmentModule } from './modules/enrollment/enrollment.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { ChatbotModule } from './modules/chat/chatbot.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
@@ -33,6 +35,8 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     DocumentsModule,
     NotificationsModule,
     AuditModule,
+    ChatbotModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

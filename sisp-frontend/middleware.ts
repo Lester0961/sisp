@@ -15,7 +15,7 @@ const ROLE_ROUTES: Record<string, string[]> = {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
+  if (pathname === '/' || PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     return NextResponse.next();
   }
 

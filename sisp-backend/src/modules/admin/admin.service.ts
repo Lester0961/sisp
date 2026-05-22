@@ -52,4 +52,39 @@ export class AdminService {
       data: updated,
     };
   }
+
+  async listUsers(page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        skip,
+        take: limit,
+        include: {
+          role: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.user.count(),
+    ]);
+
+    return { data, total };
+  }
+
+  async updateUserRole(userId: string, roleId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { roleId },
+      include: { role: true },
+    });
+  }
+
+  async deactivateUser(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false },
+      include: { role: true },
+    });
+  }
 }
