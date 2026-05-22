@@ -53,6 +53,26 @@ export class AuthService {
       },
     });
 
+    if (role.name === 'student') {
+      const program = await this.prisma.program.findFirst();
+      if (program) {
+        await this.prisma.studentProfile.create({
+          data: {
+            userId: user.id,
+            studentNumber: `STU-${Math.floor(10000 + Math.random() * 90000)}`,
+            programId: program.id,
+            yearLevel: 1,
+            accountBalance: {
+              create: {
+                balance: 0,
+                status: 'good_standing',
+              }
+            }
+          }
+        });
+      }
+    }
+
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email, role.name);
 
