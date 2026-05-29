@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudentStore } from '@/stores/studentStore';
 import { Navbar } from '@/components/shared/Navbar';
@@ -13,6 +14,7 @@ import { toast } from 'sonner';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const {
     profile,
     enrollments,
@@ -21,16 +23,33 @@ export default function DashboardPage() {
     fetchEnrollments,
   } = useStudentStore();
 
+  useEffect(() => {
+    if (user && user.role !== 'student') {
+      if (user.role === 'admin_staff') {
+        router.replace('/admin/dashboard');
+      } else if (user.role === 'dean') {
+        router.replace('/admin/dashboard');
+      } else if (user.role === 'faculty') {
+        router.replace('/admin/dashboard');
+      }
+    }
+  }, [user, router]);
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifs, setIsLoadingNotifs] = useState(true);
 
   useEffect(() => {
+    if (user?.role !== 'student') return;
     if (!profile) void fetchProfile();
     if (enrollments.length === 0) void fetchEnrollments();
-  }, [profile, enrollments.length, fetchProfile, fetchEnrollments]);
+  }, [profile, enrollments.length, fetchProfile, fetchEnrollments, user?.role]);
 
   useEffect(() => {
+    if (user?.role !== 'student') {
+      setIsLoadingNotifs(false);
+      return;
+    }
     const fetchNotifs = async () => {
       try {
         const data = await notificationsApi.getMyNotifications();
@@ -43,7 +62,7 @@ export default function DashboardPage() {
       }
     };
     void fetchNotifs();
-  }, []);
+  }, [user?.role]);
 
   const handleMarkAllRead = async () => {
     try {
@@ -66,6 +85,14 @@ export default function DashboardPage() {
   );
 
   const isLoading = isLoadingProfile || isLoadingNotifs;
+
+  if (!user || user.role !== 'student') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

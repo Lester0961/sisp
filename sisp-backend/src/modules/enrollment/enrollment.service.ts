@@ -77,6 +77,23 @@ export class EnrollmentService {
       },
     });
 
+    // Auto-create a default Grade record for this enrollment so the student immediately appears in the grade evaluation matrix
+    try {
+      await this.prisma.grade.create({
+        data: {
+          enrollmentId: enrollment.id,
+          prelim: null,
+          midterm: null,
+          finals: null,
+          finalGrade: null,
+          isVisible: false,
+        },
+      });
+    } catch (gradeErr) {
+      console.error('Failed to auto-create grade record on enrollment:', gradeErr);
+      // Non-blocking catch to ensure enrollment success still completes
+    }
+
     return {
       message: `Successfully enrolled in ${course.code} - ${course.title}`,
       data: enrollment,

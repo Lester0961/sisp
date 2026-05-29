@@ -28,4 +28,11 @@ export const authApi = {
     });
     return response.data;
   },
+
+  changePassword: async (newPassword: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>('/auth/change-password', {
+      newPassword,
+    });
+    return response.data;
+  },
 };

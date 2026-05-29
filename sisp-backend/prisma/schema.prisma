@@ -53,10 +53,11 @@ model User {
   passwordHash String   @map("password_hash")
   firstName    String   @default("") @map("first_name")
   lastName     String   @default("") @map("last_name")
-  roleId       String   @map("role_id")
-  role         Role     @relation(fields: [roleId], references: [id])
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
+  roleId             String            @map("role_id")
+  role               Role              @relation(fields: [roleId], references: [id])
+  isActive           Boolean           @default(true) @map("is_active")
+  mustChangePassword Boolean           @default(true) @map("must_change_password")
+  createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   // Relations

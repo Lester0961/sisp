@@ -44,6 +44,10 @@ export function middleware(request: NextRequest) {
 
     for (const [route, allowedRoles] of Object.entries(ROLE_ROUTES)) {
       if (pathname.startsWith(route) && !allowedRoles.includes(role)) {
+        // Allow dean and faculty to access the /admin/dashboard
+        if (route === '/admin' && pathname.startsWith('/admin/dashboard') && (role === 'dean' || role === 'faculty')) {
+          continue;
+        }
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
     }

@@ -1,3 +1,4 @@
+// Admin controller mapping secure administrative routes
 import {
   Controller,
   Get,
@@ -6,16 +7,18 @@ import {
   Param,
   Body,
   Query,
+  Delete,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { UsersService } from '../users/users.service';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 @Controller('admin')
-@Roles('admin_staff', 'dean')
+@Roles('admin_staff', 'dean', 'faculty')
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
@@ -66,6 +69,18 @@ export class AdminController {
   @Roles('admin_staff')
   async deactivateUser(@Param('id') id: string) {
     return this.adminService.deactivateUser(id);
+  }
+
+  @Post('users/create')
+  @Roles('admin_staff')
+  async createUser(@Body() dto: CreateUserDto) {
+    return this.adminService.createUser(dto);
+  }
+
+  @Delete('users/:id')
+  @Roles('admin_staff')
+  async deleteUser(@Param('id') id: string) {
+    return this.adminService.deleteUser(id);
   }
 
   // ── Dean exception approval (FIX #9) ─────────────────────

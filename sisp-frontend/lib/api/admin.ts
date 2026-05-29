@@ -49,4 +49,22 @@ export const adminApi = {
     });
     return response.data;
   },
+
+  createUser: async (data: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    roleName: string;
+    studentNumber?: string;
+    programId?: string;
+    temporaryPassword?: string;
+  }): Promise<{ message: string; user: UserProfile; temporaryPassword?: string }> => {
+    const response = await apiClient.post('/admin/users/create', data);
+    return response.data;
+  },
+
+  deleteUser: async (userId: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete(`/admin/users/${userId}`);
+    return response.data;
+  },
 };

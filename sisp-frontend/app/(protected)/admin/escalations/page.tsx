@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { chatApi, EscalationRecord } from '@/lib/api/chat';
+import { Navbar } from '@/components/shared/Navbar';
 import { 
   ShieldAlert, 
   CheckCircle, 
@@ -115,7 +116,15 @@ export default function EscalationsPage() {
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden selection:bg-[#1e3a8a]/20">
+      
+      {/* Background Depth Ambient Blobs */}
+      <div className="absolute top-[5%] right-[10%] h-[400px] w-[400px] rounded-full bg-indigo-500/5 blur-[130px] animate-pulse duration-[7s] pointer-events-none" />
+      <div className="absolute bottom-[20%] left-[5%] h-[350px] w-[350px] rounded-full bg-violet-600/5 blur-[120px] pointer-events-none" />
+
+      <Navbar />
+
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-8 z-10 animate-in fade-in duration-500">
       {/* Page Header */}
       <div className="flex flex-row items-center justify-between">
         <div>
@@ -429,6 +438,12 @@ export default function EscalationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </main>
+
+      {/* Footer */}
+      <footer className="w-full text-center py-6 border-t border-slate-100 text-slate-400 text-[10px] pointer-events-none select-none">
+        &copy; {new Date().getFullYear()} Regis Marie College SISP. Built with high-fidelity advising models.
+      </footer>
     </div>
   );
 }

@@ -2,6 +2,7 @@ export interface User {
   id: string;
   email: string;
   role: 'student' | 'faculty' | 'admin_staff' | 'dean';
+  mustChangePassword?: boolean;
 }
 
 export interface AuthTokens {

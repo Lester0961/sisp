@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -20,6 +21,7 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
+    throw new ForbiddenException('Public self-registration is disabled. Please contact your administrator.');
     // Check if email already exists
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -46,21 +48,21 @@ export class AuthService {
       data: {
         email: dto.email,
         passwordHash,
-        roleId: role.id,
+        roleId: role!.id,
       },
       include: {
         role: true,
       },
     });
 
-    if (role.name === 'student') {
+    if (role!.name === 'student') {
       const program = await this.prisma.program.findFirst();
       if (program) {
         await this.prisma.studentProfile.create({
           data: {
             userId: user.id,
             studentNumber: `STU-${Math.floor(10000 + Math.random() * 90000)}`,
-            programId: program.id,
+            programId: program!.id,
             yearLevel: 1,
             accountBalance: {
               create: {
@@ -74,14 +76,14 @@ export class AuthService {
     }
 
     // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email, role.name);
+    const tokens = await this.generateTokens(user.id, user.email, role!.name);
 
     return {
       message: 'Registration successful',
       user: {
         id: user.id,
         email: user.email,
-        role: role.name,
+        role: role!.name,
       },
       ...tokens,
     };
@@ -125,6 +127,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role.name,
+        mustChangePassword: user.mustChangePassword,
       },
       ...tokens,
     };
@@ -179,5 +182,27 @@ export class AuthService {
     ]);
 
     return { accessToken, refreshToken };
+  }
+
+  async changePassword(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+      },
+    });
+
+    return { message: 'Password updated successfully' };
   }
 }

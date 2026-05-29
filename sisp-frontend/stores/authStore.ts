@@ -8,10 +8,12 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  hasHydrated: boolean;
 
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
   setAccessToken: (accessToken: string) => void;
   setLoading: (isLoading: boolean) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
   logout: () => void;
 }
 
@@ -30,6 +32,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
+      hasHydrated: false,
 
       setAuth: (user, accessToken, refreshToken) => {
         if (typeof window !== 'undefined') {
@@ -53,6 +56,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       setLoading: (isLoading) => set({ isLoading }),
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
 
       logout: () => {
         if (typeof window !== 'undefined') {
@@ -73,6 +77,9 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'sisp-auth-storage',
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,

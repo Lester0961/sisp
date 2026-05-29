@@ -12,7 +12,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const { accessToken, isAuthenticated } = useAuthStore();
+  const { accessToken, isAuthenticated, hasHydrated } = useAuthStore();
   const clearStudent = useStudentStore((s) => s.clearStudent);
   const clearRequests = useRequestStore((s) => s.clearRequests);
   const clearMessages = useChatStore((s) => s.clearMessages);
@@ -28,6 +28,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [clearStudent, clearRequests, clearMessages, clearNotifications]);
 
   useEffect(() => {
+    if (!hasHydrated) return;
+
     if (accessToken && isAuthenticated) {
       localStorage.setItem('accessToken', accessToken);
       document.cookie = `sisp-auth-token=${accessToken}; path=/; SameSite=Strict`;
@@ -35,7 +37,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       document.cookie =
         'sisp-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     }
-  }, [accessToken, isAuthenticated]);
+  }, [accessToken, isAuthenticated, hasHydrated]);
 
   return <>{children}</>;
 }

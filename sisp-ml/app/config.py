@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     embedding_dimension: int = 384
     confidence_threshold: float = 0.7
 
+    # ML Admin Secret
+    ml_secret_token: str = ""
+
     # Supabase
     supabase_url: str = ""
     supabase_anon_key: str = ""

@@ -12,7 +12,13 @@ async function bootstrap() {
   // Enable CORS for frontend dev server and production
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   app.enableCors({
-    origin: [frontendUrl, 'http://localhost:3000', 'https://sisp-theta.vercel.app'],
+    origin: [
+      frontendUrl,
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'https://sisp-theta.vercel.app',
+    ],
     credentials: true,
   });
 

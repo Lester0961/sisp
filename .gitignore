@@ -64,3 +64,8 @@ desktop.ini
 # ========================
 .vercel/
 .render/
+
+.commandcode/
+docs/
+how commit_hash
+.pytest_cache/

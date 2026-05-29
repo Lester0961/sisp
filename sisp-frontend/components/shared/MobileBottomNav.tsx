@@ -2,19 +2,41 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, BookOpen, MessageSquare, FileText, Settings, Sparkles } from 'lucide-react';
+import { LayoutDashboard, BookOpen, MessageSquare, FileText, Settings, Sparkles, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/stores/authStore';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/grades', label: 'Grades', icon: BookOpen },
-  { href: '/chat', label: 'ARIA Chat', icon: Sparkles, isCenter: true },
-  { href: '/requests', label: 'Documents', icon: FileText },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
+const roleNavs = {
+  student: [
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/grades', label: 'Grades', icon: BookOpen },
+    { href: '/chat', label: 'ARIA Chat', icon: Sparkles, isCenter: true },
+    { href: '/requests', label: 'Documents', icon: FileText },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ],
+  faculty: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/faculty/grades', label: 'Grades', icon: BookOpen },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ],
+  dean: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dean/exceptions', label: 'Exceptions', icon: FileText },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ],
+  admin_staff: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/escalations', label: 'ARIA', icon: Sparkles, isCenter: true },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ],
+};
 
 export function MobileBottomNav() {
   const pathname = usePathname();
+  const { user } = useAuthStore();
+  const userRole = user?.role || 'student';
+  const navItems = roleNavs[userRole] || roleNavs.student;
 
   return (
     <div className="fixed bottom-0 left-0 z-50 w-full md:hidden">

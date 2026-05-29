@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Loader2 } from 'lucide-react';
 
@@ -12,15 +12,24 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isLoading, hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+    if (hasHydrated && !isLoading) {
+      if (!isAuthenticated) {
+        router.push('/login');
+      } else if (user?.mustChangePassword) {
+        if (pathname !== '/force-password-change') {
+          router.push('/force-password-change');
+        }
+      } else if (pathname === '/force-password-change') {
+        router.push('/dashboard');
+      }
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [hasHydrated, isAuthenticated, isLoading, user?.mustChangePassword, pathname, router]);
 
-  if (isLoading || !isAuthenticated) {
+  if (!hasHydrated || isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -28,10 +37,13 @@ export default function ProtectedLayout({
     );
   }
 
+  // If password change is required, hide general layout details and only render the child change page
+  const isForceResetPage = pathname === '/force-password-change';
+
   return (
     <div className="flex min-h-screen flex-col pb-20 md:pb-0">
       {children}
-      <MobileBottomNav />
+      {!isForceResetPage && <MobileBottomNav />}
     </div>
   );
 }

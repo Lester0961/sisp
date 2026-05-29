@@ -39,6 +39,8 @@ interface AdminState {
   approveDeanException: (exceptionId: string, decision: 'approved' | 'rejected') => Promise<void>;
   downloadEnrollmentReport: () => Promise<void>;
   downloadGradeTranscript: (studentId: string) => Promise<void>;
+  createUser: (data: any) => Promise<{ user: UserProfile; temporaryPassword?: string }>;
+  deleteUser: (userId: string) => Promise<void>;
 }
 
 export const useAdminStore = create<AdminState>()((set, get) => ({
@@ -190,6 +192,35 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       document.body.removeChild(a);
     } catch (err: any) {
       console.error('Failed to download grade PDF report:', err);
+    }
+  },
+
+  createUser: async (data: any) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await adminApi.createUser(data);
+      // Fetch users again to reload the current page table
+      await get().fetchUsers(get().currentPage, get().limit);
+      set({ isLoading: false });
+      return { user: res.user, temporaryPassword: res.temporaryPassword };
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || 'Failed to create user.';
+      set({ error: errMsg, isLoading: false });
+      throw err;
+    }
+  },
+
+  deleteUser: async (userId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await adminApi.deleteUser(userId);
+      // Fetch users again to reload the current page table
+      await get().fetchUsers(get().currentPage, get().limit);
+      set({ isLoading: false });
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || 'Failed to delete user.';
+      set({ error: errMsg, isLoading: false });
+      throw err;
     }
   },
 }));

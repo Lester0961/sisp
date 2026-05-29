@@ -1,6 +1,8 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class PrismaService
@@ -82,6 +84,7 @@ export class PrismaService
         lastName: 'Admin',
         roleId: 'role-id-admin_staff',
         isActive: true,
+        mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         role: roles[0],
@@ -94,6 +97,7 @@ export class PrismaService
         lastName: 'Dean',
         roleId: 'role-id-dean',
         isActive: true,
+        mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         role: roles[1],
@@ -106,6 +110,7 @@ export class PrismaService
         lastName: 'Faculty',
         roleId: 'role-id-faculty',
         isActive: true,
+        mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         role: roles[2],
@@ -118,6 +123,7 @@ export class PrismaService
         lastName: 'Doe',
         roleId: 'role-id-student',
         isActive: true,
+        mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
         role: roles[3],
@@ -362,23 +368,116 @@ export class PrismaService
       auditLog: auditLogs,
     };
 
+    const dbFilePath = path.join(process.cwd(), 'mock-db.json');
+
+    // Load existing mock DB from disk if it exists
+    if (fs.existsSync(dbFilePath)) {
+      try {
+        const fileData = fs.readFileSync(dbFilePath, 'utf8');
+        const parsed = JSON.parse(fileData);
+        for (const key of Object.keys(store)) {
+          if (parsed[key] && Array.isArray(parsed[key])) {
+            store[key] = parsed[key];
+          }
+        }
+        console.log('[Prisma Mock] Loaded database state from mock-db.json');
+      } catch (err) {
+        console.error('[Prisma Mock] Failed to read mock-db.json:', err);
+      }
+    }
+
+    const saveDb = () => {
+      try {
+        fs.writeFileSync(dbFilePath, JSON.stringify(store, null, 2), 'utf8');
+      } catch (err) {
+        console.error('[Prisma Mock] Failed to write mock-db.json:', err);
+      }
+    };
+
+    // Recursive mock relation populate helper
+    const resolveIncludes = (item: any, include: any, modelKey: string): any => {
+      if (!item || !include) return item;
+      const cloned = { ...item };
+      for (const [key, val] of Object.entries(include)) {
+        if (!val) continue;
+        const subInclude = typeof val === 'object' && val !== null ? (val as any).include : undefined;
+
+        if (modelKey === 'escalationQueue') {
+          if (key === 'chat') {
+            const chatItem = store.chatLog.find((c) => c.id === cloned.chatId);
+            if (chatItem) {
+              cloned.chat = resolveIncludes(chatItem, subInclude || { user: true }, 'chatLog');
+            }
+          }
+          if (key === 'assignee') {
+            const userItem = store.user.find((u) => u.id === cloned.assignedTo);
+            if (userItem) {
+              cloned.assignee = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+        }
+        if (modelKey === 'chatLog') {
+          if (key === 'user') {
+            const userItem = store.user.find((u) => u.id === cloned.userId);
+            if (userItem) {
+              cloned.user = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+          if (key === 'escalation') {
+            const escItem = store.escalationQueue.find((e) => e.chatId === cloned.id);
+            if (escItem) {
+              cloned.escalation = resolveIncludes(escItem, subInclude, 'escalationQueue');
+            }
+          }
+        }
+        if (modelKey === 'user') {
+          if (key === 'role') {
+            const roleItem = store.role.find((r) => r.id === cloned.roleId);
+            if (roleItem) {
+              cloned.role = resolveIncludes(roleItem, subInclude, 'role');
+            }
+          }
+        }
+        if (modelKey === 'studentProfile') {
+          if (key === 'user') {
+            const userItem = store.user.find((u) => u.id === cloned.userId);
+            if (userItem) {
+              cloned.user = resolveIncludes(userItem, subInclude || { role: true }, 'user');
+            }
+          }
+          if (key === 'program') {
+            const progItem = store.program.find((p) => p.id === cloned.programId);
+            if (progItem) {
+              cloned.program = resolveIncludes(progItem, subInclude, 'program');
+            }
+          }
+          if (key === 'accountBalance') {
+            const balItem = cloned.accountBalance || store.studentProfile.find((sp) => sp.id === cloned.id)?.accountBalance;
+            if (balItem) {
+              cloned.accountBalance = resolveIncludes(balItem, subInclude, 'accountBalance');
+            }
+          }
+        }
+      }
+      return cloned;
+    };
+
     // Build mock model actions
     for (const modelKey of Object.keys(store)) {
       this.mockDb[modelKey] = {
         findUnique: async (args: any) => {
           const list = store[modelKey];
           const where = args?.where || {};
-          return (
-            list.find((item) => {
-              return Object.entries(where).every(([k, v]) => {
-                if (typeof v === 'object' && v !== null) {
-                  // Nested match
-                  return true;
-                }
-                return item[k] === v;
-              });
-            }) || null
-          );
+          const found = list.find((item) => {
+            return Object.entries(where).every(([k, v]) => {
+              if (typeof v === 'object' && v !== null) {
+                // Nested match
+                return true;
+              }
+              return item[k] === v;
+            });
+          }) || null;
+          return found ? resolveIncludes(found, args?.include, modelKey) : null;
         },
         findUniqueOrThrow: async (args: any) => {
           const res = await this.mockDb[modelKey].findUnique(args);
@@ -391,7 +490,7 @@ export class PrismaService
         findMany: async (args: any) => {
           const list = store[modelKey];
           const where = args?.where || {};
-          return list.filter((item) => {
+          const filtered = list.filter((item) => {
             return Object.entries(where).every(([k, v]) => {
               if (typeof v === 'object' && v !== null) {
                 // Nested where (e.g. { enrollment: { studentId: '...' } })
@@ -406,12 +505,14 @@ export class PrismaService
               return item[k] === v;
             });
           });
+          return filtered.map((item) => resolveIncludes(item, args?.include, modelKey));
         },
         create: async (args: any) => {
           const list = store[modelKey];
           const newId = `mock-${modelKey}-${Math.random().toString(36).substr(2, 9)}`;
           const newItem = {
             id: newId,
+            ...(modelKey === 'user' ? { isActive: true, mustChangePassword: true } : {}),
             ...args.data,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -443,7 +544,8 @@ export class PrismaService
           }
 
           list.push(newItem);
-          return newItem;
+          saveDb();
+          return resolveIncludes(newItem, args?.include, modelKey);
         },
         update: async (args: any) => {
           const item = await this.mockDb[modelKey].findUnique({
@@ -452,7 +554,47 @@ export class PrismaService
           if (!item) throw new Error(`${modelKey} not found to update`);
           Object.assign(item, args.data);
           item.updatedAt = new Date();
-          return item;
+          saveDb();
+          return resolveIncludes(item, args?.include, modelKey);
+        },
+        updateMany: async (args: any) => {
+          const list = store[modelKey];
+          const where = args?.where || {};
+          const data = args?.data || {};
+          let count = 0;
+          for (const item of list) {
+            const matches = Object.entries(where).every(([k, v]) => {
+              if (typeof v === 'object' && v !== null) {
+                return true;
+              }
+              return item[k] === v;
+            });
+            if (matches) {
+              Object.assign(item, data);
+              item.updatedAt = new Date();
+              count++;
+            }
+          }
+          saveDb();
+          return { count };
+        },
+        createMany: async (args: any) => {
+          const list = store[modelKey];
+          const itemsData = args?.data || [];
+          let count = 0;
+          for (const dataItem of itemsData) {
+            const newId = `mock-${modelKey}-${Math.random().toString(36).substr(2, 9)}`;
+            const newItem = {
+              id: newId,
+              ...dataItem,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+            list.push(newItem);
+            count++;
+          }
+          saveDb();
+          return { count };
         },
         delete: async (args: any) => {
           const idx = store[modelKey].findIndex((item) => {
@@ -460,7 +602,31 @@ export class PrismaService
           });
           if (idx === -1) throw new Error(`${modelKey} not found to delete`);
           const [removed] = store[modelKey].splice(idx, 1);
+          saveDb();
           return removed;
+        },
+        deleteMany: async (args: any) => {
+          const list = store[modelKey];
+          const where = args?.where || {};
+          let count = 0;
+          for (let i = list.length - 1; i >= 0; i--) {
+            const item = list[i];
+            const matches = Object.entries(where).every(([k, v]) => {
+              if (typeof v === 'object' && v !== null) {
+                if ('in' in v && Array.isArray((v as any).in)) {
+                  return (v as any).in.includes(item[k]);
+                }
+                return true;
+              }
+              return item[k] === v;
+            });
+            if (matches) {
+              list.splice(i, 1);
+              count++;
+            }
+          }
+          saveDb();
+          return { count };
         },
         count: async (args: any) => {
           const list = await this.mockDb[modelKey].findMany(args);
