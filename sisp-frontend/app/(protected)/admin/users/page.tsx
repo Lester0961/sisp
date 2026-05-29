@@ -144,9 +144,9 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleRoleChange = async (userId: string, roleId: string) => {
+  const handleRoleChange = async (userId: string, roleName: string) => {
     try {
-      await updateUserRole(userId, roleId);
+      await updateUserRole(userId, roleName);
       toast.success('User role updated successfully.');
     } catch (err) {
       toast.error('Failed to update role.');
@@ -154,10 +154,10 @@ export default function AdminUsersPage() {
   };
 
   const roleOptions = [
-    { id: 'role-id-admin_staff', name: 'Admin Staff' },
-    { id: 'role-id-faculty', name: 'Faculty' },
-    { id: 'role-id-dean', name: 'Academic Dean' },
-    { id: 'role-id-student', name: 'Student' },
+    { value: 'student', label: 'Student' },
+    { value: 'faculty', label: 'Faculty' },
+    { value: 'dean', label: 'Academic Dean' },
+    { value: 'admin_staff', label: 'Admin Staff' },
   ];
 
   return (
@@ -230,17 +230,17 @@ export default function AdminUsersPage() {
                       <TableCell className="text-xs">
                         <div className="flex items-center space-x-2">
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700">
-                            {roleOptions.find((r) => r.id === u.roleId)?.name || u.role?.name || 'Student'}
+                            {u.role?.name || 'unknown'}
                           </span>
                           
                           <select
-                            defaultValue={u.roleId}
+                            defaultValue={u.role?.name || ''}
                             onChange={(e) => handleRoleChange(u.id, e.target.value)}
                             className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-md text-[10px] p-1 text-slate-700 transition focus:outline-none"
                           >
                             {roleOptions.map((opt) => (
-                              <option key={opt.id} value={opt.id}>
-                                {opt.name}
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
                               </option>
                             ))}
                           </select>

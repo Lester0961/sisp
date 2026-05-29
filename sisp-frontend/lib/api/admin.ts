@@ -32,8 +32,8 @@ export const adminApi = {
     return response.data;
   },
 
-  updateUserRole: async (userId: string, roleId: string): Promise<UserProfile> => {
-    const response = await apiClient.patch(`/admin/users/${userId}/role`, { roleId });
+  updateUserRole: async (userId: string, roleName: string): Promise<UserProfile> => {
+    const response = await apiClient.patch(`/admin/users/${userId}/role`, { roleName });
     return response.data;
   },
 

@@ -74,10 +74,19 @@ export class AdminService {
     return { data, total };
   }
 
-  async updateUserRole(userId: string, roleId: string) {
+  async updateUserRole(userId: string, roleName: string) {
+    // Look up the role by name to get the actual UUID
+    const role = await this.prisma.role.findUnique({
+      where: { name: roleName },
+    });
+
+    if (!role) {
+      throw new NotFoundException(`Role '${roleName}' not found`);
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
-      data: { roleId },
+      data: { roleId: role.id },
       include: { role: true },
     });
   }

@@ -60,9 +60,9 @@ export class AdminController {
   @Roles('admin_staff')
   async updateUserRole(
     @Param('id') id: string,
-    @Body('roleId') roleId: string,
+    @Body('roleName') roleName: string,
   ) {
-    return this.adminService.updateUserRole(id, roleId);
+    return this.adminService.updateUserRole(id, roleName);
   }
 
   @Patch('users/:id/deactivate')

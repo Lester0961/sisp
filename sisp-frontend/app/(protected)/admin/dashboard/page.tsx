@@ -206,9 +206,9 @@ export default function AdminDashboardPage() {
                     Live Feed
                   </div>
                 </div>
-                <div className="h-[250px] w-full text-slate-500">
+                <div className="h-[250px] w-full min-h-[250px] text-slate-500">
                   {enrollmentStats?.data && enrollmentStats.data.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                       <BarChart data={enrollmentStats.data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                         <XAxis dataKey="programName" stroke="#64748B" fontSize={8} tickLine={false} />
                         <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
@@ -248,9 +248,9 @@ export default function AdminDashboardPage() {
                     </h3>
                     <p className="text-[10px] text-slate-400">Distribution of advisor intents classified in real-time</p>
                   </div>
-                  <div className="h-[250px] w-full relative flex items-center justify-center">
+                  <div className="h-[250px] w-full min-h-[250px] relative flex items-center justify-center">
                     {chatbotAnalytics?.intentDistribution && chatbotAnalytics.intentDistribution.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                         <PieChart>
                           <Pie
                             data={chatbotAnalytics.intentDistribution}
@@ -300,9 +300,9 @@ export default function AdminDashboardPage() {
                 <h3 className="text-sm font-bold text-slate-800">SISP GPA Bracket Distributions</h3>
                 <p className="text-[10px] text-slate-400">Student count allocations per academic grading bracket</p>
               </div>
-              <div className="h-[250px] w-full text-slate-500">
+              <div className="h-[250px] w-full min-h-[250px] text-slate-500">
                 {gpaChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                     <BarChart data={gpaChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                       <XAxis dataKey="bracket" stroke="#64748B" fontSize={8} tickLine={false} />
                       <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
@@ -332,9 +332,9 @@ export default function AdminDashboardPage() {
                 <h3 className="text-sm font-bold text-slate-800">Class Performance Outcome Ratios</h3>
                 <p className="text-[10px] text-slate-400">Ratio of student passing outcomes versus failed scores per course</p>
               </div>
-              <div className="h-[250px] w-full text-slate-500">
+              <div className="h-[250px] w-full min-h-[250px] text-slate-500">
                 {passFailData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
                     <BarChart data={passFailData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                       <XAxis dataKey="code" stroke="#64748B" fontSize={8} tickLine={false} />
                       <YAxis stroke="#64748B" fontSize={8} tickLine={false} />

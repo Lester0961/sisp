@@ -29,7 +29,7 @@ interface AdminState {
 
   // Actions
   fetchUsers: (page?: number, limit?: number) => Promise<void>;
-  updateUserRole: (userId: string, roleId: string) => Promise<void>;
+  updateUserRole: (userId: string, roleName: string) => Promise<void>;
   deactivateUser: (userId: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
   fetchEnrollmentStats: () => Promise<void>;
@@ -73,10 +73,10 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
-  updateUserRole: async (userId: string, roleId: string) => {
+  updateUserRole: async (userId: string, roleName: string) => {
     set({ isLoading: true, error: null });
     try {
-      const updatedUser = await adminApi.updateUserRole(userId, roleId);
+      const updatedUser = await adminApi.updateUserRole(userId, roleName);
       // Update local user list
       set((state) => ({
         users: state.users.map((u) => (u.id === userId ? updatedUser : u)),
