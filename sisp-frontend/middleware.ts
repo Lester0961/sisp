@@ -40,6 +40,19 @@ export function middleware(request: NextRequest) {
     const payload = JSON.parse(
       Buffer.from(token.split('.')[1], 'base64').toString(),
     );
+
+    // Check token expiry
+    const exp = payload.exp * 1000;
+    if (Date.now() >= exp) {
+      const loginUrl = new URL('/login', request.url);
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.set('sisp-auth-token', '', {
+        path: '/',
+        expires: new Date(0),
+      });
+      return response;
+    }
+
     const role = payload.role as string;
 
     for (const [route, allowedRoles] of Object.entries(ROLE_ROUTES)) {
@@ -53,7 +66,12 @@ export function middleware(request: NextRequest) {
     }
   } catch {
     const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.set('sisp-auth-token', '', {
+      path: '/',
+      expires: new Date(0),
+    });
+    return response;
   }
 
   return NextResponse.next();

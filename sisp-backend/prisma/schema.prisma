@@ -63,6 +63,7 @@ model User {
   // Relations
   studentProfile StudentProfile?
   auditLogs      AuditLog[]
+  events         Event[]
   notifications  Notification[]
   escalations    EscalationQueue[]
   chatLogs       ChatLog[]
@@ -248,6 +249,27 @@ model DocumentRequest {
   updatedAt DateTime       @updatedAt @map("updated_at")
 
   @@map("document_requests")
+}
+
+// ============================================================
+// EVENTS
+// ============================================================
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  status      String   @default("Upcoming")
+  category    String?
+  venue       String?
+  createdBy   String   @map("created_by") @db.Uuid
+  creator     User     @relation(fields: [createdBy], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("events")
 }
 
 // ============================================================
