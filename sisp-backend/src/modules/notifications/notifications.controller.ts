@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Param,
-  Body,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -16,9 +7,7 @@ import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 @Controller('notifications')
 export class NotificationsController {
-  constructor(
-    private readonly notificationsService: NotificationsService,
-  ) {}
+  constructor(private readonly notificationsService: NotificationsService) {}
 
   // Get unread notification count (for NotificationBell)
   @Get('unread-count')
@@ -39,10 +28,7 @@ export class NotificationsController {
     @CurrentUser() user: JwtPayload,
     @Query('unreadOnly') unreadOnly?: string,
   ) {
-    return this.notificationsService.getMyNotifications(
-      user.sub,
-      unreadOnly === 'true',
-    );
+    return this.notificationsService.getMyNotifications(user.sub, unreadOnly === 'true');
   }
 
   // Mark all as read
@@ -53,19 +39,13 @@ export class NotificationsController {
 
   // Mark one as read
   @Patch(':id/read')
-  async markAsRead(
-    @Param('id') id: string,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  async markAsRead(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.notificationsService.markAsRead(id, user.sub);
   }
 
   // Delete a notification
   @Delete(':id')
-  async deleteNotification(
-    @Param('id') id: string,
-    @CurrentUser() user: JwtPayload,
-  ) {
+  async deleteNotification(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return this.notificationsService.deleteNotification(id, user.sub);
   }
 

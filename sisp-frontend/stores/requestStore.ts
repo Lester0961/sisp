@@ -11,7 +11,8 @@ interface RequestState {
 
   // Actions
   fetchRequests: () => Promise<void>;
-  submitRequest: (type: string, remarks?: string) => Promise<void>;
+  submitRequest: (type: string, remarks?: string) => Promise<any>;
+  confirmPayment: (requestId: string) => Promise<void>;
   clearRequests: () => void;
 }
 
@@ -47,6 +48,7 @@ export const useRequestStore = create<RequestState>()((set) => ({
         requests: [newRequest, ...state.requests],
         isSubmitting: false,
       }));
+      return newRequest;
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       set({
@@ -54,6 +56,23 @@ export const useRequestStore = create<RequestState>()((set) => ({
           err?.response?.data?.message ?? 'Failed to submit request',
         isSubmitting: false,
       });
+      throw error;
+    }
+  },
+
+  confirmPayment: async (requestId: string) => {
+    try {
+      await requestsApi.confirmPayment(requestId);
+      set((state) => ({
+        requests: state.requests.map((r) =>
+          r.id === requestId
+            ? { ...r, status: 'pending', paymentStatus: 'paid' }
+            : r,
+        ),
+      }));
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      set({ error: err?.response?.data?.message ?? 'Failed to confirm payment' });
       throw error;
     }
   },

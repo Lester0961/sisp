@@ -1,9 +1,4 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsIn,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
 
 export class CreateRequestDto {
   @IsString()
@@ -19,8 +14,7 @@ export class CreateRequestDto {
       'other',
     ],
     {
-      message:
-        'Document type must be one of the allowed types',
+      message: 'Document type must be one of the allowed types',
     },
   )
   type: string;

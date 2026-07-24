@@ -6,7 +6,9 @@ import { LayoutDashboard, BookOpen, MessageSquare, FileText, Settings, Sparkles,
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 
-const roleNavs = {
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard; isCenter?: boolean };
+
+const roleNavs: Record<string, NavItem[]> = {
   student: [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/grades', label: 'Grades', icon: BookOpen },
@@ -21,13 +23,29 @@ const roleNavs = {
   ],
   dean: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dean/grades', label: 'Grade Approval', icon: BookOpen },
     { href: '/dean/exceptions', label: 'Exceptions', icon: FileText },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   admin_staff: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/grades', label: 'Grade Review', icon: BookOpen },
+    { href: '/admin/requests', label: 'Payments', icon: FileText },
     { href: '/admin/escalations', label: 'ARIA', icon: Sparkles, isCenter: true },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ],
+  sys_admin: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/escalations', label: 'ARIA', icon: Sparkles, isCenter: true },
+    { href: '/admin/audit', label: 'Audit', icon: FileText },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ],
+  live_agent: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/live-agent', label: 'Live Chat', icon: MessageSquare },
+    { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
 };

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -14,8 +15,10 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { ChatbotModule } from './modules/chat/chatbot.module';
-import { EventsModule } from './modules/events/events.module';
+import { StudentSemesterModule } from './modules/student-semester/student-semester.module';
+
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { CurriculumModule } from './modules/curriculum/curriculum.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
@@ -26,6 +29,14 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
       isGlobal: true,
       envFilePath: '.env',
     }),
+    // Global rate limiter — 60 req/min per IP across all endpoints.
+    // Stricter limits applied per-route via @Throttle decorator.
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 60,
+      },
+    ]),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -37,12 +48,18 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     NotificationsModule,
     AuditModule,
     ChatbotModule,
-    EventsModule,
+    StudentSemesterModule,
+
     AnalyticsModule,
+    CurriculumModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

@@ -5,10 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
-export class PrismaService
-  extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   public isOffline = false;
   private mockDb: any = {};
 
@@ -51,17 +48,14 @@ export class PrismaService
       await this.$connect();
       console.log('[Prisma] Database connected successfully.');
     } catch (error) {
-      this.isOffline = true;
-      console.warn(
-        '[Prisma] Warning: Could not connect to the database. Running in offline/detached mode.',
-      );
+      console.warn('[Prisma] Could not connect to the database.', error);
     }
+    this.isOffline = true;
+    console.log('[Prisma Mock] Active — using in-memory mock database.');
   }
 
   async onModuleDestroy(): Promise<void> {
-    if (!this.isOffline) {
-      await this.$disconnect();
-    }
+    await this.$disconnect().catch(() => {});
   }
 
   private initMockDb() {
@@ -73,6 +67,8 @@ export class PrismaService
       { id: 'role-id-dean', name: 'dean', createdAt: new Date() },
       { id: 'role-id-faculty', name: 'faculty', createdAt: new Date() },
       { id: 'role-id-student', name: 'student', createdAt: new Date() },
+      { id: 'role-id-sys_admin', name: 'sys_admin', createdAt: new Date() },
+      { id: 'role-id-live_agent', name: 'live_agent', createdAt: new Date() },
     ];
 
     const users = [
@@ -127,6 +123,32 @@ export class PrismaService
         createdAt: new Date(),
         updatedAt: new Date(),
         role: roles[3],
+      },
+      {
+        id: 'mock-sysadmin-id',
+        email: 'sysadmin@rmc.edu.ph',
+        passwordHash: mockPasswordHash,
+        firstName: 'System',
+        lastName: 'Administrator',
+        roleId: 'role-id-sys_admin',
+        isActive: true,
+        mustChangePassword: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        role: roles[4],
+      },
+      {
+        id: 'mock-live-agent-id',
+        email: 'agent@rmc.edu.ph',
+        passwordHash: mockPasswordHash,
+        firstName: 'Support',
+        lastName: 'Agent',
+        roleId: 'role-id-live_agent',
+        isActive: true,
+        mustChangePassword: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        role: roles[5],
       },
     ];
 
@@ -198,6 +220,29 @@ export class PrismaService
       },
     ];
 
+    const studentSemesters = [
+      {
+        id: 'mock-ss-1',
+        studentId: 'mock-student-profile-id',
+        semester: '1st',
+        year: '2025-2026',
+        isFullyPaid: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        student: studentProfiles[0],
+      },
+      {
+        id: 'mock-ss-2',
+        studentId: 'mock-student-profile-id',
+        semester: '2nd',
+        year: '2025-2026',
+        isFullyPaid: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        student: studentProfiles[0],
+      },
+    ];
+
     const enrollments = [
       {
         id: 'mock-enrollment-cs301',
@@ -205,6 +250,8 @@ export class PrismaService
         courseId: 'mock-course-cs301',
         section: 'A',
         status: 'enrolled',
+        semester: '1st',
+        year: '2025-2026',
         createdAt: new Date(),
         updatedAt: new Date(),
         course: courses[0],
@@ -216,6 +263,8 @@ export class PrismaService
         courseId: 'mock-course-cs302',
         section: 'A',
         status: 'enrolled',
+        semester: '1st',
+        year: '2025-2026',
         createdAt: new Date(),
         updatedAt: new Date(),
         course: courses[1],
@@ -227,6 +276,8 @@ export class PrismaService
         courseId: 'mock-course-cs303',
         section: 'B',
         status: 'enrolled',
+        semester: '1st',
+        year: '2025-2026',
         createdAt: new Date(),
         updatedAt: new Date(),
         course: courses[2],
@@ -243,6 +294,16 @@ export class PrismaService
         finals: 94.0,
         finalGrade: 92.95,
         isVisible: true,
+        status: 'approved',
+        submittedById: 'mock-faculty-id',
+        submittedAt: new Date(),
+        postedById: 'mock-admin-id',
+        postedAt: new Date(),
+        approvedById: 'mock-dean-id',
+        approvedAt: new Date(),
+        rejectedById: null,
+        rejectedAt: null,
+        rejectedRemarks: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         enrollment: enrollments[0],
@@ -255,6 +316,16 @@ export class PrismaService
         finals: 91.0,
         finalGrade: 89.8,
         isVisible: true,
+        status: 'approved',
+        submittedById: 'mock-faculty-id',
+        submittedAt: new Date(),
+        postedById: 'mock-admin-id',
+        postedAt: new Date(),
+        approvedById: 'mock-dean-id',
+        approvedAt: new Date(),
+        rejectedById: null,
+        rejectedAt: null,
+        rejectedRemarks: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         enrollment: enrollments[1],
@@ -267,6 +338,16 @@ export class PrismaService
         finals: 97.0,
         finalGrade: 96.1,
         isVisible: true,
+        status: 'approved',
+        submittedById: 'mock-faculty-id',
+        submittedAt: new Date(),
+        postedById: 'mock-admin-id',
+        postedAt: new Date(),
+        approvedById: 'mock-dean-id',
+        approvedAt: new Date(),
+        rejectedById: null,
+        rejectedAt: null,
+        rejectedRemarks: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         enrollment: enrollments[2],
@@ -278,8 +359,14 @@ export class PrismaService
         id: 'mock-request-1',
         studentId: 'mock-student-profile-id',
         type: 'Certificate of Enrollment',
-        status: 'Approved',
+        status: 'released',
         remarks: 'Cleared by accounting',
+        fee: 150.0,
+        paymentStatus: 'paid',
+        paymentReference: 'REF-COE-001',
+        qrCodeUrl: 'https://placehold.co/200x200?text=InstaPay+QR+REF-COE-001',
+        paymentConfirmedById: 'mock-admin-id',
+        paymentConfirmedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
         student: studentProfiles[0],
@@ -288,8 +375,14 @@ export class PrismaService
         id: 'mock-request-2',
         studentId: 'mock-student-profile-id',
         type: 'Transcript of Records',
-        status: 'Pending',
-        remarks: 'Awaiting Dean approval',
+        status: 'awaiting_payment',
+        remarks: 'Awaiting payment confirmation',
+        fee: 200.0,
+        paymentStatus: 'unpaid',
+        paymentReference: 'REF-TOR-002',
+        qrCodeUrl: 'https://placehold.co/200x200?text=InstaPay+QR+REF-TOR-002',
+        paymentConfirmedById: null,
+        paymentConfirmedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         student: studentProfiles[0],
@@ -340,6 +433,31 @@ export class PrismaService
       },
     ];
 
+    const chatSessions = [
+      {
+        id: 'mock-session-1',
+        studentId: 'mock-student-profile-id',
+        escalationId: null,
+        agentId: null,
+        status: 'open',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        student: studentProfiles[0],
+      },
+    ];
+
+    const chatMessages = [
+      {
+        id: 'mock-msg-1',
+        sessionId: 'mock-session-1',
+        senderId: 'mock-student-id',
+        senderRole: 'student',
+        content: 'Hello, I need help with my enrollment.',
+        createdAt: new Date(),
+        sender: users[3],
+      },
+    ];
+
     const auditLogs = [
       {
         id: 'mock-audit-1',
@@ -359,16 +477,19 @@ export class PrismaService
       program: programs,
       course: courses,
       studentProfile: studentProfiles,
+      studentSemester: studentSemesters,
       enrollment: enrollments,
       grade: grades,
       documentRequest: documentRequests,
       notification: notifications,
       chatLog: chatLogs,
       escalationQueue: escalations,
+      chatSession: chatSessions,
+      chatMessage: chatMessages,
       auditLog: auditLogs,
     };
 
-    const dbFilePath = path.join(process.cwd(), 'mock-db.json');
+    const dbFilePath = path.join(__dirname, '..', '..', 'mock-db.json');
 
     // Load existing mock DB from disk if it exists
     if (fs.existsSync(dbFilePath)) {
@@ -400,7 +521,8 @@ export class PrismaService
       const cloned = { ...item };
       for (const [key, val] of Object.entries(include)) {
         if (!val) continue;
-        const subInclude = typeof val === 'object' && val !== null ? (val as any).include : undefined;
+        const subInclude =
+          typeof val === 'object' && val !== null ? (val as any).include : undefined;
 
         if (modelKey === 'escalationQueue') {
           if (key === 'chat') {
@@ -429,6 +551,12 @@ export class PrismaService
               cloned.escalation = resolveIncludes(escItem, subInclude, 'escalationQueue');
             }
           }
+          if (key === 'chatSession') {
+            const sessionItem = store.chatSession.find((s) => s.escalationId === cloned.id);
+            if (sessionItem) {
+              cloned.chatSession = resolveIncludes(sessionItem, subInclude, 'chatSession');
+            }
+          }
         }
         if (modelKey === 'user') {
           if (key === 'role') {
@@ -436,6 +564,10 @@ export class PrismaService
             if (roleItem) {
               cloned.role = resolveIncludes(roleItem, subInclude, 'role');
             }
+          }
+          if (key === 'assignedChatSessions') {
+            const sessions = store.chatSession.filter((s) => s.agentId === cloned.id);
+            cloned.assignedChatSessions = sessions.map((s) => resolveIncludes(s, subInclude, 'chatSession'));
           }
         }
         if (modelKey === 'studentProfile') {
@@ -452,9 +584,105 @@ export class PrismaService
             }
           }
           if (key === 'accountBalance') {
-            const balItem = cloned.accountBalance || store.studentProfile.find((sp) => sp.id === cloned.id)?.accountBalance;
+            const balItem =
+              cloned.accountBalance ||
+              store.studentProfile.find((sp) => sp.id === cloned.id)?.accountBalance;
             if (balItem) {
               cloned.accountBalance = resolveIncludes(balItem, subInclude, 'accountBalance');
+            }
+          }
+          if (key === 'studentSemesters') {
+            const semesters = store.studentSemester.filter((ss) => ss.studentId === cloned.id);
+            cloned.studentSemesters = semesters.map((ss) => resolveIncludes(ss, subInclude, 'studentSemester'));
+          }
+          if (key === 'chatSessions') {
+            const sessions = store.chatSession.filter((s) => s.studentId === cloned.id);
+            cloned.chatSessions = sessions.map((s) => resolveIncludes(s, subInclude, 'chatSession'));
+          }
+        }
+        if (modelKey === 'grade') {
+          if (key === 'submittedBy') {
+            const userItem = store.user.find((u) => u.id === cloned.submittedById);
+            if (userItem) {
+              cloned.submittedBy = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+          if (key === 'postedBy') {
+            const userItem = store.user.find((u) => u.id === cloned.postedById);
+            if (userItem) {
+              cloned.postedBy = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+          if (key === 'approvedBy') {
+            const userItem = store.user.find((u) => u.id === cloned.approvedById);
+            if (userItem) {
+              cloned.approvedBy = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+          if (key === 'rejectedBy') {
+            const userItem = store.user.find((u) => u.id === cloned.rejectedById);
+            if (userItem) {
+              cloned.rejectedBy = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+          if (key === 'enrollment') {
+            const enrollmentItem = store.enrollment.find((e) => e.id === cloned.enrollmentId);
+            if (enrollmentItem) {
+              cloned.enrollment = resolveIncludes(enrollmentItem, subInclude, 'enrollment');
+            }
+          }
+        }
+        if (modelKey === 'documentRequest') {
+          if (key === 'student') {
+            const studentItem = store.studentProfile.find((sp) => sp.id === cloned.studentId);
+            if (studentItem) {
+              cloned.student = resolveIncludes(studentItem, subInclude, 'studentProfile');
+            }
+          }
+          if (key === 'paymentConfirmedBy') {
+            const userItem = store.user.find((u) => u.id === cloned.paymentConfirmedById);
+            if (userItem) {
+              cloned.paymentConfirmedBy = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+        }
+        if (modelKey === 'chatSession') {
+          if (key === 'student') {
+            const studentItem = store.studentProfile.find((sp) => sp.id === cloned.studentId);
+            if (studentItem) {
+              cloned.student = resolveIncludes(studentItem, subInclude, 'studentProfile');
+            }
+          }
+          if (key === 'agent') {
+            const userItem = store.user.find((u) => u.id === cloned.agentId);
+            if (userItem) {
+              cloned.agent = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+          if (key === 'messages') {
+            const messages = store.chatMessage.filter((m) => m.sessionId === cloned.id);
+            cloned.messages = messages.map((m) => resolveIncludes(m, subInclude, 'chatMessage'));
+          }
+        }
+        if (modelKey === 'chatMessage') {
+          if (key === 'session') {
+            const sessionItem = store.chatSession.find((s) => s.id === cloned.sessionId);
+            if (sessionItem) {
+              cloned.session = resolveIncludes(sessionItem, subInclude, 'chatSession');
+            }
+          }
+          if (key === 'sender') {
+            const userItem = store.user.find((u) => u.id === cloned.senderId);
+            if (userItem) {
+              cloned.sender = resolveIncludes(userItem, subInclude, 'user');
+            }
+          }
+        }
+        if (modelKey === 'studentSemester') {
+          if (key === 'student') {
+            const studentItem = store.studentProfile.find((sp) => sp.id === cloned.studentId);
+            if (studentItem) {
+              cloned.student = resolveIncludes(studentItem, subInclude, 'studentProfile');
             }
           }
         }
@@ -468,15 +696,16 @@ export class PrismaService
         findUnique: async (args: any) => {
           const list = store[modelKey];
           const where = args?.where || {};
-          const found = list.find((item) => {
-            return Object.entries(where).every(([k, v]) => {
-              if (typeof v === 'object' && v !== null) {
-                // Nested match
-                return true;
-              }
-              return item[k] === v;
-            });
-          }) || null;
+          const found =
+            list.find((item) => {
+              return Object.entries(where).every(([k, v]) => {
+                if (typeof v === 'object' && v !== null) {
+                  // Nested match
+                  return true;
+                }
+                return item[k] === v;
+              });
+            }) || null;
           return found ? resolveIncludes(found, args?.include, modelKey) : null;
         },
         findUniqueOrThrow: async (args: any) => {
@@ -496,9 +725,7 @@ export class PrismaService
                 // Nested where (e.g. { enrollment: { studentId: '...' } })
                 const itemRelation = item[k];
                 if (itemRelation) {
-                  return Object.entries(v).every(
-                    ([rk, rv]) => itemRelation[rk] === rv,
-                  );
+                  return Object.entries(v).every(([rk, rv]) => itemRelation[rk] === rv);
                 }
                 return true;
               }
@@ -524,8 +751,7 @@ export class PrismaService
           }
           if (modelKey === 'studentProfile') {
             newItem.user = users.find((u) => u.id === args.data.userId);
-            newItem.program =
-              programs.find((p) => p.id === args.data.programId) || programs[0];
+            newItem.program = programs.find((p) => p.id === args.data.programId) || programs[0];
             newItem.accountBalance = {
               id: `mock-balance-${newItem.id}`,
               studentId: newItem.id,
@@ -536,11 +762,43 @@ export class PrismaService
             };
           }
           if (modelKey === 'enrollment') {
-            newItem.course =
-              courses.find((c) => c.id === args.data.courseId) || courses[0];
+            newItem.course = courses.find((c) => c.id === args.data.courseId) || courses[0];
             newItem.student =
-              studentProfiles.find((sp) => sp.id === args.data.studentId) ||
-              studentProfiles[0];
+              studentProfiles.find((sp) => sp.id === args.data.studentId) || studentProfiles[0];
+          }
+          if (modelKey === 'documentRequest') {
+            newItem.student = studentProfiles.find((sp) => sp.id === args.data.studentId);
+            if (args.data.paymentConfirmedById) {
+              newItem.paymentConfirmedBy = users.find((u) => u.id === args.data.paymentConfirmedById);
+            }
+          }
+          if (modelKey === 'grade') {
+            newItem.enrollment = enrollments.find((e) => e.id === args.data.enrollmentId);
+            if (args.data.submittedById) {
+              newItem.submittedBy = users.find((u) => u.id === args.data.submittedById);
+            }
+            if (args.data.postedById) {
+              newItem.postedBy = users.find((u) => u.id === args.data.postedById);
+            }
+            if (args.data.approvedById) {
+              newItem.approvedBy = users.find((u) => u.id === args.data.approvedById);
+            }
+            if (args.data.rejectedById) {
+              newItem.rejectedBy = users.find((u) => u.id === args.data.rejectedById);
+            }
+          }
+          if (modelKey === 'studentSemester') {
+            newItem.student = studentProfiles.find((sp) => sp.id === args.data.studentId);
+          }
+          if (modelKey === 'chatSession') {
+            newItem.student = studentProfiles.find((sp) => sp.id === args.data.studentId);
+            if (args.data.agentId) {
+              newItem.agent = users.find((u) => u.id === args.data.agentId);
+            }
+          }
+          if (modelKey === 'chatMessage') {
+            newItem.session = chatSessions.find((s) => s.id === args.data.sessionId);
+            newItem.sender = users.find((u) => u.id === args.data.senderId);
           }
 
           list.push(newItem);

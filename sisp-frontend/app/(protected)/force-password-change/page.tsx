@@ -7,14 +7,16 @@ import { authApi } from '@/lib/api/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ShieldAlert, KeyRound, Loader2, Check, X, Eye, EyeOff } from 'lucide-react';
+import { KeyRound, Loader2, Check, X, Eye, EyeOff } from 'lucide-react';
 
 export default function ForcePasswordChangePage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -24,8 +26,9 @@ export default function ForcePasswordChangePage() {
   const hasNumber = /[0-9]/.test(newPassword);
   const hasSpecial = /[^a-zA-Z0-9]/.test(newPassword);
   const matchesConfirm = newPassword && newPassword === confirmPassword;
+  const hasCurrent = currentPassword.length > 0;
 
-  const isFormValid = hasMinLength && hasLetter && hasNumber && hasSpecial && matchesConfirm;
+  const isFormValid = hasCurrent && hasMinLength && hasLetter && hasNumber && hasSpecial && matchesConfirm;
 
   // Strength score calculation
   const strengthScore = [hasMinLength, hasLetter, hasNumber, hasSpecial].filter(Boolean).length;
@@ -44,7 +47,7 @@ export default function ForcePasswordChangePage() {
 
     setLoading(true);
     try {
-      await authApi.changePassword(newPassword);
+      await authApi.changePassword(currentPassword, newPassword);
       
       // Update state in Zustand store
       useAuthStore.setState((state) => ({
@@ -94,12 +97,41 @@ export default function ForcePasswordChangePage() {
               Reset Temporary Password
             </h2>
             <p className="text-xs text-slate-500 font-medium max-w-xs leading-relaxed">
-              This is your first time logging in. For your account\'s absolute security, please set a new personal password.
+              This is your first time logging in. For your account&apos;s absolute security, please set a new personal password.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            
+
+            {/* Current Password */}
+            <div className="space-y-1.5">
+              <label htmlFor="currentPassword" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Current Password
+              </label>
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  placeholder="Enter your current password"
+                  value={currentPassword}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCurrentPassword(e.target.value)}
+                  disabled={loading}
+                  className="w-full pl-4 pr-11 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 rounded-xl text-xs transition duration-200 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 transition-colors"
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
             {/* New Password */}
             <div className="space-y-1.5">
               <label htmlFor="newPassword" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
@@ -111,7 +143,7 @@ export default function ForcePasswordChangePage() {
                   type={showNewPassword ? 'text' : 'password'}
                   placeholder="Enter new secure password"
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
                   disabled={loading}
                   className="w-full pl-4 pr-11 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 rounded-xl text-xs transition duration-200 outline-none"
                 />
@@ -140,7 +172,7 @@ export default function ForcePasswordChangePage() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirm your new password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
                   disabled={loading}
                   className="w-full pl-4 pr-11 py-3 bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 rounded-xl text-xs transition duration-200 outline-none"
                 />

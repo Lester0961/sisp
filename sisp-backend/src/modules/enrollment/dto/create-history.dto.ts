@@ -1,8 +1,4 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsIn,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsIn } from 'class-validator';
 
 export class CreateHistoryDto {
   @IsString()

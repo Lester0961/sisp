@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Param,
-  Body,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query } from '@nestjs/common';
 import { GradesService } from './grades.service';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
@@ -32,7 +24,11 @@ export class GradesController {
   async getAllGrades(
     @Query('studentId') studentId?: string,
     @Query('enrollmentId') enrollmentId?: string,
+    @Query('status') status?: string,
   ) {
+    if (status) {
+      return this.gradesService.getGradesByStatus(status);
+    }
     if (enrollmentId) {
       return this.gradesService.getGradesByEnrollment(enrollmentId);
     }
@@ -56,23 +52,49 @@ export class GradesController {
     return this.gradesService.bulkCreateGrades(dto);
   }
 
-  // Faculty updates grade components
+  // Faculty updates grade components (only draft or rejected)
   @Patch(':id')
   @Roles('faculty', 'admin_staff', 'dean')
-  async updateGrade(
-    @Param('id') id: string,
-    @Body() dto: UpdateGradeDto,
-  ) {
+  async updateGrade(@Param('id') id: string, @Body() dto: UpdateGradeDto) {
     return this.gradesService.updateGrade(id, dto);
   }
 
-  // Faculty toggles grade visibility for students
-  @Patch(':id/visibility')
-  @Roles('faculty', 'admin_staff', 'dean')
-  async toggleVisibility(
+  // Faculty submits grade to registrar
+  @Post(':id/submit')
+  @Roles('faculty')
+  async submitGrade(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.gradesService.submitGrade(user.sub, id);
+  }
+
+  // Registrar posts grade to dean
+  @Post(':id/post')
+  @Roles('admin_staff')
+  async postGrade(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.gradesService.postGrade(user.sub, id);
+  }
+
+  // Dean approves grade
+  @Post(':id/approve')
+  @Roles('dean')
+  async approveGrade(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.gradesService.approveGrade(user.sub, id);
+  }
+
+  // Dean rejects grade
+  @Post(':id/reject')
+  @Roles('dean')
+  async rejectGrade(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { isVisible: boolean },
+    @Body() body: { remarks: string },
   ) {
+    return this.gradesService.rejectGrade(user.sub, id, body.remarks);
+  }
+
+  // Legacy toggle visibility (kept for backward compatibility but restricted)
+  @Patch(':id/visibility')
+  @Roles('admin_staff', 'dean')
+  async toggleVisibility(@Param('id') id: string, @Body() body: { isVisible: boolean }) {
     return this.gradesService.toggleVisibility(id, body.isVisible);
   }
 }

@@ -1,13 +1,6 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Param,
-  Body,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body } from '@nestjs/common';
 import { StudentsService } from './students.service';
-import { CreateStudentProfileDto } from './dto/create-student-profile.dto';
+import { AdminCreateStudentProfileDto } from './dto/admin-create-student-profile.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -27,9 +20,7 @@ export class StudentsController {
   // Admin creates a student profile for a user
   @Post('profile')
   @Roles('admin_staff', 'dean')
-  async createProfile(
-    @Body() dto: CreateStudentProfileDto & { userId: string },
-  ) {
+  async createProfile(@Body() dto: AdminCreateStudentProfileDto) {
     return this.studentsService.createProfile(dto.userId, dto);
   }
 
@@ -50,10 +41,7 @@ export class StudentsController {
   // Admin updates a student profile
   @Patch(':id')
   @Roles('admin_staff', 'dean')
-  async updateProfile(
-    @Param('id') id: string,
-    @Body() dto: UpdateStudentDto,
-  ) {
+  async updateProfile(@Param('id') id: string, @Body() dto: UpdateStudentDto) {
     return this.studentsService.updateProfile(id, dto);
   }
 }

@@ -4,12 +4,14 @@ import type { NextRequest } from 'next/server';
 const PUBLIC_ROUTES = ['/login', '/register', '/about', '/services', '/support'];
 
 const ROLE_ROUTES: Record<string, string[]> = {
-  '/admin': ['admin_staff'],
+  '/admin': ['admin_staff', 'sys_admin', 'live_agent'],
   '/faculty': ['faculty'],
   '/dean': ['dean'],
-  '/dashboard': ['student', 'admin_staff', 'faculty', 'dean'],
+  '/live-agent': ['admin_staff', 'dean', 'live_agent'],
+  '/dashboard': ['student', 'admin_staff', 'faculty', 'dean', 'sys_admin', 'live_agent'],
   '/grades': ['student'],
   '/requests': ['student'],
+  '/chat': ['student', 'admin_staff', 'dean', 'live_agent'],
 };
 
 export function middleware(request: NextRequest) {

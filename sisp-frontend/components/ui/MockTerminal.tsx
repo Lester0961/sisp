@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Terminal, Shield, Sparkles, Check } from 'lucide-react';
+import { Terminal } from 'lucide-react';
 
 interface TerminalLine {
   text: string;

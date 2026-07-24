@@ -1,13 +1,17 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
 import { BulkGradeDto } from './dto/bulk-grade.dto';
+import { requireStudentProfile } from '../../common/utils/require-student-profile';
+
+const GRADE_STATUS_TRANSITIONS: Record<string, string[]> = {
+  draft: ['submitted'],
+  submitted: ['posted', 'rejected'],
+  posted: ['approved', 'rejected'],
+  approved: [],
+  rejected: ['submitted'],
+};
 
 @Injectable()
 export class GradesService {
@@ -20,20 +24,28 @@ export class GradesService {
     finals?: number | null,
   ): number | null {
     if (
-      prelim === null || prelim === undefined ||
-      midterm === null || midterm === undefined ||
-      finals === null || finals === undefined
+      prelim === null ||
+      prelim === undefined ||
+      midterm === null ||
+      midterm === undefined ||
+      finals === null ||
+      finals === undefined
     ) {
       return null;
     }
-    // Standard formula: Prelim 30% + Midterm 30% + Finals 40%
-    return parseFloat(
-      (prelim * 0.3 + midterm * 0.3 + finals * 0.4).toFixed(2),
-    );
+    return parseFloat((prelim * 0.3 + midterm * 0.3 + finals * 0.4).toFixed(2));
+  }
+
+  private assertTransition(current: string, next: string) {
+    const allowed = GRADE_STATUS_TRANSITIONS[current] || [];
+    if (!allowed.includes(next)) {
+      throw new BadRequestException(
+        `Invalid status transition: cannot move from "${current}" to "${next}". Allowed: ${allowed.join(', ') || 'none'}.`,
+      );
+    }
   }
 
   async createGrade(dto: CreateGradeDto) {
-    // Verify enrollment exists
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: dto.enrollmentId },
       include: {
@@ -47,12 +59,9 @@ export class GradesService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException(
-        `Enrollment with ID ${dto.enrollmentId} not found`,
-      );
+      throw new NotFoundException(`Enrollment with ID ${dto.enrollmentId} not found`);
     }
 
-    // Check if grade already exists for this enrollment
     const existing = await this.prisma.grade.findUnique({
       where: { enrollmentId: dto.enrollmentId },
     });
@@ -63,11 +72,7 @@ export class GradesService {
       );
     }
 
-    const finalGrade = this.computeFinalGrade(
-      dto.prelim,
-      dto.midterm,
-      dto.finals,
-    );
+    const finalGrade = this.computeFinalGrade(dto.prelim, dto.midterm, dto.finals);
 
     const grade = await this.prisma.grade.create({
       data: {
@@ -76,7 +81,8 @@ export class GradesService {
         midterm: dto.midterm,
         finals: dto.finals,
         finalGrade,
-        isVisible: dto.isVisible ?? false,
+        isVisible: false,
+        status: 'draft',
       },
       include: {
         enrollment: {
@@ -107,10 +113,16 @@ export class GradesService {
       throw new NotFoundException(`Grade with ID ${id} not found`);
     }
 
-    // Compute new final grade using updated or existing values
-    const prelim = dto.prelim ?? existing.prelim;
-    const midterm = dto.midterm ?? existing.midterm;
-    const finals = dto.finals ?? existing.finals;
+    // Only allow editing if status is draft or rejected
+    if (!['draft', 'rejected'].includes(existing.status)) {
+      throw new BadRequestException(
+        `Cannot edit grade that is already ${existing.status}. Only draft or rejected grades can be modified.`,
+      );
+    }
+
+    const prelim = dto.prelim !== undefined ? dto.prelim : existing.prelim;
+    const midterm = dto.midterm !== undefined ? dto.midterm : existing.midterm;
+    const finals = dto.finals !== undefined ? dto.finals : existing.finals;
     const finalGrade = this.computeFinalGrade(prelim, midterm, finals);
 
     const updated = await this.prisma.grade.update({
@@ -119,7 +131,6 @@ export class GradesService {
         ...(dto.prelim !== undefined && { prelim: dto.prelim }),
         ...(dto.midterm !== undefined && { midterm: dto.midterm }),
         ...(dto.finals !== undefined && { finals: dto.finals }),
-        ...(dto.isVisible !== undefined && { isVisible: dto.isVisible }),
         finalGrade,
       },
       include: {
@@ -128,7 +139,7 @@ export class GradesService {
             course: { select: { code: true, title: true } },
             student: {
               include: {
-                user: { select: { email: true } },
+                user: { select: { email: true, firstName: true, lastName: true } },
               },
             },
           },
@@ -142,23 +153,197 @@ export class GradesService {
     };
   }
 
-  async toggleVisibility(id: string, isVisible: boolean) {
-    const existing = await this.prisma.grade.findUnique({
-      where: { id },
+  async submitGrade(facultyId: string, gradeId: string) {
+    const grade = await this.prisma.grade.findUnique({
+      where: { id: gradeId },
     });
 
-    if (!existing) {
-      throw new NotFoundException(`Grade with ID ${id} not found`);
+    if (!grade) {
+      throw new NotFoundException(`Grade with ID ${gradeId} not found`);
     }
 
+    this.assertTransition(grade.status, 'submitted');
+
     const updated = await this.prisma.grade.update({
-      where: { id },
-      data: { isVisible },
+      where: { id: gradeId },
+      data: {
+        status: 'submitted',
+        submittedById: facultyId,
+        submittedAt: new Date(),
+        // Clear any previous rejection info
+        rejectedById: null,
+        rejectedAt: null,
+        rejectedRemarks: null,
+      },
+      include: {
+        enrollment: {
+          include: {
+            course: { select: { code: true, title: true } },
+            student: {
+              include: {
+                user: { select: { email: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
+        submittedBy: { select: { firstName: true, lastName: true, email: true } },
+      },
     });
 
     return {
-      message: `Grade ${isVisible ? 'published' : 'hidden'} successfully`,
+      message: 'Grade submitted to registrar for review',
       data: updated,
+    };
+  }
+
+  async postGrade(registrarId: string, gradeId: string) {
+    const grade = await this.prisma.grade.findUnique({
+      where: { id: gradeId },
+    });
+
+    if (!grade) {
+      throw new NotFoundException(`Grade with ID ${gradeId} not found`);
+    }
+
+    this.assertTransition(grade.status, 'posted');
+
+    const updated = await this.prisma.grade.update({
+      where: { id: gradeId },
+      data: {
+        status: 'posted',
+        postedById: registrarId,
+        postedAt: new Date(),
+      },
+      include: {
+        enrollment: {
+          include: {
+            course: { select: { code: true, title: true } },
+            student: {
+              include: {
+                user: { select: { email: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
+        submittedBy: { select: { firstName: true, lastName: true, email: true } },
+        postedBy: { select: { firstName: true, lastName: true, email: true } },
+      },
+    });
+
+    return {
+      message: 'Grade posted to dean for approval',
+      data: updated,
+    };
+  }
+
+  async approveGrade(deanId: string, gradeId: string) {
+    const grade = await this.prisma.grade.findUnique({
+      where: { id: gradeId },
+    });
+
+    if (!grade) {
+      throw new NotFoundException(`Grade with ID ${gradeId} not found`);
+    }
+
+    this.assertTransition(grade.status, 'approved');
+
+    const updated = await this.prisma.grade.update({
+      where: { id: gradeId },
+      data: {
+        status: 'approved',
+        approvedById: deanId,
+        approvedAt: new Date(),
+        isVisible: true,
+      },
+      include: {
+        enrollment: {
+          include: {
+            course: { select: { code: true, title: true } },
+            student: {
+              include: {
+                user: { select: { email: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
+        submittedBy: { select: { firstName: true, lastName: true, email: true } },
+        postedBy: { select: { firstName: true, lastName: true, email: true } },
+        approvedBy: { select: { firstName: true, lastName: true, email: true } },
+      },
+    });
+
+    return {
+      message: 'Grade approved and published',
+      data: updated,
+    };
+  }
+
+  async rejectGrade(deanId: string, gradeId: string, remarks: string) {
+    const grade = await this.prisma.grade.findUnique({
+      where: { id: gradeId },
+    });
+
+    if (!grade) {
+      throw new NotFoundException(`Grade with ID ${gradeId} not found`);
+    }
+
+    this.assertTransition(grade.status, 'rejected');
+
+    const updated = await this.prisma.grade.update({
+      where: { id: gradeId },
+      data: {
+        status: 'rejected',
+        rejectedById: deanId,
+        rejectedAt: new Date(),
+        rejectedRemarks: remarks,
+        isVisible: false,
+      },
+      include: {
+        enrollment: {
+          include: {
+            course: { select: { code: true, title: true } },
+            student: {
+              include: {
+                user: { select: { email: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
+        rejectedBy: { select: { firstName: true, lastName: true, email: true } },
+      },
+    });
+
+    return {
+      message: 'Grade rejected and returned to faculty',
+      data: updated,
+    };
+  }
+
+  async getGradesByStatus(status: string) {
+    const grades = await this.prisma.grade.findMany({
+      where: { status },
+      include: {
+        enrollment: {
+          include: {
+            course: { select: { code: true, title: true, units: true } },
+            student: {
+              include: {
+                user: { select: { email: true, firstName: true, lastName: true } },
+              },
+            },
+          },
+        },
+        submittedBy: { select: { firstName: true, lastName: true, email: true } },
+        postedBy: { select: { firstName: true, lastName: true, email: true } },
+        approvedBy: { select: { firstName: true, lastName: true, email: true } },
+        rejectedBy: { select: { firstName: true, lastName: true, email: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    return {
+      data: grades,
+      total: grades.length,
     };
   }
 
@@ -175,33 +360,40 @@ export class GradesService {
     });
 
     if (!grade) {
-      throw new NotFoundException(
-        `No grade found for enrollment ${enrollmentId}`,
-      );
+      throw new NotFoundException(`No grade found for enrollment ${enrollmentId}`);
     }
 
     return grade;
   }
 
   async getMyGrades(userId: string) {
-    // Get student profile from userId
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId },
+    const profile = await requireStudentProfile(this.prisma, userId);
+
+    // Get current semester to check payment
+    const currentSemester = await this.prisma.studentSemester.findFirst({
+      where: { studentId: profile.id },
+      orderBy: [{ year: 'desc' }, { semester: 'desc' }],
     });
 
-    if (!profile) {
-      throw new NotFoundException(
-        'Student profile not found',
-      );
+    // Only show approved grades where student is fully paid for the matching semester
+    const whereClause: any = {
+      enrollment: {
+        studentId: profile.id,
+      },
+      status: 'approved',
+    };
+
+    // If student is not fully paid for current semester, don't show any grades
+    if (!currentSemester || !currentSemester.isFullyPaid) {
+      return {
+        data: [],
+        total: 0,
+        message: 'Grades are hidden until tuition is fully paid for this semester.',
+      };
     }
 
     const grades = await this.prisma.grade.findMany({
-      where: {
-        enrollment: {
-          studentId: profile.id,
-        },
-        isVisible: true,
-      },
+      where: whereClause,
       include: {
         enrollment: {
           include: {
@@ -234,11 +426,15 @@ export class GradesService {
             course: { select: { code: true, title: true, units: true } },
             student: {
               include: {
-                user: { select: { email: true } },
+                user: { select: { email: true, firstName: true, lastName: true } },
               },
             },
           },
         },
+        submittedBy: { select: { firstName: true, lastName: true, email: true } },
+        postedBy: { select: { firstName: true, lastName: true, email: true } },
+        approvedBy: { select: { firstName: true, lastName: true, email: true } },
+        rejectedBy: { select: { firstName: true, lastName: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -255,9 +451,7 @@ export class GradesService {
     });
 
     if (!profile) {
-      throw new NotFoundException(
-        `Student profile with ID ${studentProfileId} not found`,
-      );
+      throw new NotFoundException(`Student profile with ID ${studentProfileId} not found`);
     }
 
     const grades = await this.prisma.grade.findMany({
@@ -270,8 +464,17 @@ export class GradesService {
         enrollment: {
           include: {
             course: { select: { code: true, title: true, units: true } },
+            student: {
+              include: {
+                user: { select: { email: true, firstName: true, lastName: true } },
+              },
+            },
           },
         },
+        submittedBy: { select: { firstName: true, lastName: true, email: true } },
+        postedBy: { select: { firstName: true, lastName: true, email: true } },
+        approvedBy: { select: { firstName: true, lastName: true, email: true } },
+        rejectedBy: { select: { firstName: true, lastName: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -279,6 +482,26 @@ export class GradesService {
     return {
       data: grades,
       total: grades.length,
+    };
+  }
+
+  async toggleVisibility(id: string, isVisible: boolean) {
+    const existing = await this.prisma.grade.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException(`Grade with ID ${id} not found`);
+    }
+
+    const updated = await this.prisma.grade.update({
+      where: { id },
+      data: { isVisible },
+    });
+
+    return {
+      message: `Grade ${isVisible ? 'published' : 'hidden'} successfully`,
+      data: updated,
     };
   }
 

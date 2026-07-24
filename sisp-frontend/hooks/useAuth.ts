@@ -24,8 +24,10 @@ export function useAuth() {
     async (email: string, password: string) => {
       setLoading(true);
       try {
-        const response: AuthResponse = await authApi.login({ email, password });
-        setAuth(response.user, response.accessToken, response.refreshToken);
+        const response = await authApi.login({ email, password });
+        if (!response.mfaRequired) {
+          setAuth(response.user, response.accessToken, response.refreshToken);
+        }
         return response;
       } finally {
         setLoading(false);
@@ -84,6 +86,9 @@ const redirectByRole = useCallback((roleOverride?: string) => {
       router.push('/admin/dashboard');
       break;
     case 'dean':
+      router.push('/admin/dashboard');
+      break;
+    case 'sys_admin':
       router.push('/admin/dashboard');
       break;
     default:

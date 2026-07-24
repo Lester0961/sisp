@@ -1,6 +1,7 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ChatSessionService } from './chat-session.service';
 import { SendMessageDto } from './dto/send-message.dto';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class ChatbotService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly chatSessionService: ChatSessionService,
   ) {
     this.mlServiceUrl = this.config.get<string>('ML_SERVICE_URL') || 'http://localhost:8000';
   }
@@ -20,35 +22,46 @@ export class ChatbotService {
    */
   async sendMessage(userId: string, sendMessageDto: SendMessageDto) {
     const { message, history } = sendMessageDto;
-    
+
     let mlResponse;
-    let fallbackUsed = false;
+
+    const ML_TIMEOUT_MS = 12000;
 
     // 1. Call FastAPI ML Service
     try {
       this.logger.log(`Forwarding query to ML service: ${this.mlServiceUrl}/chat`);
-      const response = await fetch(`${this.mlServiceUrl}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: message,
-          history: history || [],
-        }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), ML_TIMEOUT_MS);
+
+      let response;
+      try {
+        response = await fetch(`${this.mlServiceUrl}/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: message,
+            history: history || [],
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!response.ok) {
         throw new Error(`ML Service returned status ${response.status}`);
       }
 
       mlResponse = await response.json();
-    } catch (error) {
-      this.logger.error(`Failed to connect to ML service: ${error.message}. Triggering local fallback...`);
-      fallbackUsed = true;
+    } catch (error: any) {
+      const reason = error.name === 'AbortError' ? 'timed out' : error.message;
+      this.logger.error(`Failed to connect to ML service: ${reason}. Triggering local fallback...`);
       // Elegant fallback when ML microservice is offline
       mlResponse = {
-        response: `### Hello! I am ARIA, your Academic Advisory Assistant.\n\n` +
+        response:
+          `### Hello! I am ARIA, your Academic Advisory Assistant.\n\n` +
           `I am currently undergoing scheduled system updates and could not query our policy handbook database.\n\n` +
           `To ensure you get the assistance you need, **I have automatically escalated this chat to a human academic advisor**. ` +
           `A registrar staff member or academic Dean will review your request and message you back directly in this portal shortly!`,
@@ -70,8 +83,9 @@ export class ChatbotService {
       },
     });
 
-    // 3. Create Escalation if flagged
+    // 3. Create Escalation and ChatSession if flagged
     let escalation = null;
+    let chatSession = null;
     if (mlResponse.escalate) {
       this.logger.log(`Escalating ChatLog ID: ${chatLog.id} to human advisor queue.`);
       escalation = await this.prisma.escalationQueue.create({
@@ -80,6 +94,20 @@ export class ChatbotService {
           status: 'pending',
         },
       });
+
+      // Create a live chat session for async messaging
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        include: { studentProfile: true },
+      });
+
+      if (user?.studentProfile) {
+        chatSession = await this.chatSessionService.createSession(
+          chatLog.id,
+          user.studentProfile.id,
+        );
+        this.logger.log(`Created ChatSession ID: ${chatSession.id} for escalation.`);
+      }
     }
 
     return {
@@ -88,6 +116,7 @@ export class ChatbotService {
       intent: mlResponse.intent,
       confidence: mlResponse.confidence,
       escalated: !!escalation,
+      sessionId: chatSession?.id || null,
       sources: mlResponse.sources,
       createdAt: chatLog.createdAt,
     };

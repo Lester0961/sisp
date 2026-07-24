@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -84,9 +80,7 @@ export class UsersService {
       });
 
       if (!role) {
-        throw new BadRequestException(
-          `Role '${dto.roleName}' does not exist`,
-        );
+        throw new BadRequestException(`Role '${dto.roleName}' does not exist`);
       }
 
       updateData.roleId = role.id;

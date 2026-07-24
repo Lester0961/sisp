@@ -23,6 +23,7 @@ export interface SendMessageResponse {
   intent: string;
   confidence: number;
   escalated: boolean;
+  sessionId: string | null;
   sources: ChatSource[];
   createdAt: string;
 }
@@ -76,6 +77,48 @@ export interface EscalationRecord {
   } | null;
 }
 
+export interface ChatSessionRecord {
+  id: string;
+  studentId: string;
+  escalationId: string | null;
+  agentId: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  student: {
+    id: string;
+    studentNumber: string;
+    user: {
+      id: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+    };
+  };
+  agent?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  messages?: ChatSessionMessage[];
+}
+
+export interface ChatSessionMessage {
+  id: string;
+  sessionId: string;
+  senderId: string;
+  senderRole: string;
+  content: string;
+  createdAt: string;
+  sender?: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
 export const chatApi = {
   // Student endpoints
   sendMessage: async (payload: SendMessagePayload): Promise<SendMessageResponse> => {
@@ -96,6 +139,42 @@ export const chatApi = {
 
   resolveEscalation: async (id: string, resolution: string): Promise<any> => {
     const response = await apiClient.patch(`/admin/escalations/${id}`, { resolution });
+    return response.data;
+  },
+
+  // Live Agent Session endpoints
+  getSessions: async (status?: string): Promise<ChatSessionRecord[]> => {
+    const response = await apiClient.get('/chat/sessions', { params: { status } });
+    return response.data;
+  },
+
+  getAssignedSessions: async (): Promise<ChatSessionRecord[]> => {
+    const response = await apiClient.get('/chat/sessions/assigned');
+    return response.data;
+  },
+
+  getMySessions: async (): Promise<ChatSessionRecord[]> => {
+    const response = await apiClient.get('/chat/sessions/me');
+    return response.data;
+  },
+
+  getSessionMessages: async (sessionId: string): Promise<ChatSessionMessage[]> => {
+    const response = await apiClient.get(`/chat/sessions/${sessionId}/messages`);
+    return response.data;
+  },
+
+  sendSessionMessage: async (sessionId: string, content: string): Promise<ChatSessionMessage> => {
+    const response = await apiClient.post(`/chat/sessions/${sessionId}/messages`, { content });
+    return response.data;
+  },
+
+  assignSession: async (sessionId: string): Promise<ChatSessionRecord> => {
+    const response = await apiClient.patch(`/chat/sessions/${sessionId}/assign`);
+    return response.data;
+  },
+
+  closeSession: async (sessionId: string): Promise<ChatSessionRecord> => {
+    const response = await apiClient.patch(`/chat/sessions/${sessionId}/close`);
     return response.data;
   },
 };

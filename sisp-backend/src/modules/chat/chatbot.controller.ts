@@ -10,10 +10,7 @@ export class ChatbotController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
   @Post()
-  async sendMessage(
-    @CurrentUser() user: JwtPayload,
-    @Body() sendMessageDto: SendMessageDto,
-  ) {
+  async sendMessage(@CurrentUser() user: JwtPayload, @Body() sendMessageDto: SendMessageDto) {
     return this.chatbotService.sendMessage(user.sub, sendMessageDto);
   }
 

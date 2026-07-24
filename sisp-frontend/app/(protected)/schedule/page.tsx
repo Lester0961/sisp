@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { enrollmentsApi, type Enrollment } from '@/lib/api/enrollments';
+import { enrollmentsApi } from '@/lib/api/enrollments';
+import { Enrollment } from '@/types';
 
 export default function SchedulePage() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);

@@ -6,6 +6,7 @@ import {
   IsOptional,
   MinLength,
   MaxLength,
+  Matches,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -22,8 +23,8 @@ export class CreateUserDto {
   lastName: string;
 
   @IsString()
-  @IsIn(['student', 'faculty', 'dean', 'admin_staff'], {
-    message: 'roleName must be one of: student, faculty, dean, admin_staff',
+  @IsIn(['student', 'faculty', 'dean', 'admin_staff', 'live_agent'], {
+    message: 'roleName must be one of: student, faculty, dean, admin_staff, live_agent',
   })
   @IsNotEmpty()
   roleName: string;
@@ -42,5 +43,9 @@ export class CreateUserDto {
   @IsOptional()
   @MinLength(8, { message: 'Temporary password must be at least 8 characters' })
   @MaxLength(64)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
+    message:
+      'Temporary password must contain at least one uppercase letter, one lowercase letter, and one number',
+  })
   temporaryPassword?: string;
 }

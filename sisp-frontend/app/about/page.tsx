@@ -1,181 +1,116 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { Menu, Search, X, Facebook, Twitter, Instagram, Info, Target, Users, Bot, ShieldCheck } from 'lucide-react';
+import React from 'react';
+import { Eye, Rocket, Layers, Zap, Shield, Palette } from 'lucide-react';
+import { PublicNavbar } from '@/components/shared/PublicNavbar';
+import { PublicFooter } from '@/components/shared/PublicFooter';
 
 export default function AboutPage() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   return (
-    <div className="min-h-screen bg-white text-slate-900 font-sans flex flex-col overflow-x-hidden">
-      
-      {/* Navbar */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg md:hidden transition-colors"
-              aria-label="Toggle Menu"
-            >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded bg-[#1e3a8a] text-white flex items-center justify-center font-bold text-lg">
-                R
-              </div>
-              <span className="font-bold text-lg tracking-tight hidden sm:block text-[#1e3a8a]">SISP Portal</span>
-            </Link>
-          </div>
+    <div className="min-h-screen bg-[#F4F6F9] text-[#0A439B] font-sans flex flex-col overflow-x-hidden selection:bg-[#0A439B] selection:text-white">
 
-          <div className="flex items-center gap-2 sm:gap-4">
-            <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors hidden sm:flex">
-              <Search className="w-5 h-5" />
-            </button>
-            <Link 
-              href="/login"
-              className="bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white font-semibold py-2 px-6 rounded-lg transition-colors text-sm shadow-sm"
-            >
-              Login
-            </Link>
-          </div>
-        </div>
-
-        {/* Mobile Menu Dropdown */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-2 shadow-lg absolute w-full">
-            <Link href="/about" className="block px-4 py-3 text-[#1e3a8a] bg-blue-50 rounded-lg font-bold">About</Link>
-            <Link href="/services" className="block px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium">Services</Link>
-            <Link href="/support" className="block px-4 py-3 text-slate-600 hover:bg-slate-50 rounded-lg font-medium">Support</Link>
-          </div>
-        )}
-      </header>
+      <PublicNavbar />
 
       <main className="flex-1 flex flex-col">
-        {/* Hero Section */}
-        <section className="bg-slate-50 py-16 md:py-24 border-b border-slate-100">
-          <div className="max-w-4xl mx-auto px-4 text-center space-y-6">
-            <div className="inline-flex items-center justify-center p-3 bg-blue-100 rounded-2xl mb-4 text-[#1e3a8a]">
-              <Info className="w-8 h-8" />
+        {/* Hero Header */}
+        <section className="px-4 sm:px-6 lg:px-8 pt-28 pb-16 max-w-4xl mx-auto text-center space-y-6">
+          <h1 className="text-4xl sm:text-5xl font-black text-[#0A439B] tracking-tight leading-none">
+            The Future of Academic Management
+          </h1>
+          <p className="text-base sm:text-lg text-[#0A439B]/80 leading-relaxed font-semibold max-w-3xl mx-auto">
+            The Student Information System Portal (SISP) is Regis Marie College&apos;s flagship digital platform, designed to unify the academic journey through intuitive design, seamless workflows, and forward-thinking architecture.
+          </p>
+        </section>
+
+        {/* Mission and Transformation Grid */}
+        <section className="px-4 sm:px-6 lg:px-8 py-10 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Our Mission */}
+          <div className="lg:col-span-7 bg-white border border-[#0A439B]/10 p-8 sm:p-10 flex flex-col justify-between space-y-8" style={{ borderRadius: '8px' }}>
+            <div className="w-12 h-12 border border-[#0A439B]/20 flex items-center justify-center text-[#0A439B] shrink-0" style={{ borderRadius: '8px' }}>
+              <Eye className="w-6 h-6" />
             </div>
-            <h1 className="text-3xl md:text-5xl font-extrabold text-[#0f172a] tracking-tight">
-              About SISP
-            </h1>
-            <p className="text-lg md:text-xl text-slate-600 leading-relaxed font-medium">
-              SISP is a web-based student portal designed for Regis Marie College. It centralizes academic records, service requests, curriculum tracking, and academic advising support in one secure and accessible platform. With its AI-assisted advisory chat system, SISP helps students receive faster guidance while supporting faculty and administrative staff in managing academic services more efficiently.
-            </p>
+            <div className="space-y-4">
+              <h2 className="text-2xl font-extrabold text-[#0A439B]">Our Mission</h2>
+              <p className="text-sm sm:text-base text-[#0A439B]/80 leading-relaxed font-medium">
+                To completely modernize the administrative and academic experience for students, faculty, and staff. SISP strives to eliminate bureaucratic friction, providing a clean, accessible, and highly responsive environment that allows the academic community to focus on learning and innovation rather than paperwork.
+              </p>
+            </div>
+          </div>
+
+          {/* Digital Transformation */}
+          <div className="lg:col-span-5 bg-white border border-[#0A439B]/10 p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden group" style={{ borderRadius: '8px' }}>
+            <div className="absolute right-0 bottom-0 w-48 h-48 bg-[#F4F6F9] border-t border-l border-[#0A439B]/10 p-3 pointer-events-none transform translate-x-8 translate-y-8 group-hover:translate-x-4 group-hover:translate-y-4 transition-transform duration-500" style={{ borderTopLeftRadius: '8px' }}>
+              <div className="w-full h-full bg-white border border-[#0A439B]/10 p-2 space-y-2" style={{ borderRadius: '6px' }}>
+                <div className="h-2 w-12 bg-[#0A439B]/10 rounded" />
+                <div className="h-1 w-20 bg-[#0A439B]/10 rounded" />
+                <div className="h-6 bg-[#F4F6F9] border border-[#0A439B]/10 rounded flex items-center justify-center text-[8px] font-bold text-[#0A439B]/50">Mock Data</div>
+              </div>
+            </div>
+
+            <div className="w-12 h-12 border border-[#0A439B]/20 flex items-center justify-center text-[#0A439B] shrink-0 z-10" style={{ borderRadius: '8px' }}>
+              <Rocket className="w-6 h-6" />
+            </div>
+            <div className="space-y-4 z-10 pt-16 lg:pt-24">
+              <h2 className="text-2xl font-extrabold text-[#0A439B]">Digital Transformation</h2>
+              <p className="text-sm text-[#0A439B]/80 leading-relaxed font-medium">
+                Moving beyond legacy systems to embrace cloud-native, scalable solutions that adapt to the evolving needs of higher education.
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* Content Section */}
-        <section className="py-16 md:py-24 px-4 max-w-4xl mx-auto space-y-16">
-          
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 text-[#1e3a8a] font-bold text-xl md:text-2xl">
-              <Target className="w-6 h-6" />
-              <h2>Why This System Was Built</h2>
-            </div>
-            <p className="text-slate-600 leading-relaxed">
-              Regis Marie College currently handles many academic and administrative processes through manual, paper-based, or separated digital workflows. Student records, enrollment information, curriculum progress, service requests, and academic advising may require coordination between different offices.
-            </p>
-            <p className="text-slate-600 leading-relaxed">
-              SISP was created to help address these challenges by providing a centralized platform where users can access relevant services based on their roles. The goal is to reduce delays, improve record accuracy, support better communication, and make academic services more convenient for the school community.
-            </p>
+        {/* Core Capabilities */}
+        <section className="px-4 sm:px-6 lg:px-8 py-20 max-w-7xl mx-auto w-full space-y-16">
+          <div className="space-y-3">
+            <h2 className="text-3xl font-extrabold text-[#0A439B] tracking-tight">Core Capabilities</h2>
+            <p className="text-[#0A439B]/70 text-sm font-semibold uppercase tracking-wider">Engineered for clarity and performance.</p>
           </div>
 
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 text-[#1e3a8a] font-bold text-xl md:text-2xl">
-              <Bot className="w-6 h-6" />
-              <h2>Academic Advisory Chat System</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="space-y-4">
+              <div className="text-[#0A439B]">
+                <Layers className="w-6 h-6" />
+              </div>
+              <h3 className="font-extrabold text-[#0A439B] text-base">Centralized Records</h3>
+              <p className="text-xs sm:text-sm text-[#0A439B]/70 leading-relaxed font-semibold">
+                A single source of truth for grades, schedules, and financial standing, securely accessible anywhere.
+              </p>
             </div>
-            <p className="text-slate-600 leading-relaxed">
-              One of the main features of SISP is its <strong>Hybrid NLP- and Semantic-Based Academic Advisory Chat System</strong>.
-            </p>
-            <p className="text-slate-600 leading-relaxed">
-              This chat system is designed to help students receive academic guidance more conveniently. It uses intent classification to understand the type of question being asked and semantic search to retrieve relevant information from the school's academic knowledge base.
-            </p>
-            <p className="text-slate-600 leading-relaxed italic border-l-4 border-teal-500 pl-4 bg-teal-50 py-3 pr-3 rounded-r-lg">
-              The chatbot is not meant to replace official advisers or school personnel. Instead, it serves as a first layer of support for common academic questions and helps students get faster guidance before seeking direct assistance from faculty or administrative offices.
-            </p>
-          </div>
 
-          <div className="space-y-6">
-            <div className="flex items-center gap-3 text-[#1e3a8a] font-bold text-xl md:text-2xl">
-              <Users className="w-6 h-6" />
-              <h2>Who Can Use the System</h2>
+            <div className="space-y-4">
+              <div className="text-[#0A439B]">
+                <Zap className="w-6 h-6" />
+              </div>
+              <h3 className="font-extrabold text-[#0A439B] text-base">Real-time Sync</h3>
+              <p className="text-xs sm:text-sm text-[#0A439B]/70 leading-relaxed font-semibold">
+                Instant updates across all modules ensures that advisors, students, and administration are always aligned.
+              </p>
             </div>
-            {/* Mobile-first Cards that adapt to a grid on desktop */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <h3 className="font-bold text-slate-800 text-lg mb-2">Students</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">View academic records, track curriculum progress, submit service requests, and ask academic questions.</p>
+
+            <div className="space-y-4">
+              <div className="text-[#0A439B]">
+                <Shield className="w-6 h-6" />
               </div>
-              
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <h3 className="font-bold text-slate-800 text-lg mb-2">Faculty Members</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">Monitor student academic progress and support advising-related needs.</p>
+              <h3 className="font-extrabold text-[#0A439B] text-base">Enterprise Security</h3>
+              <p className="text-xs sm:text-sm text-[#0A439B]/70 leading-relaxed font-semibold">
+                Role-based access control and advanced encryption protect sensitive academic and personal data.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="text-[#0A439B]">
+                <Palette className="w-6 h-6" />
               </div>
-              
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <h3 className="font-bold text-slate-800 text-lg mb-2">Academic Advisers / Dean</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">Review academic standing, curriculum progress, and advising concerns.</p>
-              </div>
-              
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-                <h3 className="font-bold text-slate-800 text-lg mb-2">Administrative Staff</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">Manage records, process requests, and update request statuses.</p>
-              </div>
-              
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm md:col-span-2 lg:col-span-1">
-                <h3 className="font-bold text-slate-800 text-lg mb-2">System Administrator</h3>
-                <p className="text-slate-600 text-sm leading-relaxed">Manage accounts, roles, permissions, security settings, and audit logs.</p>
-              </div>
+              <h3 className="font-extrabold text-[#0A439B] text-base">Modern Interface</h3>
+              <p className="text-xs sm:text-sm text-[#0A439B]/70 leading-relaxed font-semibold">
+                A highly legible, accessible, and intuitive UI built on a unified design system for seamless navigation.
+              </p>
             </div>
           </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 text-[#1e3a8a] font-bold text-xl md:text-2xl">
-              <ShieldCheck className="w-6 h-6" />
-              <h2>Our Commitment</h2>
-            </div>
-            <p className="text-slate-600 leading-relaxed">
-              SISP is developed with a focus on accessibility, organization, and responsible data handling. Since the system manages academic and personal information, it follows secure design principles such as role-based access control, proper user authentication, and controlled access to sensitive records.
-            </p>
-            <p className="text-slate-600 leading-relaxed">
-              The system supports the school's goal of improving academic service delivery while helping students receive more convenient and timely support, strictly adhering to the Republic Act 10173 - Data Privacy Act of 2012.
-            </p>
-          </div>
-
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white py-12 px-4 border-t border-slate-100 text-sm">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded bg-[#1e3a8a] text-white flex items-center justify-center font-bold text-lg">
-                R
-              </div>
-              <span className="text-slate-500 font-medium text-xs">
-                &copy; {new Date().getFullYear()} Regis Marie College.<br/>All Rights Reserved.
-              </span>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-6 text-slate-500 font-medium">
-            <Link href="/about" className="text-[#1e3a8a] transition-colors font-bold">About SISP</Link>
-            <Link href="/privacy" className="hover:text-[#1e3a8a] transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-[#1e3a8a] transition-colors">Terms of Service</Link>
-            <Link href="/support" className="hover:text-[#1e3a8a] transition-colors">Contact Us</Link>
-          </div>
-
-          <div className="flex items-center gap-4 text-slate-400 font-bold text-xs">
-            <a href="#" aria-label="Facebook" className="hover:text-[#1e3a8a] transition-colors">FB</a>
-            <a href="#" aria-label="Twitter" className="hover:text-[#1e3a8a] transition-colors">TW</a>
-            <a href="#" aria-label="Instagram" className="hover:text-[#1e3a8a] transition-colors">IG</a>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

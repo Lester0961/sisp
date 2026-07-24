@@ -67,4 +67,48 @@ export const adminApi = {
     const response = await apiClient.delete(`/admin/users/${userId}`);
     return response.data;
   },
+
+  // ── Audit Logs ──────────────────────────────────────────
+  getAuditLogs: async (page: number = 1, limit: number = 50, resource?: string) => {
+    const params: Record<string, any> = { page, limit };
+    if (resource) params.resource = resource;
+    const response = await apiClient.get('/audit', { params });
+    return response.data;
+  },
+
+  getAuditStats: async () => {
+    const response = await apiClient.get('/audit/stats');
+    return response.data;
+  },
+
+  // ── Knowledge Base Management ───────────────────────────
+  getKbDocuments: async () => {
+    const response = await apiClient.get('/admin/kb/documents');
+    return response.data;
+  },
+
+  getKbDocument: async (filename: string) => {
+    const response = await apiClient.get(`/admin/kb/documents/${encodeURIComponent(filename)}`);
+    return response.data;
+  },
+
+  updateKbDocument: async (filename: string, content: string) => {
+    const response = await apiClient.put(`/admin/kb/documents/${encodeURIComponent(filename)}`, { content });
+    return response.data;
+  },
+
+  createKbDocument: async (data: { filename: string; content: string; category: string }) => {
+    const response = await apiClient.post('/admin/kb/documents', data);
+    return response.data;
+  },
+
+  deleteKbDocument: async (filename: string) => {
+    const response = await apiClient.delete(`/admin/kb/documents/${encodeURIComponent(filename)}`);
+    return response.data;
+  },
+
+  reindexKb: async () => {
+    const response = await apiClient.post('/admin/kb/reindex');
+    return response.data;
+  },
 };

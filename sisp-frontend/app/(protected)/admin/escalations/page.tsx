@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { chatApi, EscalationRecord } from '@/lib/api/chat';
 import { Navbar } from '@/components/shared/Navbar';
+import { AmbientBackground } from '@/components/shared/AmbientBackground';
+import { PageFooter } from '@/components/shared/PageFooter';
 import { 
   ShieldAlert, 
   CheckCircle, 
@@ -11,9 +13,6 @@ import {
   Mail, 
   MessageSquare, 
   Bookmark,
-  ExternalLink,
-  ChevronRight,
-  Filter,
   RefreshCw,
   Edit3,
   Check,
@@ -21,7 +20,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -118,9 +117,7 @@ export default function EscalationsPage() {
   return (
     <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden selection:bg-[#1e3a8a]/20">
       
-      {/* Background Depth Ambient Blobs */}
-      <div className="absolute top-[5%] right-[10%] h-[400px] w-[400px] rounded-full bg-indigo-500/5 blur-[130px] animate-pulse duration-[7s] pointer-events-none" />
-      <div className="absolute bottom-[20%] left-[5%] h-[350px] w-[350px] rounded-full bg-violet-600/5 blur-[120px] pointer-events-none" />
+      <AmbientBackground topColor="bg-indigo-500/5" bottomColor="bg-violet-600/5" />
 
       <Navbar />
 
@@ -296,7 +293,7 @@ export default function EscalationsPage() {
                   <div className="flex items-center gap-4 text-[10px] text-slate-400">
                     <span className="flex items-center gap-1">
                       <Bookmark className="h-3 w-3 text-indigo-500" />
-                      Intent Label: <strong className="text-slate-600 font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{record.chat.intent || 'N/A'}</strong>
+                       Intent Label: <strong className="font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{record.chat.intent || 'N/A'}</strong>
                     </span>
                     <span>•</span>
                     <span>Confidence Score: <strong className="text-slate-600 font-bold bg-slate-100 px-1.5 py-0.5 rounded">{record.chat.confidence ? `${Math.round(record.chat.confidence * 100)}%` : '0%'}</strong></span>
@@ -348,7 +345,7 @@ export default function EscalationsPage() {
               Resolve Inquiry Escalation
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-400 mt-1">
-              Provide an official response. Your resolution will be posted directly back to the student\'s chat window as an official advisor notification.
+              Provide an official response. Your resolution will be posted directly back to the student&apos;s chat window as an official advisor notification.
             </DialogDescription>
           </DialogHeader>
           
@@ -440,10 +437,7 @@ export default function EscalationsPage() {
       </Dialog>
       </main>
 
-      {/* Footer */}
-      <footer className="w-full text-center py-6 border-t border-slate-100 text-slate-400 text-[10px] pointer-events-none select-none">
-        &copy; {new Date().getFullYear()} Regis Marie College SISP. Built with high-fidelity advising models.
-      </footer>
+      <PageFooter type="advising" />
     </div>
   );
 }

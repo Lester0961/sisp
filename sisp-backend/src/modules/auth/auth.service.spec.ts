@@ -3,9 +3,15 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { MfaService } from './mfa.service';
 
 describe('AuthService', () => {
   let service: AuthService;
+
+  const mockMfa = {
+    generateOtp: jest.fn(),
+    verifyOtp: jest.fn(),
+  };
 
   const mockPrisma = {
     user: {
@@ -39,6 +45,7 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
         { provide: ConfigService, useValue: mockConfig },
+        { provide: MfaService, useValue: mockMfa },
       ],
     }).compile();
 

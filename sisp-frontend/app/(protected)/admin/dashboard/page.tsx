@@ -6,31 +6,20 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAdminStore } from '@/stores/adminStore';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
+import { AmbientBackground } from '@/components/shared/AmbientBackground';
+import { PageFooter } from '@/components/shared/PageFooter';
 import {
   GraduationCap,
   Users,
   FileText,
   Shield,
-  Sparkles,
   Download,
-  TrendingUp,
   ArrowRight,
   UserCheck,
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from 'recharts';
-
-const CHART_COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B'];
+import { EnrollmentWidget } from '@/components/admin/dashboard/EnrollmentWidget';
+import { ChatbotAnalyticsWidget } from '@/components/admin/dashboard/ChatbotAnalyticsWidget';
+import { GpaDistributionWidget } from '@/components/admin/dashboard/GpaDistributionWidget';
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
@@ -52,13 +41,13 @@ export default function AdminDashboardPage() {
     fetchDashboardStats();
     fetchGpaDistribution();
     
-    // Only fetch enrollment stats if admin_staff or dean
-    if (user.role === 'admin_staff' || user.role === 'dean') {
+    // Only fetch enrollment stats if admin_staff, dean, or sys_admin
+    if (user.role === 'admin_staff' || user.role === 'dean' || user.role === 'sys_admin') {
       fetchEnrollmentStats();
     }
     
-    // Only fetch chatbot stats if admin_staff
-    if (user.role === 'admin_staff') {
+    // Only fetch chatbot stats if admin_staff, dean, or sys_admin
+    if (user.role === 'admin_staff' || user.role === 'dean' || user.role === 'sys_admin') {
       fetchChatbotAnalytics();
     }
   }, [user, fetchDashboardStats, fetchEnrollmentStats, fetchChatbotAnalytics, fetchGpaDistribution]);
@@ -76,9 +65,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden selection:bg-[#1e3a8a]/20">
       
-      {/* Background Depth Ambient Blobs */}
-      <div className="absolute top-[5%] right-[10%] h-[400px] w-[400px] rounded-full bg-indigo-500/5 blur-[130px] animate-pulse duration-[7s] pointer-events-none" />
-      <div className="absolute bottom-[20%] left-[5%] h-[350px] w-[350px] rounded-full bg-violet-600/5 blur-[120px] pointer-events-none" />
+      <AmbientBackground topColor="bg-indigo-500/5" bottomColor="bg-violet-600/5" />
 
       <Navbar />
 
@@ -190,178 +177,22 @@ export default function AdminDashboardPage() {
         {/* Dynamic Charts Section based on Role Authorizations (HCI relevance-filtering) */}
         <div className="space-y-6">
           
-          {/* Row 1 for Admin and Dean: Enrollment Stats & Chatbot Shares */}
-          {(user?.role === 'admin_staff' || user?.role === 'dean') && (
+          {/* Row 1 for Admin, Dean, and SysAdmin: Enrollment Stats & Chatbot Shares */}
+          {(user?.role === 'admin_staff' || user?.role === 'dean' || user?.role === 'sys_admin') && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* Enrollment allocations (both Dean and Admin can see this) */}
-              <div className={user?.role === 'dean' ? 'lg:col-span-12 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4' : 'lg:col-span-7 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4'}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800">Program Enrollment Allocations</h3>
-                    <p className="text-[10px] text-slate-400">Breakdown of student registrations per curriculum profile</p>
-                  </div>
-                  <div className="h-7 px-2 bg-indigo-50 border border-indigo-100 rounded-md flex items-center gap-1 text-[9px] font-bold text-indigo-750">
-                    <TrendingUp className="h-3.5 w-3.5" />
-                    Live Feed
-                  </div>
-                </div>
-                <div className="h-[250px] w-full min-h-[250px] text-slate-500">
-                  {enrollmentStats?.data && enrollmentStats.data.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
-                      <BarChart data={enrollmentStats.data} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                        <XAxis dataKey="programName" stroke="#64748B" fontSize={8} tickLine={false} />
-                        <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                          labelStyle={{ color: '#0f172a', fontSize: '9px', fontWeight: 'bold' }}
-                          itemStyle={{ color: '#4f46e5', fontSize: '9px' }}
-                        />
-                        <Bar dataKey="count" fill="url(#indigoGrad)" radius={[4, 4, 0, 0]}>
-                          {enrollmentStats.data.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                          ))}
-                        </Bar>
-                        <defs>
-                          <linearGradient id="indigoGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#6366F1" stopOpacity={0.8} />
-                            <stop offset="100%" stopColor="#4F46E5" stopOpacity={0.3} />
-                          </linearGradient>
-                        </defs>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                      No active enrollment metrics logged
-                    </div>
-                  )}
-                </div>
+              <div className="lg:col-span-7">
+                <EnrollmentWidget data={enrollmentStats?.data || []} />
               </div>
-
-              {/* Chatbot Accuracy (Admin only) */}
-              {user?.role === 'admin_staff' && (
-                <div className="lg:col-span-5 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1">
-                      <Sparkles className="h-4 w-4 text-indigo-650" />
-                      ARIA AI Classification Shares
-                    </h3>
-                    <p className="text-[10px] text-slate-400">Distribution of advisor intents classified in real-time</p>
-                  </div>
-                  <div className="h-[250px] w-full min-h-[250px] relative flex items-center justify-center">
-                    {chatbotAnalytics?.intentDistribution && chatbotAnalytics.intentDistribution.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
-                        <PieChart>
-                          <Pie
-                            data={chatbotAnalytics.intentDistribution}
-                            dataKey="count"
-                            nameKey="intent"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={50}
-                            outerRadius={75}
-                            paddingAngle={4}
-                          >
-                            {chatbotAnalytics.intentDistribution.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                            itemStyle={{ color: '#0f172a', fontSize: '9px' }}
-                          />
-                          <Legend
-                            verticalAlign="bottom"
-                            height={36}
-                            iconType="circle"
-                            iconSize={6}
-                            formatter={(value) => <span className="text-[9px] text-slate-500 font-medium">{value}</span>}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                        No chatbot analytics logs detected
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
+              <div className="lg:col-span-5">
+                <ChatbotAnalyticsWidget intentDistribution={chatbotAnalytics?.intentDistribution || []} />
+              </div>
             </div>
           )}
 
-          {/* Row 2: General GPA Distribution & Course Pass/Fail Rates (Allowed for all: Admin, Dean, Faculty) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            {/* GPA Distribution Matrix */}
-            <div className="lg:col-span-6 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">SISP GPA Bracket Distributions</h3>
-                <p className="text-[10px] text-slate-400">Student count allocations per academic grading bracket</p>
-              </div>
-              <div className="h-[250px] w-full min-h-[250px] text-slate-500">
-                {gpaChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
-                    <BarChart data={gpaChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <XAxis dataKey="bracket" stroke="#64748B" fontSize={8} tickLine={false} />
-                      <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                        labelStyle={{ color: '#0f172a', fontSize: '9px', fontWeight: 'bold' }}
-                        itemStyle={{ color: '#8b5cf6', fontSize: '9px' }}
-                      />
-                      <Bar dataKey="count" fill="#8B5CF6" radius={[4, 4, 0, 0]}>
-                        {gpaChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={CHART_COLORS[(index + 1) % CHART_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                    No grade matrix profiles logged
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Course Grade Pass/Fail Rates */}
-            <div className="lg:col-span-6 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">Class Performance Outcome Ratios</h3>
-                <p className="text-[10px] text-slate-400">Ratio of student passing outcomes versus failed scores per course</p>
-              </div>
-              <div className="h-[250px] w-full min-h-[250px] text-slate-500">
-                {passFailData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
-                    <BarChart data={passFailData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <XAxis dataKey="code" stroke="#64748B" fontSize={8} tickLine={false} />
-                      <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                        labelStyle={{ color: '#0f172a', fontSize: '9px', fontWeight: 'bold' }}
-                      />
-                      <Legend
-                        verticalAlign="top"
-                        height={24}
-                        iconType="circle"
-                        iconSize={6}
-                        formatter={(value) => <span className="text-[9px] text-slate-500 font-medium capitalize">{value}</span>}
-                      />
-                      <Bar dataKey="pass" fill="#10B981" radius={[4, 4, 0, 0]} name="Passed" />
-                      <Bar dataKey="fail" fill="#EF4444" radius={[4, 4, 0, 0]} name="Failed" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400 font-semibold uppercase tracking-wider">
-                    No course outcome scores recorded
-                  </div>
-                )}
-              </div>
-            </div>
-
-          </div>
+          {/* Row 2: General GPA Distribution & Course Pass/Fail Rates (Allowed for all: Admin, Dean, Faculty, SysAdmin) */}
+          {(user?.role === 'admin_staff' || user?.role === 'dean' || user?.role === 'faculty' || user?.role === 'sys_admin') && (
+            <GpaDistributionWidget gpaChartData={gpaChartData} passFailData={passFailData} />
+          )}
 
         </div>
 
@@ -385,10 +216,7 @@ export default function AdminDashboardPage() {
 
       </main>
 
-      {/* Footer */}
-      <footer className="w-full text-center py-6 border-t border-slate-100 text-slate-400 text-[10px] pointer-events-none select-none">
-        &copy; {new Date().getFullYear()} Regis Marie College SISP. Built with high-fidelity cryptographic models.
-      </footer>
+      <PageFooter type="cryptographic" />
 
     </div>
   );

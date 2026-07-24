@@ -7,11 +7,20 @@ export interface DocumentRequestItem {
   typeLabel: string;
   status: string;
   remarks?: string | null;
+  fee?: number;
+  paymentStatus?: string;
+  paymentReference?: string | null;
+  qrCodeUrl?: string | null;
+  paymentConfirmedBy?: { firstName: string; lastName: string; email: string } | null;
+  paymentConfirmedAt?: string | null;
   createdAt: string;
+  updatedAt: string;
   student: {
     studentNumber: string;
     user: {
       email: string;
+      firstName: string;
+      lastName: string;
     };
     program: {
       code: string;
@@ -43,6 +52,16 @@ export const requestsApi = {
 
   updateRequestStatus: async (id: string, status: string, remarks?: string): Promise<any> => {
     const response = await apiClient.patch(`/requests/${id}`, { status, remarks });
+    return response.data;
+  },
+
+  confirmPayment: async (id: string): Promise<any> => {
+    const response = await apiClient.post(`/requests/${id}/confirm-payment`);
+    return response.data;
+  },
+
+  getFees: async () => {
+    const response = await apiClient.get('/requests/fees');
     return response.data;
   },
 };

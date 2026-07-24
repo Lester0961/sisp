@@ -7,18 +7,11 @@ import { requestsApi, DocumentRequestItem } from '@/lib/api/requests';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
+import { AmbientBackground } from '@/components/shared/AmbientBackground';
+import { PageFooter } from '@/components/shared/PageFooter';
+
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  GraduationCap,
-  LogOut,
   Sparkles,
-  ShieldCheck,
   CheckCircle,
   XCircle,
   RefreshCw,
@@ -27,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export default function DeanExceptionsPage() {
-  const { user, logout } = useAuth();
+  useAuth();
   const [requests, setRequests] = useState<DocumentRequestItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [actioningId, setActioningId] = useState<string | null>(null);
@@ -42,8 +35,6 @@ export default function DeanExceptionsPage() {
     } catch (err) {
       console.error('Failed to load exceptions queue:', err);
     } finally {
-      setLoading(true);
-      // Ensure smooth loader exit
       setTimeout(() => setLoading(false), 200);
     }
   };
@@ -58,7 +49,7 @@ export default function DeanExceptionsPage() {
       await adminApi.approveException(exceptionId, decision);
       toast.success(`Exception request successfully ${decision}!`);
       loadRequests();
-    } catch (err) {
+    } catch {
       toast.error('Failed to resolve exception.');
     } finally {
       setActioningId(null);
@@ -68,9 +59,7 @@ export default function DeanExceptionsPage() {
   return (
     <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden select-none">
       
-      {/* Background Depth Ambient Blobs */}
-      <div className="absolute top-[5%] right-[10%] h-[350px] w-[350px] rounded-full bg-cyan-500/5 blur-[130px] animate-pulse duration-[7s] pointer-events-none" />
-      <div className="absolute bottom-[20%] left-[5%] h-[400px] w-[400px] rounded-full bg-indigo-600/5 blur-[140px] pointer-events-none" />
+      <AmbientBackground topColor="bg-cyan-500/5" bottomColor="bg-indigo-600/5" />
 
       <Navbar />
 
@@ -149,7 +138,7 @@ export default function DeanExceptionsPage() {
                       <div className="space-y-1">
                         <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-bold">Request Remarks</span>
                         <p className="text-xs text-slate-600 italic bg-slate-100 p-3 rounded-lg border border-slate-200 leading-relaxed">
-                          "{req.remarks}"
+                          &quot;{req.remarks}&quot;
                         </p>
                       </div>
                     )}
@@ -193,9 +182,7 @@ export default function DeanExceptionsPage() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full text-center py-6 border-t border-slate-100 text-slate-400 text-[10px] pointer-events-none select-none">
-        &copy; {new Date().getFullYear()} Regis Marie College SISP. Built with high-fidelity cryptographic models.
-      </footer>
+      <PageFooter type="cryptographic" />
 
     </div>
   );

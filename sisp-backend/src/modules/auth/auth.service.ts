@@ -1,13 +1,13 @@
 import {
   Injectable,
   UnauthorizedException,
-  ConflictException,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MfaService } from './mfa.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
@@ -18,75 +18,13 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mfaService: MfaService,
   ) {}
 
-  async register(dto: RegisterDto) {
-    throw new ForbiddenException('Public self-registration is disabled. Please contact your administrator.');
-    // Check if email already exists
-    const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (existing) {
-      throw new ConflictException('Email is already registered');
-    }
-
-    // Find the role by name
-    const role = await this.prisma.role.findUnique({
-      where: { name: dto.roleName },
-    });
-
-    if (!role) {
-      throw new NotFoundException(`Role '${dto.roleName}' not found`);
-    }
-
-    // Hash the password
-    const passwordHash = await bcrypt.hash(dto.password, 12);
-
-    // Create the user
-    const user = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        roleId: role!.id,
-      },
-      include: {
-        role: true,
-      },
-    });
-
-    if (role!.name === 'student') {
-      const program = await this.prisma.program.findFirst();
-      if (program) {
-        await this.prisma.studentProfile.create({
-          data: {
-            userId: user.id,
-            studentNumber: `STU-${Math.floor(10000 + Math.random() * 90000)}`,
-            programId: program!.id,
-            yearLevel: 1,
-            accountBalance: {
-              create: {
-                balance: 0,
-                status: 'good_standing',
-              }
-            }
-          }
-        });
-      }
-    }
-
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email, role!.name);
-
-    return {
-      message: 'Registration successful',
-      user: {
-        id: user.id,
-        email: user.email,
-        role: role!.name,
-      },
-      ...tokens,
-    };
+  async register(_dto: RegisterDto): Promise<void> {
+    throw new ForbiddenException(
+      'Public self-registration is disabled. Please contact your administrator.',
+    );
   }
 
   async login(dto: LoginDto) {
@@ -105,21 +43,89 @@ export class AuthService {
     }
 
     // Verify password
-    const isPasswordValid = await bcrypt.compare(
-      dto.password,
-      user.passwordHash,
-    );
+    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Generate tokens
-    const tokens = await this.generateTokens(
-      user.id,
-      user.email,
-      user.role.name,
+    // Enforce MFA only for high-privilege administrative roles (admin_staff, sys_admin)
+    const requiresMfa = ['admin_staff', 'sys_admin'].includes(user.role.name);
+    if (!requiresMfa) {
+      const tokens = await this.generateTokens(user.id, user.email, user.role.name);
+      return {
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role.name,
+          mustChangePassword: user.mustChangePassword,
+        },
+        mfaRequired: false,
+        ...tokens,
+      };
+    }
+
+    // Generate MFA OTP and return mfaRequired response
+    await this.mfaService.generateOtp(user.id);
+
+    // Create a short-lived MFA token (10 minutes) so the user can complete the second factor
+    const mfaToken = await this.jwtService.signAsync(
+      { sub: user.id, email: user.email, role: user.role.name, purpose: 'mfa' },
+      {
+        secret: this.getRequiredSecret('JWT_SECRET'),
+        expiresIn: '10m',
+      },
     );
+
+    return {
+      message: 'MFA verification required. Please enter the OTP code.',
+      mfaRequired: true,
+      mfaToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role.name,
+        mustChangePassword: user.mustChangePassword,
+      },
+    };
+  }
+
+  /**
+   * Verify the MFA OTP code and issue full JWT tokens on success.
+   */
+  async verifyMfa(mfaToken: string, otpCode: string) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(mfaToken, {
+        secret: this.getRequiredSecret('JWT_SECRET'),
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired MFA token');
+    }
+
+    if (payload.purpose !== 'mfa') {
+      throw new UnauthorizedException('Invalid token type for MFA verification');
+    }
+
+    // Verify OTP
+    const isValid = this.mfaService.verifyOtp(payload.sub, otpCode);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid or expired OTP code');
+    }
+
+    // Fetch user to get fresh data
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub as string },
+      include: { role: true },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+
+    // Generate full JWT tokens
+    const tokens = await this.generateTokens(user.id, user.email, user.role.name);
 
     return {
       message: 'Login successful',
@@ -148,11 +154,7 @@ export class AuthService {
         throw new UnauthorizedException('User not found or inactive');
       }
 
-      const tokens = await this.generateTokens(
-        user.id,
-        user.email,
-        user.role.name,
-      );
+      const tokens = await this.generateTokens(user.id, user.email, user.role.name);
 
       return {
         message: 'Token refreshed successfully',
@@ -161,6 +163,14 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
+  }
+
+  private getRequiredSecret(key: string): string {
+    const value = this.configService.get<string>(key);
+    if (!value) {
+      throw new Error(`${key} is not set. Refusing to sign tokens with an insecure default.`);
+    }
+    return value;
   }
 
   private async generateTokens(
@@ -172,11 +182,11 @@ export class AuthService {
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_SECRET') || 'default-secret-key-replace-in-prod',
+        secret: this.getRequiredSecret('JWT_SECRET'),
         expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '1d',
       }),
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET') || 'default-refresh-secret-replace-in-prod',
+        secret: this.getRequiredSecret('JWT_REFRESH_SECRET'),
         expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN') || '7d',
       }),
     ]);
@@ -184,13 +194,24 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async changePassword(userId: string, newPassword: string) {
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Verify the current password before allowing a change
+    const isCurrentValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isCurrentValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    // Reject no-op changes
+    if (currentPassword === newPassword) {
+      throw new ForbiddenException('New password must be different from the current password');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);

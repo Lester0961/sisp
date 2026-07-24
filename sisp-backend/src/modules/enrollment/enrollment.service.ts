@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { EnrollDto } from './dto/enroll.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { CreateHistoryDto } from './dto/create-history.dto';
+import { requireStudentProfile } from '../../common/utils/require-student-profile';
 
 @Injectable()
 export class EnrollmentService {
@@ -15,15 +16,7 @@ export class EnrollmentService {
 
   async enroll(userId: string, dto: EnrollDto) {
     // Get student profile from userId
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId },
-    });
-
-    if (!profile) {
-      throw new NotFoundException(
-        'Student profile not found. Please contact admin.',
-      );
-    }
+    const profile = await requireStudentProfile(this.prisma, userId);
 
     // Verify course exists
     const course = await this.prisma.course.findUnique({
@@ -31,9 +24,7 @@ export class EnrollmentService {
     });
 
     if (!course) {
-      throw new NotFoundException(
-        `Course with ID ${dto.courseId} not found`,
-      );
+      throw new NotFoundException(`Course with ID ${dto.courseId} not found`);
     }
 
     // Check if already enrolled in this course
@@ -46,9 +37,7 @@ export class EnrollmentService {
     });
 
     if (existing) {
-      throw new ConflictException(
-        `You are already enrolled in ${course.code} - ${course.title}`,
-      );
+      throw new ConflictException(`You are already enrolled in ${course.code} - ${course.title}`);
     }
 
     const enrollment = await this.prisma.enrollment.create({
@@ -101,13 +90,7 @@ export class EnrollmentService {
   }
 
   async getMyEnrollments(userId: string) {
-    const profile = await this.prisma.studentProfile.findUnique({
-      where: { userId },
-    });
-
-    if (!profile) {
-      throw new NotFoundException('Student profile not found');
-    }
+    const profile = await requireStudentProfile(this.prisma, userId);
 
     const enrollments = await this.prisma.enrollment.findMany({
       where: { studentId: profile.id },
@@ -242,16 +225,12 @@ export class EnrollmentService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException(
-        `Enrollment with ID ${enrollmentId} not found`,
-      );
+      throw new NotFoundException(`Enrollment with ID ${enrollmentId} not found`);
     }
 
     // Verify the enrollment belongs to this student
     if (enrollment.studentId !== profile.id) {
-      throw new BadRequestException(
-        'You can only drop your own enrollments',
-      );
+      throw new BadRequestException('You can only drop your own enrollments');
     }
 
     if (enrollment.status === 'dropped') {
@@ -292,18 +271,13 @@ export class EnrollmentService {
     };
   }
 
-  async createHistory(
-    studentProfileId: string,
-    dto: CreateHistoryDto,
-  ) {
+  async createHistory(studentProfileId: string, dto: CreateHistoryDto) {
     const profile = await this.prisma.studentProfile.findUnique({
       where: { id: studentProfileId },
     });
 
     if (!profile) {
-      throw new NotFoundException(
-        `Student profile with ID ${studentProfileId} not found`,
-      );
+      throw new NotFoundException(`Student profile with ID ${studentProfileId} not found`);
     }
 
     const history = await this.prisma.enrollmentHistory.create({
@@ -329,5 +303,21 @@ export class EnrollmentService {
       data: courses,
       total: courses.length,
     };
+  }
+
+  async getCompletedCourseIds(userId: string): Promise<string[]> {
+    const profile = await requireStudentProfile(this.prisma, userId);
+
+    const completed = await this.prisma.enrollment.findMany({
+      where: {
+        studentId: profile.id,
+        status: 'completed',
+      },
+      select: {
+        courseId: true,
+      },
+    });
+
+    return completed.map((e) => e.courseId);
   }
 }

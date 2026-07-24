@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsArray,
-  IsIn,
-  IsUUID,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsIn, IsUUID } from 'class-validator';
 
 export class SendNotificationDto {
   @IsString()

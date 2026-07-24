@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Check, Clock, X } from 'lucide-react';
+import { Check, Clock, X, Wallet } from 'lucide-react';
 
 interface RequestStatusTrackerProps {
   status: string;
@@ -8,6 +8,7 @@ interface RequestStatusTrackerProps {
 }
 
 const STEPS = [
+  { step: 0, label: 'Payment' },
   { step: 1, label: 'Pending' },
   { step: 2, label: 'Under Review' },
   { step: 3, label: 'Approved' },
@@ -20,12 +21,25 @@ export function RequestStatusTracker({
   updatedAt,
 }: RequestStatusTrackerProps) {
   const isRejected = status === 'rejected';
+  const isAwaitingPayment = status === 'awaiting_payment';
 
   if (isRejected) {
     return (
       <div className="flex items-center space-x-2 text-destructive">
         <X className="h-4 w-4" />
         <span className="text-sm font-medium">Request Rejected</span>
+        <span className="text-xs text-muted-foreground">
+          {new Date(updatedAt).toLocaleDateString()}
+        </span>
+      </div>
+    );
+  }
+
+  if (isAwaitingPayment) {
+    return (
+      <div className="flex items-center space-x-2 text-amber-600">
+        <Wallet className="h-4 w-4" />
+        <span className="text-sm font-medium">Awaiting Payment</span>
         <span className="text-xs text-muted-foreground">
           {new Date(updatedAt).toLocaleDateString()}
         </span>

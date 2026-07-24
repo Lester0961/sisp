@@ -5,6 +5,8 @@ import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class AnalyticsService {
+  private static readonly PASSING_THRESHOLD = 75;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getEnrollmentStats() {
@@ -15,7 +17,7 @@ export class AnalyticsService {
 
     const programs = await this.prisma.program.findMany();
     const programMap = new Map(programs.map((p) => [p.id, p.name]));
-    
+
     const data = programStats.map((stat) => ({
       programId: stat.programId,
       programName: programMap.get(stat.programId) || 'Unknown',
@@ -37,21 +39,21 @@ export class AnalyticsService {
     });
 
     const brackets = {
-      '1.0 - 1.5': 0,
-      '1.51 - 2.0': 0,
-      '2.01 - 2.5': 0,
-      '2.51 - 3.0': 0,
-      '3.01+': 0,
+      '90 - 100': 0,
+      '80 - 89.99': 0,
+      '75 - 79.99': 0,
+      '60 - 74.99': 0,
+      'Below 60': 0,
     };
 
     grades.forEach((g) => {
       if (g.finalGrade === null || g.finalGrade === undefined) return;
       const fg = g.finalGrade;
-      if (fg >= 1.0 && fg <= 1.5) brackets['1.0 - 1.5']++;
-      else if (fg > 1.5 && fg <= 2.0) brackets['1.51 - 2.0']++;
-      else if (fg > 2.0 && fg <= 2.5) brackets['2.01 - 2.5']++;
-      else if (fg > 2.5 && fg <= 3.0) brackets['2.51 - 3.0']++;
-      else if (fg > 3.0) brackets['3.01+']++;
+      if (fg >= 90) brackets['90 - 100']++;
+      else if (fg >= 80) brackets['80 - 89.99']++;
+      else if (fg >= 75) brackets['75 - 79.99']++;
+      else if (fg >= 60) brackets['60 - 74.99']++;
+      else brackets['Below 60']++;
     });
 
     return brackets;
@@ -92,9 +94,10 @@ export class AnalyticsService {
         });
       }
       const stat = courseStatsMap.get(course.id)!;
-      if (g.finalGrade !== null && g.finalGrade <= 3.0) {
+      if (g.finalGrade === null || g.finalGrade === undefined) return;
+      if (g.finalGrade >= AnalyticsService.PASSING_THRESHOLD) {
         stat.pass++;
-      } else if (g.finalGrade !== null && g.finalGrade > 3.0) {
+      } else {
         stat.fail++;
       }
     });
@@ -229,15 +232,40 @@ export class AnalyticsService {
 
       // PDF Branding Header
       doc.fontSize(20).fillColor('#1E1B4B').text('REGIS MARIE COLLEGE', { align: 'center' });
-      doc.fontSize(10).fillColor('#64748B').text('OFFICIAL GRADE EVALUATION REPORT', { align: 'center' });
+      doc
+        .fontSize(10)
+        .fillColor('#64748B')
+        .text('OFFICIAL GRADE EVALUATION REPORT', { align: 'center' });
       doc.moveDown(2);
 
       // Student Info Block
-      doc.fillColor('#000000').fontSize(11).text(`Student Name: `, { continued: true }).font('Helvetica-Bold').text(`${student.user.firstName} ${student.user.lastName}`).font('Helvetica');
-      doc.text(`Student Number: `, { continued: true }).font('Helvetica-Bold').text(`${student.studentNumber}`).font('Helvetica');
-      doc.text(`Program: `, { continued: true }).font('Helvetica-Bold').text(`${student.program.name} (${student.program.code})`).font('Helvetica');
-      doc.text(`Year Level: `, { continued: true }).font('Helvetica-Bold').text(`${student.yearLevel}`).font('Helvetica');
-      doc.text(`Email: `, { continued: true }).font('Helvetica-Bold').text(`${student.user.email}`).font('Helvetica');
+      doc
+        .fillColor('#000000')
+        .fontSize(11)
+        .text(`Student Name: `, { continued: true })
+        .font('Helvetica-Bold')
+        .text(`${student.user.firstName} ${student.user.lastName}`)
+        .font('Helvetica');
+      doc
+        .text(`Student Number: `, { continued: true })
+        .font('Helvetica-Bold')
+        .text(`${student.studentNumber}`)
+        .font('Helvetica');
+      doc
+        .text(`Program: `, { continued: true })
+        .font('Helvetica-Bold')
+        .text(`${student.program.name} (${student.program.code})`)
+        .font('Helvetica');
+      doc
+        .text(`Year Level: `, { continued: true })
+        .font('Helvetica-Bold')
+        .text(`${student.yearLevel}`)
+        .font('Helvetica');
+      doc
+        .text(`Email: `, { continued: true })
+        .font('Helvetica-Bold')
+        .text(`${student.user.email}`)
+        .font('Helvetica');
       doc.moveDown(1.5);
 
       // Grade table Header
@@ -250,7 +278,11 @@ export class AnalyticsService {
       doc.text('Finals', 430, tableTop);
       doc.text('Final Grade', 485, tableTop);
 
-      doc.moveTo(50, tableTop + 13).lineTo(550, tableTop + 13).strokeColor('#E2E8F0').stroke();
+      doc
+        .moveTo(50, tableTop + 13)
+        .lineTo(550, tableTop + 13)
+        .strokeColor('#E2E8F0')
+        .stroke();
 
       let y = tableTop + 23;
       doc.font('Helvetica').fontSize(8.5).fillColor('#0f172a');
@@ -258,10 +290,28 @@ export class AnalyticsService {
         const grade = enrollment.grade;
         doc.text(enrollment.course.code, 50, y);
         doc.text(enrollment.course.title.substring(0, 32), 140, y);
-        doc.text(grade?.prelim !== null && grade?.prelim !== undefined ? String(grade?.prelim) : 'N/A', 330, y);
-        doc.text(grade?.midterm !== null && grade?.midterm !== undefined ? String(grade?.midterm) : 'N/A', 380, y);
-        doc.text(grade?.finals !== null && grade?.finals !== undefined ? String(grade?.finals) : 'N/A', 430, y);
-        doc.text(grade?.finalGrade !== null && grade?.finalGrade !== undefined ? String(grade?.finalGrade) : 'N/A', 485, y);
+        doc.text(
+          grade?.prelim !== null && grade?.prelim !== undefined ? String(grade?.prelim) : 'N/A',
+          330,
+          y,
+        );
+        doc.text(
+          grade?.midterm !== null && grade?.midterm !== undefined ? String(grade?.midterm) : 'N/A',
+          380,
+          y,
+        );
+        doc.text(
+          grade?.finals !== null && grade?.finals !== undefined ? String(grade?.finals) : 'N/A',
+          430,
+          y,
+        );
+        doc.text(
+          grade?.finalGrade !== null && grade?.finalGrade !== undefined
+            ? String(grade?.finalGrade)
+            : 'N/A',
+          485,
+          y,
+        );
         y += 18;
       });
 

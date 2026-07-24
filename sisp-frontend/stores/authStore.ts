@@ -38,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           localStorage.setItem('accessToken', accessToken);
           localStorage.setItem('refreshToken', refreshToken);
+          document.cookie = `sisp-auth-token=${accessToken}; path=/; SameSite=Strict`;
         }
         set({
           user,
@@ -51,6 +52,7 @@ export const useAuthStore = create<AuthState>()(
       setAccessToken: (accessToken) => {
         if (typeof window !== 'undefined') {
           localStorage.setItem('accessToken', accessToken);
+          document.cookie = `sisp-auth-token=${accessToken}; path=/; SameSite=Strict`;
         }
         set({ accessToken });
       },
@@ -62,6 +64,7 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
+          document.cookie = 'sisp-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
         }
         // Clear all registered stores on logout
         cleanupCallbacks.forEach((cb) => cb());

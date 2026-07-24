@@ -7,7 +7,7 @@ import { useStudentStore } from '@/stores/studentStore';
 import { Navbar } from '@/components/shared/Navbar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, BookOpen, CreditCard, Bell } from 'lucide-react';
+import { Loader2, BookOpen, Bell } from 'lucide-react';
 import { notificationsApi } from '@/lib/api/notifications';
 import { Notification } from '@/types';
 import { toast } from 'sonner';

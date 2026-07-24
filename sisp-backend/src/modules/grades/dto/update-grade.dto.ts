@@ -1,10 +1,4 @@
-import {
-  IsNumber,
-  IsOptional,
-  IsBoolean,
-  Min,
-  Max,
-} from 'class-validator';
+import { IsNumber, IsOptional, IsBoolean, Min, Max } from 'class-validator';
 
 export class UpdateGradeDto {
   @IsNumber()

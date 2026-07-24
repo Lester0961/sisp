@@ -149,9 +149,7 @@ export class StudentsService {
     });
 
     if (!profile) {
-      throw new NotFoundException(
-        `Student profile for user ${userId} not found`,
-      );
+      throw new NotFoundException(`Student profile for user ${userId} not found`);
     }
 
     return profile;
@@ -164,9 +162,7 @@ export class StudentsService {
     });
 
     if (existing) {
-      throw new ConflictException(
-        'Student profile already exists for this user',
-      );
+      throw new ConflictException('Student profile already exists for this user');
     }
 
     // Check if student number is already taken
@@ -175,9 +171,7 @@ export class StudentsService {
     });
 
     if (existingNumber) {
-      throw new ConflictException(
-        `Student number '${dto.studentNumber}' is already in use`,
-      );
+      throw new ConflictException(`Student number '${dto.studentNumber}' is already in use`);
     }
 
     // Find the program by code
@@ -186,9 +180,7 @@ export class StudentsService {
     });
 
     if (!program) {
-      throw new BadRequestException(
-        `Program with code '${dto.programCode}' not found`,
-      );
+      throw new BadRequestException(`Program with code '${dto.programCode}' not found`);
     }
 
     // Verify user exists and is a student
@@ -257,9 +249,7 @@ export class StudentsService {
       });
 
       if (!program) {
-        throw new BadRequestException(
-          `Program with code '${dto.programCode}' not found`,
-        );
+        throw new BadRequestException(`Program with code '${dto.programCode}' not found`);
       }
 
       updateData.programId = program.id;

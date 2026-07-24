@@ -5,12 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAllLogs(
-    page = 1,
-    limit = 50,
-    userId?: string,
-    resource?: string,
-  ) {
+  async getAllLogs(page = 1, limit = 50, userId?: string, resource?: string) {
     const skip = (page - 1) * limit;
 
     const where: {

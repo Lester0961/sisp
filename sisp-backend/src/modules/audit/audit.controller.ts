@@ -1,14 +1,9 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('audit')
-@Roles('admin_staff', 'dean')
+@Roles('admin_staff', 'dean', 'sys_admin')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 

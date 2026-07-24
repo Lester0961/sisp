@@ -1,24 +1,50 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { DocumentsService } from '../documents/documents.service';
 import * as bcrypt from 'bcryptjs';
+
+const userSafeSelect = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  roleId: true,
+  isActive: true,
+  mustChangePassword: true,
+  createdAt: true,
+  updatedAt: true,
+  role: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+};
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly documentsService: DocumentsService,
+  ) {}
 
   async getDashboardStats() {
-    const [totalUsers, totalStudents, totalFaculty, totalRequests] =
-      await Promise.all([
-        this.prisma.user.count(),
-        this.prisma.user.count({
-          where: { role: { name: 'student' } },
-        }),
-        this.prisma.user.count({
-          where: { role: { name: 'faculty' } },
-        }),
-        this.prisma.documentRequest.count(),
-      ]);
+    const [totalUsers, totalStudents, totalFaculty, totalRequests] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.count({
+        where: { role: { name: 'student' } },
+      }),
+      this.prisma.user.count({
+        where: { role: { name: 'faculty' } },
+      }),
+      this.prisma.documentRequest.count(),
+    ]);
 
     return {
       totalUsers,
@@ -28,30 +54,15 @@ export class AdminService {
     };
   }
 
-  async approveException(
-    exceptionId: string,
-    decision: 'approved' | 'rejected',
-    adminId: string,
-  ) {
-    // Find the document request (exceptions are tracked as document requests)
-    const request = await this.prisma.documentRequest.findUnique({
-      where: { id: exceptionId },
-    });
-
-    if (!request) {
-      return { message: 'Exception request not found' };
-    }
-
-    const updated = await this.prisma.documentRequest.update({
-      where: { id: exceptionId },
-      data: {
-        status: decision,
-      },
+  async approveException(exceptionId: string, decision: 'approved' | 'rejected', adminId: string) {
+    const updated = await this.documentsService.updateRequestStatus(exceptionId, {
+      status: decision,
+      remarks: `Exception resolved by admin ${adminId}`,
     });
 
     return {
       message: `Exception ${decision} successfully`,
-      data: updated,
+      data: updated.data,
     };
   }
 
@@ -61,9 +72,7 @@ export class AdminService {
       this.prisma.user.findMany({
         skip,
         take: limit,
-        include: {
-          role: true,
-        },
+        select: userSafeSelect,
         orderBy: {
           createdAt: 'desc',
         },
@@ -87,7 +96,7 @@ export class AdminService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { roleId: role.id },
-      include: { role: true },
+      select: userSafeSelect,
     });
   }
 
@@ -95,7 +104,7 @@ export class AdminService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { isActive: false },
-      include: { role: true },
+      select: userSafeSelect,
     });
   }
 
@@ -191,7 +200,6 @@ export class AdminService {
   }
 
   async deleteUser(userId: string) {
-    // 1. Programmatic cascade delete
     // Find if the user exists
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -213,71 +221,73 @@ export class AdminService {
       throw new NotFoundException('User not found');
     }
 
-    // Programmatically delete all child dependencies of studentProfile first to avoid FK constraint errors!
-    if (user.studentProfile) {
-      const studentId = user.studentProfile.id;
+    await this.prisma.$transaction(async (tx) => {
+      // Programmatically delete all child dependencies of studentProfile first to avoid FK constraint errors!
+      if (user.studentProfile) {
+        const studentId = user.studentProfile.id;
 
-      // Delete grades of student enrollments
-      for (const enrollment of user.studentProfile.enrollments) {
-        if (enrollment.grade) {
-          await this.prisma.grade.deleteMany({
-            where: { enrollmentId: enrollment.id },
+        // Delete grades of student enrollments
+        for (const enrollment of user.studentProfile.enrollments) {
+          if (enrollment.grade) {
+            await tx.grade.deleteMany({
+              where: { enrollmentId: enrollment.id },
+            });
+          }
+        }
+
+        // Delete enrollments
+        await tx.enrollment.deleteMany({
+          where: { studentId },
+        });
+
+        // Delete document requests
+        await tx.documentRequest.deleteMany({
+          where: { studentId },
+        });
+
+        // Delete account balance
+        if (user.studentProfile.accountBalance) {
+          await tx.accountBalance.deleteMany({
+            where: { studentId },
           });
         }
-      }
 
-      // Delete enrollments
-      await this.prisma.enrollment.deleteMany({
-        where: { studentId },
-      });
-
-      // Delete document requests
-      await this.prisma.documentRequest.deleteMany({
-        where: { studentId },
-      });
-
-      // Delete account balance
-      if (user.studentProfile.accountBalance) {
-        await this.prisma.accountBalance.deleteMany({
-          where: { studentId },
+        // Delete student profile
+        await tx.studentProfile.delete({
+          where: { id: studentId },
         });
       }
 
-      // Delete student profile
-      await this.prisma.studentProfile.delete({
-        where: { id: studentId },
+      // Delete chat logs and escalations
+      const chatLogs = await tx.chatLog.findMany({
+        where: { userId },
       });
-    }
+      const chatLogIds = chatLogs.map((c) => c.id);
 
-    // Delete chat logs and escalations
-    const chatLogs = await this.prisma.chatLog.findMany({
-      where: { userId },
-    });
-    const chatLogIds = chatLogs.map((c) => c.id);
+      if (chatLogIds.length > 0) {
+        await tx.escalationQueue.deleteMany({
+          where: { chatId: { in: chatLogIds } },
+        });
+      }
 
-    if (chatLogIds.length > 0) {
-      await this.prisma.escalationQueue.deleteMany({
-        where: { chatId: { in: chatLogIds } },
+      await tx.chatLog.deleteMany({
+        where: { userId },
       });
-    }
 
-    await this.prisma.chatLog.deleteMany({
-      where: { userId },
-    });
+      // Delete notifications
+      await tx.notification.deleteMany({
+        where: { userId },
+      });
 
-    // Delete notifications
-    await this.prisma.notification.deleteMany({
-      where: { userId },
-    });
+      // Delete audit logs
+      await tx.auditLog.deleteMany({
+        where: { userId },
+      });
 
-    // Delete audit logs
-    await this.prisma.auditLog.deleteMany({
-      where: { userId },
-    });
-
-    // Finally, hard delete the user
-    await this.prisma.user.delete({
-      where: { id: userId },
+      // Finally, hard delete the user
+      await tx.user.delete({
+        where: { id: userId },
+      });
     });
 
     return { message: 'User account hard-deleted successfully' };

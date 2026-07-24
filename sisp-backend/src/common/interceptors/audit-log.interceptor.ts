@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -12,20 +7,13 @@ import { JwtPayload } from '../../modules/auth/strategies/jwt.strategy';
 const MUTATING_METHODS = ['POST', 'PATCH', 'PUT', 'DELETE'];
 
 // Routes to exclude from audit logging (auth endpoints)
-const EXCLUDED_ROUTES = [
-  '/api/auth/login',
-  '/api/auth/register',
-  '/api/auth/refresh',
-];
+const EXCLUDED_ROUTES = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh'];
 
 @Injectable()
 export class AuditLogInterceptor implements NestInterceptor {
   constructor(private readonly prisma: PrismaService) {}
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<unknown> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const request = context.switchToHttp().getRequest<{
       method: string;
       url: string;
@@ -52,10 +40,7 @@ export class AuditLogInterceptor implements NestInterceptor {
       return next.handle();
     }
 
-    const ipAddress =
-      (request.headers?.['x-forwarded-for'] as string) ??
-      request.ip ??
-      'unknown';
+    const ipAddress = (request.headers?.['x-forwarded-for'] as string) ?? request.ip ?? 'unknown';
 
     // Extract resource name from URL path
     // e.g. /api/grades/123 → resource = 'grades', resourceId = '123'
@@ -90,8 +75,7 @@ export class AuditLogInterceptor implements NestInterceptor {
   private extractResourceId(url: string): string | null {
     const parts = url.replace(/^\/api\//, '').split('/');
     // Look for UUID-like segments (last path param)
-    const uuidRegex =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const idParts = parts.filter((p) => uuidRegex.test(p));
     return idParts.length > 0 ? idParts[idParts.length - 1] : null;
   }

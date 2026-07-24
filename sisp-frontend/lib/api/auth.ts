@@ -17,8 +17,16 @@ export const authApi = {
   login: async (data: {
     email: string;
     password: string;
+  }): Promise<any> => {
+    const response = await apiClient.post('/auth/login', data);
+    return response.data;
+  },
+
+  verifyMfa: async (data: {
+    mfaToken: string;
+    otpCode: string;
   }): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>('/auth/login', data);
+    const response = await apiClient.post<AuthResponse>('/auth/verify-mfa', data);
     return response.data;
   },
 
@@ -29,8 +37,9 @@ export const authApi = {
     return response.data;
   },
 
-  changePassword: async (newPassword: string): Promise<{ message: string }> => {
+  changePassword: async (currentPassword: string, newPassword: string): Promise<{ message: string }> => {
     const response = await apiClient.post<{ message: string }>('/auth/change-password', {
+      currentPassword,
       newPassword,
     });
     return response.data;

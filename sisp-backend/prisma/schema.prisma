@@ -63,10 +63,23 @@ model User {
   // Relations
   studentProfile StudentProfile?
   auditLogs      AuditLog[]
-  events         Event[]
+
   notifications  Notification[]
   escalations    EscalationQueue[]
   chatLogs       ChatLog[]
+
+  // Grade workflow relations
+  submittedGrades Grade[] @relation("GradeSubmittedBy")
+  postedGrades    Grade[] @relation("GradePostedBy")
+  approvedGrades  Grade[] @relation("GradeApprovedBy")
+  rejectedGrades  Grade[] @relation("GradeRejectedBy")
+
+  // Payment confirmation
+  confirmedPayments DocumentRequest[] @relation("PaymentConfirmedBy")
+
+  // Live agent sessions
+  assignedChatSessions ChatSession[] @relation("SessionAssignedTo")
+  sentChatMessages     ChatMessage[]
 
   @@map("users")
 }
@@ -123,8 +136,28 @@ model StudentProfile {
   enrollmentHistory EnrollmentHistory[]
   accountBalance    AccountBalance?
   documentRequests  DocumentRequest[]
+  studentSemesters  StudentSemester[]
+  chatSessions      ChatSession[]
 
   @@map("student_profiles")
+}
+
+// ============================================================
+// STUDENT SEMESTER (Payment tracking)
+// ============================================================
+
+model StudentSemester {
+  id          String         @id @default(uuid())
+  studentId   String         @map("student_id")
+  student     StudentProfile @relation(fields: [studentId], references: [id])
+  semester    String         // e.g., "1st", "2nd", "Summer"
+  year        String         // e.g., "2025-2026"
+  isFullyPaid Boolean        @default(false) @map("is_fully_paid")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@unique([studentId, semester, year])
+  @@map("student_semesters")
 }
 
 // ============================================================
@@ -191,6 +224,8 @@ model Enrollment {
   course    Course         @relation(fields: [courseId], references: [id])
   section   String?
   status    String         @default("enrolled")
+  semester  String?        // e.g. "1st"
+  year      String?        // e.g. "2025-2026"
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
 
@@ -200,7 +235,7 @@ model Enrollment {
 }
 
 // ============================================================
-// GRADES — 3NF: student derived via enrollment → no student_id
+// GRADES — with workflow status
 // ============================================================
 
 model Grade {
@@ -212,6 +247,23 @@ model Grade {
   finals       Float?
   finalGrade   Float?     @map("final_grade")
   isVisible    Boolean    @default(false) @map("is_visible")
+
+  // Workflow status
+  status          String   @default("draft") // draft | submitted | posted | approved | rejected
+  submittedById   String?  @map("submitted_by_id")
+  submittedBy     User?    @relation("GradeSubmittedBy", fields: [submittedById], references: [id])
+  submittedAt     DateTime? @map("submitted_at")
+  postedById      String?  @map("posted_by_id")
+  postedBy        User?    @relation("GradePostedBy", fields: [postedById], references: [id])
+  postedAt        DateTime? @map("posted_at")
+  approvedById    String?  @map("approved_by_id")
+  approvedBy      User?    @relation("GradeApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime? @map("approved_at")
+  rejectedById    String?  @map("rejected_by_id")
+  rejectedBy      User?    @relation("GradeRejectedBy", fields: [rejectedById], references: [id])
+  rejectedAt      DateTime? @map("rejected_at")
+  rejectedRemarks String?  @map("rejected_remarks")
+
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
@@ -235,7 +287,7 @@ model AccountBalance {
 }
 
 // ============================================================
-// DOCUMENT REQUESTS
+// DOCUMENT REQUESTS — with payment
 // ============================================================
 
 model DocumentRequest {
@@ -243,33 +295,22 @@ model DocumentRequest {
   studentId String         @map("student_id")
   student   StudentProfile @relation(fields: [studentId], references: [id])
   type      String
-  status    String         @default("pending")
+  status    String         @default("awaiting_payment") // awaiting_payment | pending | under_review | approved | released | rejected
   remarks   String?
+
+  // Payment fields
+  fee                 Decimal   @db.Decimal(10, 2) @default(0.00)
+  paymentStatus       String    @default("unpaid") @map("payment_status") // unpaid | paid
+  paymentReference    String?   @map("payment_reference")
+  qrCodeUrl           String?   @map("qr_code_url")
+  paymentConfirmedById String?  @map("payment_confirmed_by_id")
+  paymentConfirmedBy  User?     @relation("PaymentConfirmedBy", fields: [paymentConfirmedById], references: [id])
+  paymentConfirmedAt  DateTime? @map("payment_confirmed_at")
+
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
 
   @@map("document_requests")
-}
-
-// ============================================================
-// EVENTS
-// ============================================================
-
-model Event {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  startDate   DateTime @map("start_date")
-  endDate     DateTime @map("end_date")
-  status      String   @default("Upcoming")
-  category    String?
-  venue       String?
-  createdBy   String   @map("created_by") @db.Uuid
-  creator     User     @relation(fields: [createdBy], references: [id])
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("events")
 }
 
 // ============================================================
@@ -289,7 +330,7 @@ model Notification {
 }
 
 // ============================================================
-// CHAT SYSTEM (scaffold — fully built in Phase 3)
+// CHAT SYSTEM
 // ============================================================
 
 model ChatLog {
@@ -303,6 +344,7 @@ model ChatLog {
   createdAt  DateTime @default(now()) @map("created_at")
 
   escalation EscalationQueue?
+  chatSession ChatSession?
 
   @@map("chat_logs")
 }
@@ -319,4 +361,38 @@ model EscalationQueue {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("escalation_queue")
+}
+
+// ============================================================
+// LIVE AGENT — Async Messaging
+// ============================================================
+
+model ChatSession {
+  id          String         @id @default(uuid())
+  studentId   String         @map("student_id")
+  student     StudentProfile @relation(fields: [studentId], references: [id])
+  escalationId String?     @unique @map("escalation_id")
+  agentId     String?        @map("agent_id")
+  agent       User?          @relation("SessionAssignedTo", fields: [agentId], references: [id])
+  status      String         @default("open") // open | closed
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  messages ChatMessage[]
+  chatLog  ChatLog?        @relation(fields: [escalationId], references: [id])
+
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  senderId  String   @map("sender_id")
+  sender    User     @relation(fields: [senderId], references: [id])
+  senderRole String  @map("sender_role") // student | live_agent | admin_staff | dean
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("chat_messages")
 }

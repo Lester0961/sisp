@@ -14,6 +14,8 @@ import {
   Sparkles,
   Users,
   Settings,
+  Shield,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,12 +33,29 @@ const roleNavs = {
   ],
   dean: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dean/grades', label: 'Grade Approval', icon: BookOpen },
     { href: '/dean/exceptions', label: 'Exceptions', icon: FileText },
   ],
   admin_staff: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/grades', label: 'Grade Review', icon: BookOpen },
+    { href: '/admin/requests', label: 'Payments', icon: FileText },
     { href: '/admin/escalations', label: 'Escalations', icon: Sparkles },
+    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
+  ],
+  sys_admin: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
+    { href: '/admin/audit', label: 'Audit Logs', icon: Shield },
+  ],
+  live_agent: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/live-agent', label: 'Live Chat', icon: MessageSquare },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
+    { href: '/admin/audit', label: 'Audit Logs', icon: Shield },
   ],
 };
 

@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   email: string;
-  role: 'student' | 'faculty' | 'admin_staff' | 'dean';
+  role: 'student' | 'faculty' | 'admin_staff' | 'dean' | 'sys_admin' | 'live_agent';
   mustChangePassword?: boolean;
 }
 
@@ -69,8 +69,26 @@ export interface Grade {
   finals: number | null;
   finalGrade: number | null;
   isVisible: boolean;
+  status?: string;
+  submittedBy?: { firstName: string; lastName: string } | null;
+  submittedAt?: string | null;
+  postedBy?: { firstName: string; lastName: string } | null;
+  postedAt?: string | null;
+  approvedBy?: { firstName: string; lastName: string } | null;
+  approvedAt?: string | null;
+  rejectedBy?: { firstName: string; lastName: string } | null;
+  rejectedAt?: string | null;
+  rejectedRemarks?: string | null;
   enrollment: {
     course: Course;
+    section?: string;
+    student?: {
+      studentNumber: string;
+      user: {
+        firstName: string;
+        lastName: string;
+      };
+    };
   };
 }
 
@@ -86,6 +104,10 @@ export interface DocumentRequest {
   status: string;
   statusStep: number;
   remarks: string | null;
+  fee?: number;
+  paymentStatus?: string;
+  paymentReference?: string | null;
+  qrCodeUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }

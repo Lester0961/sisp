@@ -7,17 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { AmbientBackground } from '@/components/shared/AmbientBackground';
+import { PageFooter } from '@/components/shared/PageFooter';
 import {
   Users,
-  Shield,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -27,9 +20,17 @@ import {
   Loader2,
   Lock,
 } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function AdminUsersPage() {
-  const { user } = useAuth();
+  useAuth();
   const {
     users,
     totalUsers,
@@ -106,8 +107,8 @@ export default function AdminUsersPage() {
       setLastName('');
       setStudentNumber('');
       setTemporaryPassword('');
-    } catch (err: any) {
-      const errMsg = err.response?.data?.message ?? 'Failed to create user account';
+    } catch (err: unknown) {
+      const errMsg = (err as any).response?.data?.message ?? 'Failed to create user account';
       toast.error(errMsg);
     } finally {
       setCreating(false);
@@ -119,7 +120,7 @@ export default function AdminUsersPage() {
       try {
         await deactivateUser(userId);
         toast.success('User account deactivated.');
-      } catch (err) {
+      } catch {
         toast.error('Failed to deactivate user.');
       }
     }
@@ -137,7 +138,7 @@ export default function AdminUsersPage() {
         try {
           await deleteUser(userId);
           toast.success('User account permanently deleted.');
-        } catch (err) {
+        } catch {
           toast.error('Failed to permanently delete user.');
         }
       }
@@ -148,7 +149,7 @@ export default function AdminUsersPage() {
     try {
       await updateUserRole(userId, roleName);
       toast.success('User role updated successfully.');
-    } catch (err) {
+    } catch {
       toast.error('Failed to update role.');
     }
   };
@@ -158,14 +159,13 @@ export default function AdminUsersPage() {
     { value: 'faculty', label: 'Faculty' },
     { value: 'dean', label: 'Academic Dean' },
     { value: 'admin_staff', label: 'Admin Staff' },
+    { value: 'live_agent', label: 'Live Agent' },
   ];
 
   return (
     <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden selection:bg-[#1e3a8a]/20">
       
-      {/* Background Depth Ambient Blobs */}
-      <div className="absolute top-[5%] right-[10%] h-[400px] w-[400px] rounded-full bg-indigo-500/5 blur-[130px] animate-pulse duration-[7s] pointer-events-none" />
-      <div className="absolute bottom-[20%] left-[5%] h-[350px] w-[350px] rounded-full bg-violet-600/5 blur-[120px] pointer-events-none" />
+      <AmbientBackground topColor="bg-indigo-500/5" bottomColor="bg-violet-600/5" />
 
       <Navbar />
 
@@ -345,6 +345,7 @@ export default function AdminUsersPage() {
                   <option value="faculty">Faculty Member</option>
                   <option value="dean">Academic Dean</option>
                   <option value="admin_staff">Admin Staff</option>
+                  <option value="live_agent">Live Agent</option>
                 </select>
               </div>
 
@@ -560,10 +561,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="w-full text-center py-6 border-t border-slate-100 text-slate-400 text-[10px] pointer-events-none select-none">
-        &copy; {new Date().getFullYear()} Regis Marie College SISP. Built with high-fidelity cryptographic models.
-      </footer>
+      <PageFooter type="cryptographic" />
 
     </div>
   );

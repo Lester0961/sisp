@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
 
@@ -34,15 +30,11 @@ export class NotificationsService {
     });
 
     if (!notification) {
-      throw new NotFoundException(
-        `Notification with ID ${id} not found`,
-      );
+      throw new NotFoundException(`Notification with ID ${id} not found`);
     }
 
     if (notification.userId !== userId) {
-      throw new BadRequestException(
-        'You can only mark your own notifications as read',
-      );
+      throw new BadRequestException('You can only mark your own notifications as read');
     }
 
     const updated = await this.prisma.notification.update({
@@ -77,15 +69,11 @@ export class NotificationsService {
     });
 
     if (!notification) {
-      throw new NotFoundException(
-        `Notification with ID ${id} not found`,
-      );
+      throw new NotFoundException(`Notification with ID ${id} not found`);
     }
 
     if (notification.userId !== userId) {
-      throw new BadRequestException(
-        'You can only delete your own notifications',
-      );
+      throw new BadRequestException('You can only delete your own notifications');
     }
 
     await this.prisma.notification.delete({ where: { id } });
@@ -96,9 +84,7 @@ export class NotificationsService {
   async sendNotification(dto: SendNotificationDto) {
     // Must have at least one target
     if (!dto.userId && !dto.targetRole && !dto.userIds?.length) {
-      throw new BadRequestException(
-        'Must provide userId, targetRole, or userIds',
-      );
+      throw new BadRequestException('Must provide userId, targetRole, or userIds');
     }
 
     const notificationsToCreate: {
@@ -114,9 +100,7 @@ export class NotificationsService {
       });
 
       if (!user) {
-        throw new NotFoundException(
-          `User with ID ${dto.userId} not found`,
-        );
+        throw new NotFoundException(`User with ID ${dto.userId} not found`);
       }
 
       notificationsToCreate.push({
@@ -139,10 +123,7 @@ export class NotificationsService {
 
     // Broadcast to all users of a role
     if (dto.targetRole) {
-      const whereClause =
-        dto.targetRole === 'all'
-          ? {}
-          : { role: { name: dto.targetRole } };
+      const whereClause = dto.targetRole === 'all' ? {} : { role: { name: dto.targetRole } };
 
       const users = await this.prisma.user.findMany({
         where: {
@@ -161,7 +142,7 @@ export class NotificationsService {
       }
     }
 
-// Deduplicate by userId
+    // Deduplicate by userId
     type NotifItem = { userId: string; title: string; message: string };
     const uniqueMap = new Map<string, NotifItem>();
     for (const n of notificationsToCreate) {
@@ -187,11 +168,7 @@ export class NotificationsService {
   }
 
   // Internal helper — called by other services to send notifications
-  async sendToUser(
-    userId: string,
-    title: string,
-    message: string,
-  ): Promise<void> {
+  async sendToUser(userId: string, title: string, message: string): Promise<void> {
     await this.prisma.notification.create({
       data: { userId, title, message },
     });

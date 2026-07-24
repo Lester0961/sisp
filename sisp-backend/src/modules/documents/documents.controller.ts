@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Param,
-  Body,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query } from '@nestjs/common';
 import { DocumentsService } from './documents.service';
 import { CreateRequestDto } from './dto/create-request.dto';
 import { UpdateRequestDto } from './dto/update-request.dto';
@@ -32,13 +24,17 @@ export class DocumentsController {
     return this.documentsService.getRequestStats();
   }
 
+  // Get document fee list
+  @Get('fees')
+  @Roles('student', 'admin_staff', 'dean')
+  async getFees() {
+    return this.documentsService.getDocumentFees();
+  }
+
   // Admin views all requests with optional filters
   @Get()
   @Roles('admin_staff', 'dean')
-  async getAllRequests(
-    @Query('status') status?: string,
-    @Query('type') type?: string,
-  ) {
+  async getAllRequests(@Query('status') status?: string, @Query('type') type?: string) {
     return this.documentsService.getAllRequests(status, type);
   }
 
@@ -52,20 +48,21 @@ export class DocumentsController {
   // Student submits a new document request
   @Post()
   @Roles('student')
-  async createRequest(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: CreateRequestDto,
-  ) {
+  async createRequest(@CurrentUser() user: JwtPayload, @Body() dto: CreateRequestDto) {
     return this.documentsService.createRequest(user.sub, dto);
+  }
+
+  // Admin confirms payment for a request
+  @Post(':id/confirm-payment')
+  @Roles('admin_staff')
+  async confirmPayment(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.documentsService.confirmPayment(user.sub, id);
   }
 
   // Admin updates request status
   @Patch(':id')
   @Roles('admin_staff', 'dean')
-  async updateStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateRequestDto,
-  ) {
+  async updateStatus(@Param('id') id: string, @Body() dto: UpdateRequestDto) {
     return this.documentsService.updateRequestStatus(id, dto);
   }
 }

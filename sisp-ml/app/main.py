@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import get_settings
 from app.database import check_db_connection
-from app.routers import chat, classify, retrieve, feedback, admin
+from app.routers import chat, classify, retrieve, feedback, admin, knowledge_base
 
 settings = get_settings()
 
@@ -52,6 +52,7 @@ app.include_router(classify.router)
 app.include_router(retrieve.router)
 app.include_router(feedback.router)
 app.include_router(admin.router)
+app.include_router(knowledge_base.router)
 
 
 @app.get("/")

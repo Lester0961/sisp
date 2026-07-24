@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-import { Loader2, BookOpen, TrendingUp } from 'lucide-react';
+import { Loader2, BookOpen, TrendingUp, AlertCircle } from 'lucide-react';
 import { notificationsApi } from '@/lib/api/notifications';
 import { useEffect as useEffectNotif } from 'react';
 
@@ -76,6 +76,19 @@ export default function GradesPage() {
           </div>
         ) : (
           <div className="space-y-6 pb-24 md:pb-8">
+            {/* Payment status banner */}
+            {grades.length === 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Grades temporarily unavailable</p>
+                  <p className="text-xs text-amber-600 mt-0.5">
+                    Your grades are hidden until tuition is fully paid for this semester. Please settle your balance at the accounting office.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Summary cards */}
             <div className="grid gap-4 sm:grid-cols-3">
               <Card className="border-slate-100 shadow-sm bg-gradient-to-br from-white to-slate-50">
@@ -134,7 +147,7 @@ export default function GradesPage() {
               <CardHeader className="border-b border-slate-50 pb-4">
                 <CardTitle className="text-lg">Grade Sheet</CardTitle>
                 <CardDescription>
-                  Only published grades are shown.
+                  Only officially approved grades are shown after dean review.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0 sm:p-6">
@@ -143,7 +156,7 @@ export default function GradesPage() {
                     <BookOpen className="mx-auto mb-3 h-10 w-10 opacity-30" />
                     <p>No grades available yet.</p>
                     <p className="text-xs">
-                      Grades will appear here once published by your faculty.
+                      Grades will appear here once approved by the dean and your tuition is fully paid.
                     </p>
                   </div>
                 ) : (
@@ -157,6 +170,9 @@ export default function GradesPage() {
                               <span className="font-black text-slate-800 tracking-tight">{grade.enrollment.course.code}</span>
                               <Badge variant="outline" className="text-[9px] h-4 px-1.5 rounded bg-slate-50 text-slate-500 border-slate-200">
                                 {grade.enrollment.course.units} UNITS
+                              </Badge>
+                              <Badge className="text-[9px] h-4 px-1.5 rounded bg-emerald-50 text-emerald-600 border-emerald-200">
+                                Dean Approved
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 font-medium mt-0.5 leading-snug pr-4">
