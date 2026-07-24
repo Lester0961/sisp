@@ -49,9 +49,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       console.log('[Prisma] Database connected successfully.');
     } catch (error) {
       console.warn('[Prisma] Could not connect to the database.', error);
+      this.isOffline = true;
+      console.log('[Prisma Mock] Active — using in-memory mock database.');
     }
-    this.isOffline = true;
-    console.log('[Prisma Mock] Active — using in-memory mock database.');
   }
 
   async onModuleDestroy(): Promise<void> {
