@@ -49,8 +49,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Enforce MFA only for high-privilege administrative roles (admin_staff, sys_admin)
-    const requiresMfa = ['admin_staff', 'sys_admin'].includes(user.role.name);
+    // DEMO: MFA temporarily disabled for all roles to allow admin access without email OTP
+    const requiresMfa = false;
     if (!requiresMfa) {
       const tokens = await this.generateTokens(user.id, user.email, user.role.name);
       return {
