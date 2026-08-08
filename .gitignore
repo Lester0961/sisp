@@ -13,8 +13,6 @@ build/
 .env.production
 .env.test
 
-# Allow frontend production public env vars (NEXT_PUBLIC_* only)
-!/sisp-frontend/.env.production
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -72,3 +70,24 @@ desktop.ini
 docs/
 how commit_hash
 .pytest_cache/
+
+# Local-only planning, generated, and tool artifacts
+Final201.md
+Final_Paper_Diagrams.md
+backend_full.md
+frontend_full.md
+opencode.jsonc
+sisp_landing_*.png
+sisp_login_*.png
+sisp-backend/eslint.config.mjs.bak
+sisp-backend/test-login-temp.js
+sisp-backend/prisma/migrations/diff.sql
+sisp-backend/README.md
+sisp-frontend/README.md
+sisp-ml/README.md
+sisp-frontend/hooks/.gitkeep
+sisp-frontend/lib/api/.gitkeep
+sisp-frontend/public/.gitkeep
+sisp-frontend/stores/.gitkeep
+sisp-frontend/types/.gitkeep
+sisp-frontend/.env.production

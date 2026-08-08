@@ -59,7 +59,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   private initMockDb() {
-    const mockPasswordHash = bcrypt.hashSync('password123', 10);
+    const localDemoPassword = process.env.LOCAL_DEMO_PASSWORD || 'local-demo-only';
+    const mockPasswordHash = bcrypt.hashSync(localDemoPassword, 10);
 
     // Seed mock data stores
     const roles = [

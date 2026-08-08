@@ -53,6 +53,8 @@ If you don't have the real credentials yet, **the backend automatically runs in 
 
 > **How it works:** If the backend can't connect to PostgreSQL on startup, it falls back to a mock JSON store. All CRUD operations work exactly the same.
 
+Set `LOCAL_DEMO_PASSWORD` in your private `.env` file to a password used only for local fixtures. Do not commit that value or reuse it in a deployment.
+
 ### 2c. Generate Prisma Client
 
 ```bash
@@ -125,16 +127,16 @@ ML_SERVICE_URL=http://localhost:8000
 
 ## Demo Accounts (Mock Mode)
 
-When running in **mock mode**, these accounts are pre-seeded:
+When running in **mock mode**, these accounts are pre-seeded. Their password is the private `LOCAL_DEMO_PASSWORD` value from your local `.env` file:
 
-| Role | Email | Password |
-|------|-------|----------|
-| Student | `student@rmc.edu.ph` | `password123` |
-| Faculty | `faculty@rmc.edu.ph` | `password123` |
-| Admin / Registrar | `admin@rmc.edu.ph` | `password123` |
-| Dean | `dean@rmc.edu.ph` | `password123` |
-| Live Agent | `agent@rmc.edu.ph` | `password123` |
-| System Admin | `sysadmin@rmc.edu.ph` | `password123` |
+| Role | Email |
+|------|-------|
+| Student | `student@rmc.edu.ph` |
+| Faculty | `faculty@rmc.edu.ph` |
+| Admin / Registrar | `admin@rmc.edu.ph` |
+| Dean | `dean@rmc.edu.ph` |
+| Live Agent | `agent@rmc.edu.ph` |
+| System Admin | `sysadmin@rmc.edu.ph` |
 
 ---
 

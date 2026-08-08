@@ -6,7 +6,8 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Starting Supabase database seeding...');
 
-  const mockPasswordHash = await bcrypt.hash('password123', 10);
+  const localDemoPassword = process.env.LOCAL_DEMO_PASSWORD || 'local-demo-only';
+  const mockPasswordHash = await bcrypt.hash(localDemoPassword, 10);
 
   // 1. Seed Roles
   const rolesData = [

@@ -18,6 +18,8 @@
 
 ## What is SISP?
 
+The current frontend deployment is available at [sisp-rmc.vercel.app](https://sisp-rmc.vercel.app).
+
 **SISP** (Student Information and Services Portal) is a full-stack web application designed for **Regis Marie College**. It replaces fragmented academic workflows with a unified, real-time digital experience.
 
 Think of it as the academic command center where:
@@ -111,15 +113,17 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload   # Runs on http://localhost:8000
 ```
 
-### Default Demo Accounts
-| Role | Email | Password |
-|------|-------|----------|
-| Student | `student@rmc.edu.ph` | `password123` |
-| Faculty | `faculty@rmc.edu.ph` | `password123` |
-| Admin / Registrar | `admin@rmc.edu.ph` | `password123` |
-| Dean | `dean@rmc.edu.ph` | `password123` |
-| Live Agent | `agent@rmc.edu.ph` | `password123` |
-| System Admin | `sysadmin@rmc.edu.ph` | `password123` |
+### Local Demo Identities
+The mock store and local seed include role-based fixture identities for development. Their password is controlled by `LOCAL_DEMO_PASSWORD` and must never be reused in a deployed environment.
+
+| Role | Email |
+|------|-------|
+| Student | `student@rmc.edu.ph` |
+| Faculty | `faculty@rmc.edu.ph` |
+| Admin / Registrar | `admin@rmc.edu.ph` |
+| Dean | `dean@rmc.edu.ph` |
+| Live Agent | `agent@rmc.edu.ph` |
+| System Admin | `sysadmin@rmc.edu.ph` |
 
 ---
 
@@ -140,26 +144,9 @@ sisp/
 │
 ├── sisp-ml/              # FastAI + FastAPI
 │   └── app/                # RAG pipeline, intent classifier
-│
-└── docs/                 # Paper diagrams & research docs
 ```
 
 ---
-
-## Screenshots
-
-<p align="center">
-  <img src="sisp_landing_desktop.png" width="600" alt="Landing Page" />
-  <br>
-  <sub>Landing page — dark glassmorphic hero section</sub>
-</p>
-
-<p align="center">
-  <img src="sisp_landing_mobile.png" width="250" alt="Mobile Landing" />
-  <img src="sisp_login_mobile.png" width="250" alt="Mobile Login" />
-  <br>
-  <sub>Mobile-first responsive design</sub>
-</p>
 
 ---
 

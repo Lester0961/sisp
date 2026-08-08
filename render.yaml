@@ -19,7 +19,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_URL
-        sync: false # Set this to the Vercel URL later
+        sync: false # Set this to https://sisp-rmc.vercel.app
       - key: ADDITIONAL_CORS_ORIGINS
         sync: false # Keep the previous Vercel alias during migration
       - key: MFA_ENABLED
