@@ -93,18 +93,18 @@ export default function RequestsPage() {
   const selectedDocType = DOCUMENT_TYPES.find((d) => d.value === selectedType);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="portal-page">
       <Navbar />
 
-      <main className="mx-auto max-w-4xl px-6 py-8 pb-24 md:pb-8">
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <main className="portal-main max-w-4xl">
+        <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Document Requests</h1>
-            <p className="text-muted-foreground">
+            <h1 className="portal-title">Document requests</h1>
+            <p className="portal-description mt-2">
               Request official academic documents
             </p>
           </div>
-          <Button onClick={() => setShowForm(!showForm)} size="sm" className="w-full md:w-auto h-10 bg-[#1e3a8a] text-white rounded-xl shadow-sm">
+          <Button onClick={() => setShowForm(!showForm)} size="sm" className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             New Request
           </Button>
@@ -112,11 +112,11 @@ export default function RequestsPage() {
 
         {/* New request form */}
         {showForm && (
-          <Card className="mb-6 border-primary/30">
+          <Card className="portal-surface mb-6 border-[#86add0]">
             <CardHeader>
               <CardTitle className="text-base">Submit New Request</CardTitle>
               <CardDescription>
-                Processing takes 3–5 business days after payment confirmation.
+                Processing takes 3 to 5 business days after payment confirmation.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -131,7 +131,7 @@ export default function RequestsPage() {
                 <SelectContent>
                   {DOCUMENT_TYPES.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
-                      {type.label} — ₱{type.fee.toFixed(2)}
+                      {type.label} · ₱{type.fee.toFixed(2)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -182,14 +182,14 @@ export default function RequestsPage() {
 
         {/* Summary */}
         {!isLoading && (
-          <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-            <Card className="border-slate-100 shadow-sm bg-slate-50/50">
+          <div className="portal-surface mb-6 grid grid-cols-2 divide-x divide-y divide-[#dce7ef] overflow-hidden p-0 sm:grid-cols-4 sm:divide-y-0">
+            <Card className="rounded-none border-0 bg-transparent shadow-none">
               <CardContent className="pb-4 pt-4 text-center">
                 <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold">{requests.length}</p>
               </CardContent>
             </Card>
-            <Card className="border-slate-100 shadow-sm bg-amber-50/30 border-amber-100/50">
+            <Card className="rounded-none border-0 bg-amber-50/30 shadow-none">
               <CardContent className="pb-4 pt-4 text-center">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Awaiting Payment</p>
                 <p className="text-2xl font-black text-amber-600">
@@ -197,7 +197,7 @@ export default function RequestsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-slate-100 shadow-sm bg-blue-50/30 border-blue-100/50">
+            <Card className="rounded-none border-0 bg-blue-50/30 shadow-none">
               <CardContent className="pb-4 pt-4 text-center">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">In Progress</p>
                 <p className="text-2xl font-black text-[#1e3a8a]">
@@ -205,7 +205,7 @@ export default function RequestsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-slate-100 shadow-sm bg-emerald-50/30 border-emerald-100/50">
+            <Card className="rounded-none border-0 bg-emerald-50/30 shadow-none">
               <CardContent className="pb-4 pt-4 text-center">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Released</p>
                 <p className="text-2xl font-black text-emerald-600">
@@ -222,7 +222,7 @@ export default function RequestsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : requests.length === 0 ? (
-          <Card>
+          <Card className="portal-surface">
             <CardContent className="py-16 text-center text-muted-foreground">
               <FileText className="mx-auto mb-3 h-10 w-10 opacity-30" />
               <p>No document requests yet.</p>
@@ -234,7 +234,7 @@ export default function RequestsPage() {
         ) : (
           <div className="space-y-4">
             {requests.map((request) => (
-              <Card key={request.id} className="border-slate-100 shadow-sm overflow-hidden">
+              <Card key={request.id} className="portal-surface overflow-hidden">
                 <CardHeader className="pb-3 bg-white">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -277,6 +277,7 @@ export default function RequestsPage() {
                             expandedId === request.id ? null : request.id,
                           )
                         }
+                        aria-label={expandedId === request.id ? `Collapse ${request.typeLabel}` : `Show details for ${request.typeLabel}`}
                       >
                         {expandedId === request.id ? (
                           <ChevronUp className="h-4 w-4" />

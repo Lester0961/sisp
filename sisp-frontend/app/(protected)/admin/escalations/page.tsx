@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { chatApi, EscalationRecord } from '@/lib/api/chat';
 import { Navbar } from '@/components/shared/Navbar';
-import { AmbientBackground } from '@/components/shared/AmbientBackground';
 import { PageFooter } from '@/components/shared/PageFooter';
 import { 
   ShieldAlert, 
@@ -11,8 +10,6 @@ import {
   Clock, 
   User, 
   Mail, 
-  MessageSquare, 
-  Bookmark,
   RefreshCw,
   Edit3,
   Check,
@@ -115,21 +112,18 @@ export default function EscalationsPage() {
   });
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden selection:bg-[#1e3a8a]/20">
-      
-      <AmbientBackground topColor="bg-indigo-500/5" bottomColor="bg-violet-600/5" />
-
+    <div className="portal-page">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-8 z-10 animate-in fade-in duration-500">
+      <main className="portal-main max-w-7xl space-y-6">
       {/* Page Header */}
-      <div className="flex flex-row items-center justify-between">
+      <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <ShieldAlert className="h-8 w-8 text-indigo-600" />
-            Advising Escalations
+          <h1 className="portal-title flex items-center gap-2">
+            <ShieldAlert className="size-6 text-[#0a439b]" strokeWidth={1.8} />
+            Advising escalations
           </h1>
-          <p className="text-slate-500 text-sm mt-1.5 leading-relaxed">
+          <p className="portal-description mt-2">
             Review and provide official registrar resolutions for queries flagged for human review by ARIA.
           </p>
         </div>
@@ -137,7 +131,7 @@ export default function EscalationsPage() {
           variant="outline" 
           onClick={fetchRecords} 
           disabled={loading}
-          className="flex items-center gap-2 border-slate-200 text-slate-700 hover:bg-slate-50"
+          className="w-full sm:w-auto"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh Queue
@@ -145,46 +139,37 @@ export default function EscalationsPage() {
       </div>
 
       {/* Stats Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="shadow-md border-indigo-50/50 bg-gradient-to-br from-indigo-50/50 to-white overflow-hidden">
-          <CardContent className="p-6 flex items-center justify-between">
+      <div className="portal-surface grid grid-cols-3 divide-x divide-[#dce7ef] overflow-hidden p-0">
+        <Card className="rounded-none border-0 bg-transparent shadow-none">
+          <CardContent className="p-4 sm:p-5">
             <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Handoffs</span>
-              <h2 className="text-3xl font-black text-slate-800">{escalations.length}</h2>
-            </div>
-            <div className="h-12 w-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-200/20">
-              <MessageSquare className="h-6 w-6" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Total</span>
+              <h2 className="mt-2 text-2xl font-semibold text-[#102f49]">{escalations.length}</h2>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md border-amber-50/50 bg-gradient-to-br from-amber-50/50 to-white overflow-hidden">
-          <CardContent className="p-6 flex items-center justify-between">
+        <Card className="rounded-none border-0 bg-amber-50/40 shadow-none">
+          <CardContent className="p-4 sm:p-5">
             <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Action</span>
-              <h2 className="text-3xl font-black text-amber-700">{pendingCount}</h2>
-            </div>
-            <div className="h-12 w-12 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center border border-amber-200/20">
-              <Clock className="h-6 w-6 animate-pulse" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700">Pending</span>
+              <h2 className="mt-2 text-2xl font-semibold text-amber-700">{pendingCount}</h2>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-md border-emerald-50/50 bg-gradient-to-br from-emerald-50/50 to-white overflow-hidden">
-          <CardContent className="p-6 flex items-center justify-between">
+        <Card className="rounded-none border-0 bg-emerald-50/40 shadow-none">
+          <CardContent className="p-4 sm:p-5">
             <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Resolved Queries</span>
-              <h2 className="text-3xl font-black text-emerald-700">{resolvedCount}</h2>
-            </div>
-            <div className="h-12 w-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-200/20">
-              <CheckCircle className="h-6 w-6" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Resolved</span>
+              <h2 className="mt-2 text-2xl font-semibold text-emerald-700">{resolvedCount}</h2>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 pb-4">
+      <div className="flex gap-2 overflow-x-auto border-b border-[#dce7ef] pb-4">
         <Button 
           variant={filterStatus === 'all' ? 'default' : 'ghost'}
           onClick={() => setFilterStatus('all')}
@@ -215,7 +200,7 @@ export default function EscalationsPage() {
           <span className="text-sm font-semibold">Fetching escalations queue...</span>
         </div>
       ) : filteredRecords.length === 0 ? (
-        <div className="bg-white border border-slate-100 rounded-2xl p-12 text-center shadow-sm space-y-4">
+        <div className="portal-surface portal-empty">
           <div className="h-16 w-16 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center border border-slate-100 mx-auto">
             <Check className="h-8 w-8 text-emerald-500" />
           </div>
@@ -238,7 +223,7 @@ export default function EscalationsPage() {
             const isPending = record.status === 'pending';
 
             return (
-              <Card key={record.id} className="shadow-sm border-slate-100 hover:border-indigo-100 hover:shadow transition-all bg-white overflow-hidden flex flex-col">
+              <Card key={record.id} className="portal-surface overflow-hidden">
                 <CardHeader className="bg-slate-50/50 p-4 border-b flex flex-row items-center justify-between space-y-0">
                   <div className="flex items-center space-x-3 select-none">
                     <div className="h-8 w-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs uppercase shadow-inner">
@@ -252,7 +237,7 @@ export default function EscalationsPage() {
                           {record.chat.user.email}
                         </span>
                         <span>•</span>
-                        <span>Clearance Hand-off</span>
+                        <span>Student support request</span>
                       </div>
                     </div>
                   </div>
@@ -282,21 +267,11 @@ export default function EscalationsPage() {
                   <div className="bg-indigo-50/20 border border-indigo-50/50 p-3 rounded-xl space-y-1.5">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1 select-none">
                       <Sparkles className="h-3 w-3" />
-                      ARIA Default Response:
+                      ARIA response
                     </div>
                     <p className="text-slate-600 text-[11px] leading-relaxed italic truncate">
                       {record.chat.response.replace(/###|#|\*\*|>/g, '')}
                     </p>
-                  </div>
-
-                  {/* Intent classification debug block */}
-                  <div className="flex items-center gap-4 text-[10px] text-slate-400">
-                    <span className="flex items-center gap-1">
-                      <Bookmark className="h-3 w-3 text-indigo-500" />
-                       Intent Label: <strong className="font-bold bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">{record.chat.intent || 'N/A'}</strong>
-                    </span>
-                    <span>•</span>
-                    <span>Confidence Score: <strong className="text-slate-600 font-bold bg-slate-100 px-1.5 py-0.5 rounded">{record.chat.confidence ? `${Math.round(record.chat.confidence * 100)}%` : '0%'}</strong></span>
                   </div>
 
                   {/* If resolved: display resolution */}
@@ -304,7 +279,7 @@ export default function EscalationsPage() {
                     <div className="border-t border-slate-100 pt-3 space-y-1.5">
                       <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 flex items-center gap-1 select-none">
                         <CheckCircle className="h-3.5 w-3.5" />
-                        Official Advisor Resolution:
+                        Staff response
                       </div>
                       <div className="bg-emerald-50/20 border border-emerald-50/40 p-3 rounded-xl text-xs leading-relaxed text-slate-700">
                         {record.resolution}
@@ -326,7 +301,7 @@ export default function EscalationsPage() {
                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1.5 h-8 px-3.5 rounded-lg shadow-sm"
                     >
                       <Edit3 className="h-3.5 w-3.5" />
-                      Resolve and Message Back
+                      Draft response
                     </Button>
                   </CardFooter>
                 )}

@@ -49,8 +49,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // DEMO: MFA temporarily disabled for all roles to allow admin access without email OTP
-    const requiresMfa = false;
+    const requiresMfa =
+      this.configService.get<string>('MFA_ENABLED')?.trim().toLowerCase() === 'true';
     if (!requiresMfa) {
       const tokens = await this.generateTokens(user.id, user.email, user.role.name);
       return {

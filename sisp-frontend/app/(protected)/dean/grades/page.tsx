@@ -1,32 +1,21 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { CheckCircle2, FileCheck, RefreshCw, Search, XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { gradesApi, GradeItem } from '@/lib/api/grades';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  RefreshCw,
-  Search,
-  CheckCircle2,
-  XCircle,
-  FileCheck,
-  AlertCircle,
-} from 'lucide-react';
+
+function score(value: number | null | undefined) {
+  return value === null || value === undefined ? 'Not recorded' : value.toFixed(2);
+}
 
 export default function DeanGradesPage() {
   useAuth();
   const [grades, setGrades] = useState<GradeItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [actionId, setActionId] = useState<string | null>(null);
   const [rejectRemarks, setRejectRemarks] = useState<Record<string, string>>({});
@@ -35,27 +24,29 @@ export default function DeanGradesPage() {
     setLoading(true);
     try {
       const data = await gradesApi.getAllGrades(undefined, undefined, 'posted');
-      const gradesArray = Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data || [];
-      setGrades(gradesArray);
-    } catch (err) {
-      console.error('Failed to load grades:', err);
+      setGrades(Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data ?? []);
+    } catch {
+      toast.error('Unable to load the grade approval queue.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadGrades();
+    void loadGrades();
   }, []);
 
   const handleApprove = async (gradeId: string) => {
+    if (!window.confirm('Approve this grade and publish it to the student record?')) {
+      return;
+    }
     setActionId(gradeId);
     try {
       await gradesApi.approveGrade(gradeId);
-      toast.success('Grade approved and published!');
-      setGrades((prev) => prev.filter((g) => g.id !== gradeId));
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to approve grade.');
+      setGrades((previous) => previous.filter((grade) => grade.id !== gradeId));
+      toast.success('Grade approved and published.');
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Unable to approve this grade.');
     } finally {
       setActionId(null);
     }
@@ -64,159 +55,71 @@ export default function DeanGradesPage() {
   const handleReject = async (gradeId: string) => {
     const remarks = rejectRemarks[gradeId]?.trim();
     if (!remarks) {
-      toast.error('Please provide remarks for rejection.');
+      toast.error('Add a reason before returning this grade.');
+      return;
+    }
+    if (!window.confirm('Return this grade to faculty with the remarks provided?')) {
       return;
     }
     setActionId(gradeId);
     try {
       await gradesApi.rejectGrade(gradeId, remarks);
-      toast.success('Grade rejected and returned to faculty.');
-      setGrades((prev) => prev.filter((g) => g.id !== gradeId));
-      setRejectRemarks((prev) => { const updated = { ...prev }; delete updated[gradeId]; return updated; });
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to reject grade.');
+      setGrades((previous) => previous.filter((grade) => grade.id !== gradeId));
+      setRejectRemarks((previous) => {
+        const next = { ...previous };
+        delete next[gradeId];
+        return next;
+      });
+      toast.success('Grade returned to faculty with your remarks.');
+    } catch (err: unknown) {
+      toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Unable to return this grade.');
     } finally {
       setActionId(null);
     }
   };
 
-  const filteredGrades = grades.filter((g) => {
-    const studentName = `${g.enrollment?.student?.user?.firstName || ''} ${g.enrollment?.student?.user?.lastName || ''}`.toLowerCase();
-    const courseCode = (g.enrollment?.course?.code || '').toLowerCase();
-    const studentNumber = (g.enrollment?.student?.studentNumber || '').toLowerCase();
-    const q = search.toLowerCase();
-    return studentName.includes(q) || courseCode.includes(q) || studentNumber.includes(q);
+  const filteredGrades = grades.filter((grade) => {
+    const term = search.toLowerCase();
+    const student = `${grade.enrollment?.student?.user?.firstName ?? ''} ${grade.enrollment?.student?.user?.lastName ?? ''}`.toLowerCase();
+    return student.includes(term) || (grade.enrollment?.course?.code ?? '').toLowerCase().includes(term) || (grade.enrollment?.student?.studentNumber ?? '').toLowerCase().includes(term);
   });
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="portal-page">
       <Navbar />
-
-      <main className="max-w-7xl mx-auto p-6 md:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-extrabold text-slate-900">Grade Approval Queue</h1>
-            <p className="text-slate-500 text-sm">
-              Review posted grades from the registrar and approve or reject them.
-            </p>
-          </div>
-          <Button
-            onClick={loadGrades}
-            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+      <main className="portal-main">
+        <div className="portal-page-header">
+          <div><h1 className="portal-title">Grade approvals</h1><p className="portal-description mt-2">Review posted grades, approve them for student access, or return them with clear remarks.</p></div>
+          <Button variant="outline" size="sm" onClick={() => void loadGrades()} disabled={loading}><RefreshCw className={loading ? 'animate-spin' : ''} strokeWidth={1.8} />Refresh</Button>
         </div>
 
-        <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5">
-          <div className="relative mb-4">
-            <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search student or course..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1e3a8a]/10 font-medium"
-            />
-          </div>
+        <section className="portal-surface mb-5 p-4 sm:p-5">
+          <label htmlFor="grade-search" className="sr-only">Search grades</label>
+          <div className="relative"><Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#6c879a]" strokeWidth={1.8} /><input id="grade-search" type="search" placeholder="Search student, student number, or course" value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-[#cbdde9] bg-[#fbfdfe] py-2 pl-10 pr-4 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10" /></div>
+        </section>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="border-b border-slate-100">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500">Student</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500">Course</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Prelim</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Midterm</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Finals</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Final Grade</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Posted By</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-400">
-                      Loading posted grades...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredGrades.length > 0 ? (
-                  filteredGrades.map((g) => (
-                    <TableRow key={g.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-xs text-slate-800">
-                            {g.enrollment?.student?.user?.firstName} {g.enrollment?.student?.user?.lastName}
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-semibold">
-                            {g.enrollment?.student?.studentNumber}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs font-semibold text-slate-700">{g.enrollment?.course?.code}</span>
-                        <p className="text-[9px] text-slate-400">{g.enrollment?.course?.title}</p>
-                      </TableCell>
-                      <TableCell className="text-center text-xs font-semibold">{g.prelim ?? '—'}</TableCell>
-                      <TableCell className="text-center text-xs font-semibold">{g.midterm ?? '—'}</TableCell>
-                      <TableCell className="text-center text-xs font-semibold">{g.finals ?? '—'}</TableCell>
-                      <TableCell className="text-center">
-                        <span className={`text-sm font-black ${g.finalGrade && g.finalGrade >= 75 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {g.finalGrade ?? '—'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center text-[10px] text-slate-500">
-                        <div className="flex items-center justify-center gap-1">
-                          <FileCheck className="h-3 w-3" />
-                          {g.postedBy?.firstName} {g.postedBy?.lastName}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-col gap-2 items-end">
-                          <Button
-                            disabled={actionId === g.id}
-                            onClick={() => handleApprove(g.id)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] shadow-sm active:scale-95 transition-all"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                            {actionId === g.id ? 'Approving...' : 'Approve'}
-                          </Button>
-                          <div className="flex flex-col gap-1 items-end">
-                            <input
-                              type="text"
-                              placeholder="Rejection remarks..."
-                              value={rejectRemarks[g.id] || ''}
-                              onChange={(e) => setRejectRemarks((prev) => ({ ...prev, [g.id]: e.target.value }))}
-                              className="w-32 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[10px] text-slate-700 focus:outline-none focus:border-rose-300"
-                            />
-                            <Button
-                              disabled={actionId === g.id}
-                              onClick={() => handleReject(g.id)}
-                              variant="outline"
-                              className="border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-1 px-3 rounded-lg text-[10px] active:scale-95 transition-all"
-                            >
-                              <XCircle className="h-3.5 w-3.5 mr-1" />
-                              {actionId === g.id ? 'Rejecting...' : 'Reject'}
-                            </Button>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
-                      <AlertCircle className="mx-auto mb-2 h-8 w-8 text-slate-300" />
-                      <p className="text-xs text-slate-500">No posted grades pending approval.</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+        {loading ? (
+          <section className="space-y-3"><div className="portal-skeleton h-52" /><div className="portal-skeleton h-52" /></section>
+        ) : filteredGrades.length ? (
+          <section className="grid gap-4 lg:grid-cols-2">
+            {filteredGrades.map((grade) => {
+              const student = `${grade.enrollment?.student?.user?.firstName ?? ''} ${grade.enrollment?.student?.user?.lastName ?? ''}`.trim() || 'Student';
+              return (
+                <article key={grade.id} className="portal-surface p-5">
+                  <div className="flex items-start justify-between gap-4"><div><h2 className="font-semibold text-[#102f49]">{student}</h2><p className="mt-1 text-sm text-[#587387]">{grade.enrollment?.student?.studentNumber || 'Student record'}</p></div><span className="rounded-lg bg-[#eaf3fa] px-2 py-1 text-xs font-semibold text-[#0a439b]">{grade.enrollment?.course?.code}</span></div>
+                  <p className="mt-4 text-sm text-[#365a72]">{grade.enrollment?.course?.title}</p>
+                  <div className="mt-4 grid grid-cols-2 divide-x divide-y divide-[#dce7ef] overflow-hidden rounded-xl border border-[#dce7ef] sm:grid-cols-4 sm:divide-y-0">
+                    {[['Prelim', score(grade.prelim)], ['Midterm', score(grade.midterm)], ['Finals', score(grade.finals)], ['Final grade', score(grade.finalGrade)]].map(([label, value]) => <div key={label} className="p-3 text-center"><p className="text-[11px] text-[#587387]">{label}</p><p className="mt-1 text-sm font-semibold text-[#102f49]">{value}</p></div>)}
+                  </div>
+                  <div className="mt-4 border-t border-[#e7eef3] pt-4"><label htmlFor={`remarks-${grade.id}`} className="text-xs font-semibold text-[#365a72]">Reason for return</label><input id={`remarks-${grade.id}`} type="text" value={rejectRemarks[grade.id] || ''} onChange={(event) => setRejectRemarks((previous) => ({ ...previous, [grade.id]: event.target.value }))} placeholder="Required only when returning a grade" className="mt-2 h-10 w-full rounded-lg border border-[#cbdde9] bg-[#fbfdfe] px-3 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10" /></div>
+                  <div className="mt-4 grid grid-cols-2 gap-2"><Button disabled={actionId === grade.id} className="bg-[#16794c] hover:bg-[#12663f]" onClick={() => void handleApprove(grade.id)}><CheckCircle2 className="size-4" strokeWidth={1.8} />{actionId === grade.id ? 'Working' : 'Approve'}</Button><Button disabled={actionId === grade.id} variant="outline" className="border-[#f0c4c4] text-[#b42318] hover:bg-[#fff4f4]" onClick={() => void handleReject(grade.id)}><XCircle className="size-4" strokeWidth={1.8} />Return</Button></div>
+                </article>
+              );
+            })}
+          </section>
+        ) : (
+          <section className="portal-surface portal-empty"><FileCheck className="size-8 text-[#16794c]" strokeWidth={1.8} /><div><h2 className="font-semibold text-[#102f49]">No grades need approval</h2><p className="mt-1 text-sm text-[#587387]">Posted grades will appear here when they are ready for review.</p></div></section>
+        )}
       </main>
     </div>
   );

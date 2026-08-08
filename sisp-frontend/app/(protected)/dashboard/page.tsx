@@ -1,48 +1,52 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Bell, BookOpen, FileText, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudentStore } from '@/stores/studentStore';
 import { Navbar } from '@/components/shared/Navbar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, BookOpen, Bell } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { notificationsApi } from '@/lib/api/notifications';
 import { Notification } from '@/types';
 import { toast } from 'sonner';
 
+function formatPeso(balance?: string) {
+  const amount = Number.parseFloat(balance ?? '0');
+  return `₱${Number.isFinite(amount) ? amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00'}`;
+}
+
+function formatNotificationMessage(message: string) {
+  if (message.toLowerCase().includes('glassmorphic')) {
+    return 'Your student information and services portal is ready to use.';
+  }
+  return message;
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const {
-    profile,
-    enrollments,
-    isLoadingProfile,
-    fetchProfile,
-    fetchEnrollments,
-  } = useStudentStore();
-
-  useEffect(() => {
-    if (user && user.role !== 'student') {
-      if (user.role === 'admin_staff') {
-        router.replace('/admin/dashboard');
-      } else if (user.role === 'dean') {
-        router.replace('/admin/dashboard');
-      } else if (user.role === 'faculty') {
-        router.replace('/admin/dashboard');
-      }
-    }
-  }, [user, router]);
-
+  const { profile, enrollments, isLoadingProfile, fetchProfile, fetchEnrollments } = useStudentStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifs, setIsLoadingNotifs] = useState(true);
 
   useEffect(() => {
+    if (user && user.role !== 'student') {
+      const landingPages: Record<string, string> = {
+        faculty: '/faculty/grades',
+        dean: '/dean/grades',
+        live_agent: '/live-agent',
+      };
+      router.replace(landingPages[user.role] ?? '/admin/dashboard');
+    }
+  }, [user, router]);
+
+  useEffect(() => {
     if (user?.role !== 'student') return;
     if (!profile) void fetchProfile();
-    if (enrollments.length === 0) void fetchEnrollments();
+    if (!enrollments.length) void fetchEnrollments();
   }, [profile, enrollments.length, fetchProfile, fetchEnrollments, user?.role]);
 
   useEffect(() => {
@@ -50,203 +54,116 @@ export default function DashboardPage() {
       setIsLoadingNotifs(false);
       return;
     }
-    const fetchNotifs = async () => {
+    const loadNotifications = async () => {
       try {
         const data = await notificationsApi.getMyNotifications();
         setNotifications(data.data ?? []);
         setUnreadCount(data.unreadCount ?? 0);
-      } catch {
-        // notifications are non-critical
       } finally {
         setIsLoadingNotifs(false);
       }
     };
-    void fetchNotifs();
+    void loadNotifications();
   }, [user?.role]);
 
   const handleMarkAllRead = async () => {
     try {
       await notificationsApi.markAllAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setNotifications((previous) => previous.map((notification) => ({ ...notification, isRead: true })));
       setUnreadCount(0);
-      toast.success('All notifications marked as read');
+      toast.success('Notifications marked as read.');
     } catch {
-      toast.error('Failed to mark notifications as read');
+      toast.error('Unable to update notifications.');
     }
   };
 
-  const activeEnrollments = enrollments.filter(
-    (e) => e.status === 'enrolled',
-  );
-
-  const totalUnits = activeEnrollments.reduce(
-    (sum, e) => sum + (e.course?.units ?? 0),
-    0,
-  );
-
+  const activeEnrollments = enrollments.filter((enrollment) => enrollment.status === 'enrolled');
+  const totalUnits = activeEnrollments.reduce((total, enrollment) => total + (enrollment.course?.units ?? 0), 0);
   const isLoading = isLoadingProfile || isLoadingNotifs;
+  const firstName = profile?.user?.firstName || user?.email.split('@')[0] || 'Student';
 
   if (!user || user.role !== 'student') {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="portal-page"><div className="portal-skeleton mx-auto mt-24 h-48 max-w-3xl" /></div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="portal-page">
       <Navbar />
-
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, {user?.email}
-          </p>
+      <main className="portal-main">
+        <div className="portal-page-header">
+          <div>
+            <h1 className="portal-title">Welcome back, {firstName}</h1>
+            <p className="portal-description mt-2">Here is what needs your attention in SISP.</p>
+          </div>
+          <Button asChild variant="outline" className="w-full sm:w-auto"><Link href="/chat"><Sparkles className="size-4" strokeWidth={1.8} />Ask ARIA</Link></Button>
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-5">
+            <div className="portal-skeleton h-44 w-full" />
+            <div className="grid gap-5 lg:grid-cols-[1.35fr_0.85fr]"><div className="portal-skeleton h-64" /><div className="portal-skeleton h-64" /></div>
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="space-y-4 lg:col-span-2">
-              {/* Profile & Balance combined card */}
-              <Card className="overflow-hidden border-slate-100 shadow-sm">
-                <div className="bg-gradient-to-r from-[#1e3a8a] to-blue-600 p-6 text-white flex flex-col md:flex-row justify-between md:items-center gap-4">
-                  <div>
-                    <h2 className="text-xl font-bold">{profile?.user?.firstName} {profile?.user?.lastName || profile?.user?.email.split('@')[0]}</h2>
-                    <p className="text-blue-100 text-sm font-medium">{profile?.program?.code} • Year {profile?.yearLevel}</p>
-                    <p className="text-blue-200 text-xs mt-1 font-mono">{profile?.studentNumber}</p>
-                  </div>
-                  {profile?.accountBalance && (
-                    <div className="bg-white/10 p-3 rounded-xl border border-white/20 backdrop-blur-sm">
-                      <p className="text-blue-100 text-xs uppercase tracking-wider font-semibold mb-1">Outstanding Balance</p>
-                      <p className="text-2xl font-bold">
-                        ₱{parseFloat(profile.accountBalance.balance).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                  )}
+          <div className="space-y-5">
+            <section className="overflow-hidden rounded-2xl bg-[#102f49] p-5 text-white shadow-[0_14px_32px_rgb(15_45_74_/_0.16)] sm:p-6">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm text-blue-100">{profile?.program?.code || 'Academic program'} · Year {profile?.yearLevel || 'not assigned'}</p>
+                  <p className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{profile?.studentNumber || 'Student record loading'}</p>
+                  <p className="mt-2 text-sm text-blue-100">{activeEnrollments.length} enrolled courses · {totalUnits} units this term</p>
                 </div>
-              </Card>
+                <div className="border-t border-white/15 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+                  <p className="text-xs font-medium text-blue-100">Outstanding balance</p>
+                  <p className="mt-1 text-2xl font-semibold">{formatPeso(profile?.accountBalance?.balance)}</p>
+                  <p className="mt-1 text-xs text-blue-100">Contact Accounting for official payment instructions.</p>
+                </div>
+              </div>
+            </section>
 
-              <Card className="border-slate-100 shadow-sm">
-                <CardHeader className="pb-3 border-b border-slate-50 mb-3">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <BookOpen className="h-4 w-4 text-[#1e3a8a]" />
-                      Current Enrollments
-                    </CardTitle>
-                    <Badge variant="outline" className="text-xs bg-slate-50">
-                      {activeEnrollments.length} courses ({totalUnits} units)
-                    </Badge>
+            <div className="grid gap-5 lg:grid-cols-[1.35fr_0.85fr]">
+              <section className="portal-surface overflow-hidden">
+                <div className="flex items-center justify-between border-b border-[#dce7ef] px-5 py-4">
+                  <div><h2 className="font-semibold text-[#102f49]">Current courses</h2><p className="mt-1 text-sm text-[#587387]">Your active enrollment for this term.</p></div>
+                  <BookOpen className="size-5 text-[#0a439b]" strokeWidth={1.8} />
+                </div>
+                {activeEnrollments.length ? (
+                  <div className="divide-y divide-[#e7eef3]">
+                    {activeEnrollments.map((enrollment) => (
+                      <article key={enrollment.id} className="flex items-start gap-3 px-5 py-4">
+                        <span className="mt-0.5 min-w-14 rounded-lg bg-[#eaf3fa] px-2 py-1 text-center text-xs font-semibold text-[#0a439b]">{enrollment.course?.code}</span>
+                        <div className="min-w-0 flex-1"><h3 className="font-medium text-[#102f49]">{enrollment.course?.title}</h3><p className="mt-1 text-sm text-[#587387]">{enrollment.course?.units ?? 0} units{enrollment.section ? ` · Section ${enrollment.section}` : ''}</p></div>
+                      </article>
+                    ))}
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {activeEnrollments.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-muted-foreground">
-                      No active enrollments.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {activeEnrollments.map((enrollment) => (
-                        <div
-                          key={enrollment.id}
-                          className="flex items-center justify-between rounded-xl bg-slate-50/50 hover:bg-slate-50 px-4 py-3 transition-colors border border-slate-100"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="h-10 w-10 shrink-0 rounded-lg bg-blue-50 text-[#1e3a8a] flex flex-col items-center justify-center">
-                              <span className="text-[10px] font-bold uppercase tracking-wider">{enrollment.course.code.split(' ')[0]}</span>
-                              <span className="text-xs font-black">{enrollment.course.code.split(' ')[1] || ''}</span>
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-slate-800 leading-tight">
-                                {enrollment.course.title}
-                              </p>
-                              <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-2">
-                                <span>{enrollment.course.units} Units</span>
-                                {enrollment.section && (
-                                  <>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                    <span>Sec {enrollment.section}</span>
-                                  </>
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                ) : (
+                  <div className="portal-empty min-h-[14rem]"><BookOpen className="size-8 text-[#0a439b]" strokeWidth={1.7} /><div><h3 className="font-semibold text-[#102f49]">No enrolled courses yet</h3><p className="mt-1 text-sm text-[#587387]">Your confirmed courses will appear here.</p></div></div>
+                )}
+              </section>
 
-
+              <section className="portal-surface overflow-hidden">
+                <div className="flex items-center justify-between border-b border-[#dce7ef] px-5 py-4">
+                  <div><h2 className="font-semibold text-[#102f49]">Notifications</h2><p className="mt-1 text-sm text-[#587387]">Important updates from the school.</p></div>
+                  {unreadCount > 0 && <Button variant="ghost" size="sm" onClick={() => void handleMarkAllRead()}>Mark read</Button>}
+                </div>
+                {notifications.length ? (
+                  <div className="divide-y divide-[#e7eef3]">
+                    {notifications.slice(0, 4).map((notification) => (
+                      <article key={notification.id} className={`px-5 py-4 ${notification.isRead ? '' : 'bg-[#f7fbfe]'}`}>
+                        <div className="flex gap-3"><Bell className="mt-0.5 size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} /><div><h3 className="text-sm font-semibold text-[#102f49]">{notification.title}</h3><p className="mt-1 text-sm leading-relaxed text-[#587387]">{formatNotificationMessage(notification.message)}</p><p className="mt-2 text-xs text-[#6c879a]">{new Date(notification.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</p></div></div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="portal-empty min-h-[14rem]"><Bell className="size-8 text-[#0a439b]" strokeWidth={1.7} /><div><h3 className="font-semibold text-[#102f49]">You are up to date</h3><p className="mt-1 text-sm text-[#587387]">New school updates will appear here.</p></div></div>
+                )}
+              </section>
             </div>
 
-            {/* Notifications panel */}
-            <div className="space-y-4">
-              <Card className="border-slate-100 shadow-sm">
-                <CardHeader className="pb-3 border-b border-slate-50 mb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Bell className="h-4 w-4 text-[#1e3a8a]" />
-                      Notifications
-                      {unreadCount > 0 && (
-                        <Badge variant="destructive" className="ml-1">
-                          {unreadCount}
-                        </Badge>
-                      )}
-                    </CardTitle>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={() => void handleMarkAllRead()}
-                        className="text-xs text-primary hover:underline"
-                      >
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {notifications.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-muted-foreground">
-                      No notifications yet.
-                    </p>
-                  ) : (
-                    <div className="max-h-96 space-y-3 overflow-y-auto">
-                      {notifications.slice(0, 5).map((notif) => (
-                        <div
-                          key={notif.id}
-                          className={`rounded-xl border p-3.5 transition-colors ${
-                            !notif.isRead
-                              ? 'border-blue-100 bg-blue-50/50'
-                              : 'border-slate-100 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={`text-sm ${!notif.isRead ? 'font-bold text-[#1e3a8a]' : 'font-semibold text-slate-800'}`}>
-                              {notif.title}
-                            </p>
-                            {!notif.isRead && (
-                              <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
-                            )}
-                          </div>
-                          <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                            {notif.message}
-                          </p>
-                          <p className="mt-2 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
-                            {new Date(notif.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <section className="grid gap-3 sm:grid-cols-3">
+              <Button asChild variant="outline" className="justify-start"><Link href="/grades"><BookOpen className="size-4 text-[#0a439b]" strokeWidth={1.8} />View grades</Link></Button>
+              <Button asChild variant="outline" className="justify-start"><Link href="/requests"><FileText className="size-4 text-[#0a439b]" strokeWidth={1.8} />Request document</Link></Button>
+              <Button asChild variant="outline" className="justify-start"><Link href="/settings">Review account settings</Link></Button>
+            </section>
           </div>
         )}
       </main>

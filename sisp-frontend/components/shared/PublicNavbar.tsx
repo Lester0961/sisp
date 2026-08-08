@@ -22,7 +22,7 @@ export function PublicNavbar() {
     <header
       className={`fixed inset-x-0 top-0 z-50 border-b transition-colors ${
         isHome
-          ? 'glass-nav text-white'
+          ? 'border-[#0b3c76]/40 bg-[#0a439b] text-white shadow-sm'
           : 'border-[#1a4a6e]/10 bg-white/95 text-[#102f49] backdrop-blur-xl'
       }`}
     >

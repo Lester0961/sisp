@@ -59,15 +59,17 @@ export default function GradesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="portal-page">
       <Navbar/>
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold">My Grades</h1>
-          <p className="text-muted-foreground">
+      <main className="portal-main max-w-6xl">
+        <div className="portal-page-header">
+          <div>
+          <h1 className="portal-title">My grades</h1>
+          <p className="portal-description mt-2">
             View your academic performance
           </p>
+          </div>
         </div>
 
         {isLoadingGrades ? (
@@ -75,7 +77,7 @@ export default function GradesPage() {
             <Loader2 className="h-8 w-8 animate-spin text-[#1e3a8a]" />
           </div>
         ) : (
-          <div className="space-y-6 pb-24 md:pb-8">
+          <div className="space-y-6">
             {/* Payment status banner */}
             {grades.length === 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
@@ -89,62 +91,24 @@ export default function GradesPage() {
               </div>
             )}
 
-            {/* Summary cards */}
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Card className="border-slate-100 shadow-sm bg-gradient-to-br from-white to-slate-50">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Subjects Rated
-                      </p>
-                      <p className="text-2xl font-black text-slate-800">{grades.length}</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-2xl bg-blue-50 flex items-center justify-center">
-                      <BookOpen className="h-6 w-6 text-[#1e3a8a]" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-100 shadow-sm bg-gradient-to-br from-white to-slate-50">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                        Total Units
-                      </p>
-                      <p className="text-2xl font-black text-slate-800">{totalUnits}</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                      <BookOpen className="h-6 w-6 text-indigo-600" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-100 shadow-sm bg-gradient-to-br from-[#1e3a8a] to-blue-600 text-white">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-bold text-blue-200 uppercase tracking-wider mb-1">
-                        Average Grade
-                      </p>
-                      <p className="text-3xl font-black">
-                        {gpa ?? 'N/A'}
-                      </p>
-                    </div>
-                    <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-sm border border-white/20">
-                      <TrendingUp className="h-6 w-6 text-emerald-300" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <section className="portal-surface grid grid-cols-3 divide-x divide-[#dce7ef] p-0" aria-label="Grade summary">
+              <div className="p-4 sm:p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Subjects rated</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-[#102f49]">{grades.length}</p>
+              </div>
+              <div className="p-4 sm:p-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Total units</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-[#102f49]">{totalUnits}</p>
+              </div>
+              <div className="bg-[#f1f6fb] p-4 sm:p-5">
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0a439b]"><TrendingUp className="size-3.5" /> Average</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-[#0a439b]">{gpa ?? 'N/A'}</p>
+              </div>
+            </section>
 
             {/* Grades List */}
-            <Card className="border-slate-100 shadow-sm">
-              <CardHeader className="border-b border-slate-50 pb-4">
+            <Card className="portal-surface overflow-hidden">
+              <CardHeader className="border-b border-[#e8f0f5] pb-4">
                 <CardTitle className="text-lg">Grade Sheet</CardTitle>
                 <CardDescription>
                   Only officially approved grades are shown after dean review.
@@ -160,9 +124,9 @@ export default function GradesPage() {
                     </p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100 sm:border sm:border-slate-100 sm:rounded-xl">
+                  <div className="divide-y divide-[#e8f0f5] sm:rounded-xl sm:border sm:border-[#e8f0f5]">
                     {grades.map((grade) => (
-                      <div key={grade.id} className="p-4 sm:p-5 hover:bg-slate-50 transition-colors">
+                      <div key={grade.id} className="p-4 transition-colors hover:bg-[#f8fbfd] sm:p-5">
                         {/* Mobile Header: Course Code & Final Grade */}
                         <div className="flex justify-between items-start mb-2">
                           <div>
@@ -182,7 +146,7 @@ export default function GradesPage() {
                           
                           <div className="text-right shrink-0">
                             <div className={`text-xl ${getGradeColor(grade.finalGrade)}`}>
-                              {grade.finalGrade?.toFixed(2) ?? '—'}
+                              {grade.finalGrade?.toFixed(2) ?? 'Not posted'}
                             </div>
                             <Badge
                               variant={grade.finalGrade !== null && grade.finalGrade >= 75 ? 'secondary' : 'destructive'}
@@ -197,15 +161,15 @@ export default function GradesPage() {
                         <div className="mt-4 grid grid-cols-3 gap-2 bg-slate-50/80 rounded-lg p-2.5 border border-slate-100">
                           <div className="text-center">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Prelim</p>
-                            <p className="text-sm font-semibold text-slate-700">{grade.prelim ?? '—'}</p>
+                            <p className="text-sm font-semibold text-slate-700">{grade.prelim ?? 'Not posted'}</p>
                           </div>
                           <div className="text-center border-x border-slate-200">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Midterm</p>
-                            <p className="text-sm font-semibold text-slate-700">{grade.midterm ?? '—'}</p>
+                            <p className="text-sm font-semibold text-slate-700">{grade.midterm ?? 'Not posted'}</p>
                           </div>
                           <div className="text-center">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Finals</p>
-                            <p className="text-sm font-semibold text-slate-700">{grade.finals ?? '—'}</p>
+                            <p className="text-sm font-semibold text-slate-700">{grade.finals ?? 'Not posted'}</p>
                           </div>
                         </div>
                       </div>

@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { adminApi } from '@/lib/api/admin';
 import { Navbar } from '@/components/shared/Navbar';
-import { AmbientBackground } from '@/components/shared/AmbientBackground';
 import { PageFooter } from '@/components/shared/PageFooter';
 import { Button } from '@/components/ui/button';
 import {
@@ -75,25 +74,24 @@ export default function AuditLogsPage() {
   const RESOURCE_OPTIONS = ['', 'auth', 'users', 'grades', 'documents', 'chat', 'enrollment'];
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden select-none">
-      <AmbientBackground topColor="bg-amber-500/5" bottomColor="bg-orange-600/5" />
+    <div className="portal-page">
       <Navbar />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6 z-10">
+      <main className="portal-main max-w-6xl space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-              <Shield className="h-6 w-6 text-amber-600" />
-              Security Audit Logs
+        <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="portal-title flex items-center gap-2">
+              <Shield className="size-6 text-[#0a439b]" strokeWidth={1.8} />
+              Audit log
             </h1>
-            <p className="text-slate-500 text-xs md:text-sm font-medium">
-              System-wide mutation trail — all create, update, and delete operations.
+            <p className="portal-description mt-2">
+              Review create, update, and delete activity across the portal.
             </p>
           </div>
           <Button
             onClick={() => loadLogs(page, resourceFilter)}
-            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm"
+            variant="outline"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -101,7 +99,7 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Filter Row */}
-        <div className="flex items-center gap-3">
+        <div className="portal-surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
           <Filter className="h-4 w-4 text-slate-400" />
           <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter by Resource:</span>
           <select
@@ -115,16 +113,17 @@ export default function AuditLogsPage() {
             ))}
           </select>
           {logs && (
-            <span className="text-[10px] text-slate-400 font-bold ml-auto">
-              {logs.total} total records • Page {logs.page} of {logs.totalPages}
+            <span className="text-[10px] text-slate-400 font-bold sm:ml-auto">
+              {logs.total} total records · Page {logs.page} of {logs.totalPages}
             </span>
           )}
         </div>
 
         {/* Table */}
-        <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+        <div className="portal-surface overflow-hidden">
+          <p className="px-5 pt-4 text-xs text-[#587387] sm:hidden">Scroll horizontally to review all audit details.</p>
+          <div className="overflow-x-auto" role="region" aria-label="Audit log table" tabIndex={0}>
+            <table className="min-w-[920px] w-full text-xs">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
                   <th className="text-left px-4 py-3 font-bold text-slate-500 uppercase tracking-wider text-[10px]">Timestamp</th>
@@ -154,7 +153,7 @@ export default function AuditLogsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[9px] font-bold uppercase">
-                          {log.user?.role?.name || '—'}
+                          {log.user?.role?.name || 'Not recorded'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
@@ -167,8 +166,8 @@ export default function AuditLogsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-700 font-medium">{log.resource}</td>
-                      <td className="px-4 py-3 text-slate-500 font-mono text-[10px]">{log.resourceId || '—'}</td>
-                      <td className="px-4 py-3 text-slate-500 font-mono text-[10px]">{log.ipAddress || '—'}</td>
+                      <td className="px-4 py-3 text-slate-500 font-mono text-[10px]">{log.resourceId || 'Not recorded'}</td>
+                      <td className="px-4 py-3 text-slate-500 font-mono text-[10px]">{log.ipAddress || 'Not recorded'}</td>
                     </tr>
                   ))
                 ) : (
@@ -209,7 +208,7 @@ export default function AuditLogsPage() {
         )}
       </main>
 
-      <PageFooter type="cryptographic" />
+      <PageFooter type="general" />
     </div>
   );
 }

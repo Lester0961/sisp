@@ -24,7 +24,7 @@ export default function ProtectedLayout({
           router.push('/force-password-change');
         }
       } else if (pathname === '/force-password-change') {
-        router.push('/dashboard');
+        router.push(user?.role === 'live_agent' ? '/live-agent' : '/dashboard');
       }
     }
   }, [hasHydrated, isAuthenticated, isLoading, user?.mustChangePassword, pathname, router]);
@@ -41,7 +41,7 @@ export default function ProtectedLayout({
   const isForceResetPage = pathname === '/force-password-change';
 
   return (
-    <div className="flex min-h-screen flex-col pb-20 md:pb-0">
+    <div className="flex min-h-[100dvh] flex-col pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-0">
       {children}
       {!isForceResetPage && <MobileBottomNav />}
     </div>

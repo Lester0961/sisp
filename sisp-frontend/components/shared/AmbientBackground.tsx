@@ -3,19 +3,15 @@ import { cn } from '@/lib/utils';
 
 interface AmbientBackgroundProps {
   className?: string;
-  topColor?: string; // Tailwind background color class, e.g. "bg-indigo-500/5"
-  bottomColor?: string; // Tailwind background color class, e.g. "bg-violet-600/5"
+  topColor?: string;
+  bottomColor?: string;
 }
 
-export function AmbientBackground({
-  className,
-  topColor = 'bg-indigo-500/5',
-  bottomColor = 'bg-violet-600/5',
-}: AmbientBackgroundProps) {
+export function AmbientBackground({ className }: AmbientBackgroundProps) {
   return (
-    <div className={cn('absolute inset-0 overflow-hidden pointer-events-none z-0', className)}>
-      <div className={cn('absolute top-[5%] right-[10%] h-[400px] w-[400px] rounded-full blur-[130px] animate-pulse duration-[7s]', topColor)} />
-      <div className={cn('absolute bottom-[20%] left-[5%] h-[350px] w-[350px] rounded-full blur-[120px]', bottomColor)} />
+    <div aria-hidden="true" className={cn('pointer-events-none absolute inset-0 z-0 overflow-hidden', className)}>
+      <div className="absolute right-[8%] top-0 size-[28rem] rounded-full bg-[#0a439b]/[0.035] blur-[140px]" />
+      <div className="absolute bottom-[10%] left-[4%] size-[22rem] rounded-full bg-[#4e89b9]/[0.04] blur-[130px]" />
     </div>
   );
 }

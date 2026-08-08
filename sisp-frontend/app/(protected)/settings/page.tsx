@@ -12,29 +12,33 @@ export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { profile } = useStudentStore();
   const router = useRouter();
+  const profileMatchesSignedInUser = profile?.user?.email === user?.email;
+  const displayName = profileMatchesSignedInUser && profile?.user
+    ? `${profile.user.firstName} ${profile.user.lastName || ''}`.trim()
+    : user?.email?.split('@')[0] || 'Account';
+  const roleLabel = user?.role
+    ? user.role.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+    : 'Account';
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="portal-page">
       <Navbar />
 
-      <main className="mx-auto max-w-2xl px-6 py-8 pb-32">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-          <SettingsIcon className="h-6 w-6 text-[#1e3a8a]" />
-          Settings
-        </h1>
+      <main className="portal-main max-w-2xl pb-8">
+        <div className="portal-page-header"><div><h1 className="portal-title flex items-center gap-2"><SettingsIcon className="size-6 text-[#0a439b]" strokeWidth={1.8} />Settings</h1><p className="portal-description mt-2">Manage your account and security preferences.</p></div></div>
 
         <div className="space-y-6">
           {/* Profile Summary Card */}
-          <Card className="border-slate-100 shadow-sm overflow-hidden">
-            <div className="bg-gradient-to-r from-[#1e3a8a] to-blue-600 p-6 text-white flex items-center gap-4">
+          <Card className="overflow-hidden border-[#dce7ef]">
+            <div className="bg-[#102f49] p-6 text-white flex items-center gap-4">
               <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/30 shrink-0 shadow-inner">
                 <User className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold">{profile?.user?.firstName} {profile?.user?.lastName || 'Student'}</h2>
+                <h2 className="text-xl font-bold">{displayName}</h2>
                 <p className="text-blue-100 text-sm font-medium opacity-90">{user?.email}</p>
                 <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/20 text-white border border-white/20 tracking-wider uppercase">
-                  {user?.role?.replace('_', ' ')}
+                  {roleLabel}
                 </div>
               </div>
             </div>

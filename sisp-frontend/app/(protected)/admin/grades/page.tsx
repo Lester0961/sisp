@@ -49,6 +49,9 @@ export default function RegistrarGradesPage() {
   }, []);
 
   const handlePost = async (gradeId: string) => {
+    if (!window.confirm('Post this grade to the dean approval queue? The faculty member will no longer be able to edit it while it is under review.')) {
+      return;
+    }
     setPostingId(gradeId);
     try {
       await gradesApi.postGrade(gradeId);
@@ -70,27 +73,27 @@ export default function RegistrarGradesPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="portal-page">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto p-6 md:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-extrabold text-slate-900">Grade Review Queue</h1>
-            <p className="text-slate-500 text-sm">
+      <main className="portal-main max-w-7xl space-y-6">
+        <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="portal-title">Grade review</h1>
+            <p className="portal-description mt-2">
               Review submitted grades from faculty and post them to the dean for approval.
             </p>
           </div>
           <Button
             onClick={loadGrades}
-            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm"
+            variant="outline"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
 
-        <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5">
+        <div className="portal-surface p-5">
           <div className="relative mb-4">
             <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
             <input
@@ -102,9 +105,10 @@ export default function RegistrarGradesPage() {
             />
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="border-b border-slate-100">
+          <p className="mb-3 text-xs text-[#587387] sm:hidden">Scroll horizontally to review all grade details.</p>
+          <div className="overflow-x-auto" role="region" aria-label="Submitted grade review table" tabIndex={0}>
+            <Table className="min-w-[900px]">
+              <TableHeader className="border-b border-[#e8f0f5]">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500">Student</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500">Course</TableHead>
@@ -125,7 +129,7 @@ export default function RegistrarGradesPage() {
                   </TableRow>
                 ) : filteredGrades.length > 0 ? (
                   filteredGrades.map((g) => (
-                    <TableRow key={g.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                    <TableRow key={g.id} className="border-b border-[#e8f0f5] hover:bg-[#f8fbfd]">
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-bold text-xs text-slate-800">
@@ -140,12 +144,12 @@ export default function RegistrarGradesPage() {
                         <span className="text-xs font-semibold text-slate-700">{g.enrollment?.course?.code}</span>
                         <p className="text-[9px] text-slate-400">{g.enrollment?.course?.title}</p>
                       </TableCell>
-                      <TableCell className="text-center text-xs font-semibold">{g.prelim ?? '—'}</TableCell>
-                      <TableCell className="text-center text-xs font-semibold">{g.midterm ?? '—'}</TableCell>
-                      <TableCell className="text-center text-xs font-semibold">{g.finals ?? '—'}</TableCell>
+                      <TableCell className="text-center text-xs font-semibold">{g.prelim ?? 'Not recorded'}</TableCell>
+                      <TableCell className="text-center text-xs font-semibold">{g.midterm ?? 'Not recorded'}</TableCell>
+                      <TableCell className="text-center text-xs font-semibold">{g.finals ?? 'Not recorded'}</TableCell>
                       <TableCell className="text-center">
                         <span className={`text-sm font-black ${g.finalGrade && g.finalGrade >= 75 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                          {g.finalGrade ?? '—'}
+                          {g.finalGrade ?? 'Not recorded'}
                         </span>
                       </TableCell>
                       <TableCell className="text-center text-[10px] text-slate-500">

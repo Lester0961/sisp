@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navbar } from '@/components/shared/Navbar';
-import { AmbientBackground } from '@/components/shared/AmbientBackground';
 import { PageFooter } from '@/components/shared/PageFooter';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -141,28 +140,27 @@ export default function KbManagementPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden select-none">
-      <AmbientBackground topColor="bg-blue-500/5" bottomColor="bg-violet-600/5" />
+    <div className="portal-page">
       <Navbar />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-8 space-y-6 z-10">
+      <main className="portal-main max-w-6xl space-y-6">
         
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-              <BookOpen className="h-6 w-6 text-blue-600" />
-              Knowledge Base Management
+        <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="portal-title flex items-center gap-2">
+              <BookOpen className="size-6 text-[#0a439b]" strokeWidth={1.8} />
+              Policy library
             </h1>
-            <p className="text-slate-500 text-xs md:text-sm font-medium">
-              Manage the policy handbooks, guidelines, and context files used by ARIA Advisory AI.
+            <p className="portal-description mt-2">
+              Manage the approved policy sources used by ARIA.
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <Button
               onClick={handleReindex}
               disabled={reindexing}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+              variant="outline"
             >
               <Database className="h-4 w-4" />
               {reindexing ? 'Re-indexing...' : 'Re-index Embeddings'}
@@ -181,8 +179,8 @@ export default function KbManagementPage() {
           
           {/* Document list */}
           <div className={editingDoc || isAdding ? 'lg:col-span-6 space-y-4' : 'lg:col-span-12 space-y-4'}>
-            <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-              <div className="p-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+            <div className="portal-surface overflow-hidden">
+              <div className="flex items-center justify-between border-b border-[#e8f0f5] bg-[#fbfdfe] p-4">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Policy Files</span>
                 <Button
                   onClick={loadDocuments}
@@ -193,7 +191,8 @@ export default function KbManagementPage() {
                 </Button>
               </div>
 
-              <Table>
+              <div className="overflow-x-auto" role="region" aria-label="Policy library table" tabIndex={0}>
+              <Table className="min-w-[600px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Filename</TableHead>
@@ -245,12 +244,13 @@ export default function KbManagementPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </div>
           </div>
 
           {/* Edit / Add sidebar form */}
           {(editingDoc || isAdding) && (
-            <div className="lg:col-span-6 bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-4 h-fit animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="portal-surface lg:col-span-6 h-fit space-y-4 p-6">
               
               <div className="flex items-center justify-between pb-3 border-b border-slate-150">
                 <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5">
@@ -334,7 +334,7 @@ export default function KbManagementPage() {
 
       </main>
 
-      <PageFooter type="cryptographic" />
+      <PageFooter type="general" />
     </div>
   );
 }

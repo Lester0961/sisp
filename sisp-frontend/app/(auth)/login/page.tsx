@@ -53,7 +53,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Direct login (no MFA) — shouldn't happen with new flow but kept for safety
+      // Direct login remains supported for accounts that do not require MFA.
       toast.success('Welcome back!');
       redirectByRole(response.user.role);
     } catch (error: unknown) {
@@ -93,43 +93,42 @@ export default function LoginPage() {
   // MFA Verification Screen
   if (mfaRequired) {
     return (
-      <div className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+      <div className="w-full space-y-5">
         <div className="flex justify-start">
           <button
             onClick={() => { setMfaRequired(false); setOtpCode(''); setServerError(null); }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#0A439B]/8 border border-[#0A439B]/10 text-xs font-bold text-[#0A439B] transition-all duration-300 group"
-            style={{borderRadius:'6px'}}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#bed1e0] bg-white px-3 py-2 text-xs font-semibold text-[#0a439b] transition hover:bg-[#eef6fc] group"
           >
             <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform duration-300" />
             Back to Login
           </button>
         </div>
 
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 sm:p-8 shadow-xl hover:shadow-2xl transition-all duration-300 w-full text-left space-y-6">
-          <div className="space-y-1.5">
+        <div className="w-full space-y-6 rounded-2xl border border-[#dce7ef] bg-white p-6 text-left shadow-[0_14px_36px_rgba(16,47,73,0.08)] sm:p-8">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-lg bg-[#0A439B]/8 border border-[#0A439B]/10 flex items-center justify-center">
                 <ShieldCheck className="h-4 w-4 text-[#0A439B]" />
               </div>
-              <span className="text-[10px] font-bold text-[#0A439B] uppercase tracking-widest">MFA VERIFICATION</span>
+              <span className="text-[10px] font-semibold text-[#0a439b] uppercase tracking-[0.12em]">Account verification</span>
             </div>
-            <h2 className="text-2xl font-black text-slate-900">
+            <h2 className="text-2xl font-semibold tracking-tight text-[#102f49]">
               Enter OTP Code
             </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              A 6-digit verification code has been generated for <strong>{mfaUser?.email}</strong>. Check the server console for the OTP code.
+            <p className="text-sm leading-6 text-[#587387]">
+              Enter the 6-digit verification code sent to <strong>{mfaUser?.email}</strong>.
             </p>
           </div>
 
           {serverError && (
-            <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-xs text-red-300 flex items-start gap-2 animate-pulse">
-              <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0 text-red-400" />
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
               <span>{serverError}</span>
             </div>
           )}
 
           <div className="space-y-1.5">
-            <label htmlFor="otpCode" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+            <label htmlFor="otpCode" className="text-sm font-semibold text-[#102f49]">
               One-Time Password (OTP)
             </label>
             <input
@@ -141,13 +140,13 @@ export default function LoginPage() {
               value={otpCode}
               onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               disabled={mfaLoading}
-              className="w-full px-4 py-3 bg-[#F4F6F9] border border-[#0A439B]/10 hover:border-slate-300 text-slate-900 placeholder-slate-400 focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 rounded-xl text-2xl text-center tracking-[0.5em] font-mono transition-all duration-300 outline-none"
+              className="w-full rounded-xl border border-[#bed1e0] bg-[#f8fbfd] px-4 py-3 text-center font-mono text-2xl tracking-[0.45em] text-[#102f49] outline-none transition placeholder:text-slate-400 focus:border-[#0a439b] focus:ring-2 focus:ring-[#0a439b]/15"
             />
           </div>
 
           <button
             onClick={onVerifyMfa}
-            className="w-full mt-4 py-3.5 bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-1.5 disabled:opacity-55 disabled:pointer-events-none"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0a439b] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#083980] disabled:pointer-events-none disabled:opacity-55"
             disabled={mfaLoading || otpCode.length !== 6}
           >
             {mfaLoading ? (
@@ -165,13 +164,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-6 duration-700">
+    <div className="w-full space-y-5">
       
       {/* Back to Home Link */}
       <div className="flex justify-start">
         <Link 
           href="/"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white hover:bg-[#F4F6F9] border border-[#0A439B]/10 text-xs font-bold text-[#1e3a8a] transition-all duration-300 group shadow-sm"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-[#bed1e0] bg-white px-3 py-2 text-xs font-semibold text-[#0a439b] transition hover:bg-[#eef6fc] group"
         >
           <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform duration-300" />
           Back to Home
@@ -179,20 +178,20 @@ export default function LoginPage() {
       </div>
 
       {/* Card Panel */}
-      <div className="bg-white border border-slate-100 rounded-3xl p-6 sm:p-8 shadow-xl hover:shadow-2xl transition-all duration-300 w-full text-left space-y-6">
+      <div className="w-full space-y-6 rounded-2xl border border-[#dce7ef] bg-white p-6 text-left shadow-[0_14px_36px_rgba(16,47,73,0.08)] sm:p-8">
         
         {/* Header */}
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="h-7 w-7 rounded-lg bg-[#0A439B]/8 border border-[#0A439B]/10 flex items-center justify-center">
               <GraduationCap className="h-4 w-4 text-[#1e3a8a]" />
             </div>
-            <span className="text-[10px] font-bold text-[#1e3a8a] uppercase tracking-widest">SISP SECURE PORTAL</span>
+            <span className="text-[10px] font-semibold text-[#0a439b] uppercase tracking-[0.12em]">Secure portal</span>
           </div>
-          <h2 className="text-2xl font-black text-slate-900">
+          <h2 className="text-2xl font-semibold tracking-tight text-[#102f49]">
             Sign In
           </h2>
-          <p className="text-xs text-slate-500 font-medium">
+          <p className="text-sm leading-6 text-[#587387]">
             Enter your institutional email and password to access SISP.
           </p>
         </div>
@@ -200,15 +199,15 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-2">
           {/* Server error */}
           {serverError && (
-            <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-xs text-red-300 flex items-start gap-2 animate-pulse">
-              <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0 text-red-400" />
+            <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
               <span>{serverError}</span>
             </div>
           )}
 
           {/* Email */}
           <div className="space-y-1.5">
-            <label htmlFor="email" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+            <label htmlFor="email" className="text-sm font-semibold text-[#102f49]">
               Email Address
             </label>
             <input
@@ -217,11 +216,11 @@ export default function LoginPage() {
               placeholder="you@rmc.edu.ph"
               autoComplete="email"
               disabled={isLoading}
-              className="w-full px-4 py-3 bg-[#F4F6F9] border border-[#0A439B]/10 hover:border-slate-300 text-slate-900 placeholder-slate-400 focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 rounded-xl text-xs transition-all duration-300 outline-none"
+              className="w-full rounded-xl border border-[#bed1e0] bg-[#f8fbfd] px-4 py-3 text-sm text-[#102f49] outline-none transition placeholder:text-slate-400 focus:border-[#0a439b] focus:ring-2 focus:ring-[#0a439b]/15"
               {...register('email')}
             />
             {errors.email && (
-              <p className="text-[10px] font-semibold text-red-400">
+              <p className="text-xs font-medium text-red-700">
                 {errors.email.message}
               </p>
             )}
@@ -230,7 +229,7 @@ export default function LoginPage() {
           {/* Password */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label htmlFor="password" className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+              <label htmlFor="password" className="text-sm font-semibold text-[#102f49]">
                 Password
               </label>
             </div>
@@ -241,13 +240,14 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 autoComplete="current-password"
                 disabled={isLoading}
-                className="w-full pl-4 pr-11 py-3 bg-[#F4F6F9] border border-[#0A439B]/10 hover:border-slate-300 text-slate-900 placeholder-slate-400 focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]/20 rounded-xl text-xs transition-all duration-300 outline-none"
+                className="w-full rounded-xl border border-[#bed1e0] bg-[#f8fbfd] py-3 pl-4 pr-11 text-sm text-[#102f49] outline-none transition placeholder:text-slate-400 focus:border-[#0a439b] focus:ring-2 focus:ring-[#0a439b]/15"
                 {...register('password')}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -257,7 +257,7 @@ export default function LoginPage() {
               </button>
             </div>
             {errors.password && (
-              <p className="text-[10px] font-semibold text-red-400">
+              <p className="text-xs font-medium text-red-700">
                 {errors.password.message}
               </p>
             )}
@@ -266,7 +266,7 @@ export default function LoginPage() {
           {/* Submit */}
           <button 
             type="submit" 
-            className="w-full mt-4 py-3.5 bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-1.5 disabled:opacity-55 disabled:pointer-events-none"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0a439b] py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#083980] disabled:pointer-events-none disabled:opacity-55"
             disabled={isLoading}
           >
             {isLoading ? (

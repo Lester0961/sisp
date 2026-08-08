@@ -22,6 +22,9 @@ import { CurriculumModule } from './modules/curriculum/curriculum.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
+import { getRateLimitConfig } from './common/config/rate-limit.config';
+
+const rateLimitConfig = getRateLimitConfig();
 
 @Module({
   imports: [
@@ -29,12 +32,11 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
       isGlobal: true,
       envFilePath: '.env',
     }),
-    // Global rate limiter — 60 req/min per IP across all endpoints.
-    // Stricter limits applied per-route via @Throttle decorator.
+    // Global rate limiter. Stricter limits are applied per-route via @Throttle.
     ThrottlerModule.forRoot([
       {
-        ttl: 60_000,
-        limit: 60,
+        ttl: rateLimitConfig.globalTtlMs,
+        limit: rateLimitConfig.globalLimit,
       },
     ]),
     PrismaModule,

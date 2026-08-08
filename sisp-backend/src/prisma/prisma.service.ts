@@ -394,7 +394,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         id: 'mock-notif-1',
         userId: 'mock-student-id',
         title: 'Welcome to SISP',
-        message: 'Explore your premium academic glassmorphic portals!',
+        message: 'Your student information and services portal is ready to use.',
         isRead: false,
         createdAt: new Date(),
       },

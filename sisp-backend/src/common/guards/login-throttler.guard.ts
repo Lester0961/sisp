@@ -5,13 +5,11 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { getRateLimitConfig } from '../config/rate-limit.config';
 
 @Injectable()
 export class LoginThrottlerGuard implements CanActivate {
   private static attempts = new Map<string, { count: number; resetTime: number }>();
-
-  private readonly LIMIT = 5; // 5 login attempts
-  private readonly WINDOW_MS = 60000; // per 1 minute
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
@@ -25,16 +23,18 @@ export class LoginThrottlerGuard implements CanActivate {
     const ip =
       request.ip || request.headers['x-forwarded-for'] || request.socket.remoteAddress || 'unknown';
 
+    const { loginLimit, loginTtlMs } = getRateLimitConfig();
+
     const now = Date.now();
     const record = LoginThrottlerGuard.attempts.get(ip);
 
     if (record) {
       if (now > record.resetTime) {
-        LoginThrottlerGuard.attempts.set(ip, { count: 1, resetTime: now + this.WINDOW_MS });
+        LoginThrottlerGuard.attempts.set(ip, { count: 1, resetTime: now + loginTtlMs });
         return true;
       }
 
-      if (record.count >= this.LIMIT) {
+      if (record.count >= loginLimit) {
         throw new HttpException(
           'Too many login attempts. Please try again in a minute.',
           HttpStatus.TOO_MANY_REQUESTS,
@@ -43,7 +43,7 @@ export class LoginThrottlerGuard implements CanActivate {
 
       record.count++;
     } else {
-      LoginThrottlerGuard.attempts.set(ip, { count: 1, resetTime: now + this.WINDOW_MS });
+      LoginThrottlerGuard.attempts.set(ip, { count: 1, resetTime: now + loginTtlMs });
     }
 
     return true;

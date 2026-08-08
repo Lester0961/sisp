@@ -10,13 +10,21 @@ import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from './strategies/jwt.strategy';
 import { LoginThrottlerGuard } from '../../common/guards/login-throttler.guard';
+import { getRateLimitConfig } from '../../common/config/rate-limit.config';
+
+const rateLimitConfig = getRateLimitConfig();
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
-  @Throttle({ default: { ttl: 60_000, limit: 3 } })
+  @Throttle({
+    default: {
+      ttl: rateLimitConfig.registerTtlMs,
+      limit: rateLimitConfig.registerLimit,
+    },
+  })
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
@@ -24,7 +32,12 @@ export class AuthController {
 
   @Public()
   @UseGuards(LoginThrottlerGuard)
-  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Throttle({
+    default: {
+      ttl: rateLimitConfig.loginTtlMs,
+      limit: rateLimitConfig.loginLimit,
+    },
+  })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
@@ -33,7 +46,12 @@ export class AuthController {
 
   // Strict limit on OTP brute-force: 5 attempts / minute
   @Public()
-  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @Throttle({
+    default: {
+      ttl: rateLimitConfig.mfaTtlMs,
+      limit: rateLimitConfig.mfaLimit,
+    },
+  })
   @Post('verify-mfa')
   @HttpCode(HttpStatus.OK)
   async verifyMfa(@Body() dto: VerifyMfaDto) {
@@ -42,7 +60,12 @@ export class AuthController {
 
   // Refresh endpoint — 10/min to limit token brute-force
   @Public()
-  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Throttle({
+    default: {
+      ttl: rateLimitConfig.refreshTtlMs,
+      limit: rateLimitConfig.refreshLimit,
+    },
+  })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() dto: RefreshDto) {

@@ -25,15 +25,19 @@ async function bootstrap() {
   );
 
   // Enable CORS — strict origin allow-list, validate Origin header
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const configuredOrigins = [
+    process.env.FRONTEND_URL,
+    ...(process.env.ADDITIONAL_CORS_ORIGINS || '').split(','),
+  ]
+    .filter((origin): origin is string => Boolean(origin))
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
   const isProd = process.env.NODE_ENV === 'production';
 
   const allowedOrigins = isProd
-    ? [frontendUrl, 'https://sisp-theta.vercel.app'].filter(
-        (o): o is string => Boolean(o) && !o.startsWith('http://localhost'),
-      )
+    ? configuredOrigins.filter((origin) => !origin.startsWith('http://localhost'))
     : [
-        frontendUrl,
+        ...configuredOrigins,
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:3002',

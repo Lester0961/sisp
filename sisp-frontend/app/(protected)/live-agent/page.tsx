@@ -1,323 +1,346 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { chatApi, ChatSessionRecord, ChatSessionMessage } from '@/lib/api/chat';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { chatApi, ChatSessionMessage, ChatSessionRecord } from '@/lib/api/chat';
 import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
-  RefreshCw,
-  User,
-  Send,
-  Clock,
-  CheckCircle2,
-  MessageSquare,
   AlertCircle,
-  X,
+  ArrowLeft,
   ArrowRight,
+  CheckCircle2,
+  Clock3,
+  MessageSquare,
+  RefreshCw,
+  Send,
+  UserRound,
 } from 'lucide-react';
 
+function studentName(session: ChatSessionRecord) {
+  const firstName = session.student?.user?.firstName ?? '';
+  const lastName = session.student?.user?.lastName ?? '';
+  return `${firstName} ${lastName}`.trim() || 'Student';
+}
+
+function studentInitial(session: ChatSessionRecord) {
+  return studentName(session).charAt(0).toUpperCase() || 'S';
+}
+
 export default function LiveAgentPage() {
-  useAuth();
   const [sessions, setSessions] = useState<ChatSessionRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [mySessionIds, setMySessionIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<ChatSessionRecord | null>(null);
   const [messages, setMessages] = useState<ChatSessionMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [closingId, setClosingId] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const loadSessions = async () => {
-    setLoading(true);
+  const loadSessionMessages = useCallback(async (sessionId: string) => {
     try {
-      const data = await chatApi.getSessions('open');
-      setSessions(data);
-    } catch (err) {
-      console.error('Failed to load sessions:', err);
+      setMessages(await chatApi.getSessionMessages(sessionId));
+    } catch {
+      toast.error('Unable to load this conversation.');
+    }
+  }, []);
+
+  const loadSessions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [queue, mine] = await Promise.all([
+        chatApi.getSessions('open'),
+        chatApi.getAssignedSessions(),
+      ]);
+      setSessions(queue);
+      setMySessionIds(new Set(mine.map((session) => session.id)));
+    } catch {
+      setError('We could not load the support queue. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadSessions();
-    const interval = setInterval(() => {
-      loadSessions();
-      if (activeSession) {
-        loadSessionMessages(activeSession.id);
-      }
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [activeSession?.id]);
+    void loadSessions();
+    const interval = window.setInterval(() => void loadSessions(), 15_000);
+    return () => window.clearInterval(interval);
+  }, [loadSessions]);
 
-  const loadSessionMessages = async (sessionId: string) => {
-    try {
-      const data = await chatApi.getSessionMessages(sessionId);
-      setMessages(data);
-    } catch (err) {
-      console.error('Failed to load messages:', err);
-    }
-  };
+  useEffect(() => {
+    if (!activeSession) return;
+    void loadSessionMessages(activeSession.id);
+    const interval = window.setInterval(
+      () => void loadSessionMessages(activeSession.id),
+      12_000,
+    );
+    return () => window.clearInterval(interval);
+  }, [activeSession?.id, loadSessionMessages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+  }, [messages]);
 
   const handleOpenSession = async (session: ChatSessionRecord) => {
     setActiveSession(session);
+    setMessages([]);
     await loadSessionMessages(session.id);
-    // Auto-assign if not assigned
-    if (!session.agentId) {
-      try {
-        await chatApi.assignSession(session.id);
-        toast.success('Session assigned to you');
-      } catch (err: any) {
-        console.error('Failed to assign:', err);
-      }
+  };
+
+  const handleAssignSession = async () => {
+    if (!activeSession) return;
+    setAssigning(true);
+    try {
+      const assigned = await chatApi.assignSession(activeSession.id);
+      setActiveSession(assigned);
+      setMySessionIds((previous) => new Set(previous).add(assigned.id));
+      setSessions((previous) => previous.map((session) => session.id === assigned.id ? assigned : session));
+      toast.success('Session assigned to you.');
+    } catch {
+      toast.error('Unable to assign this session.');
+    } finally {
+      setAssigning(false);
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async (event: FormEvent) => {
+    event.preventDefault();
     if (!input.trim() || !activeSession) return;
     setSending(true);
     try {
       await chatApi.sendSessionMessage(activeSession.id, input.trim());
       setInput('');
       await loadSessionMessages(activeSession.id);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to send message');
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message || 'Unable to send your response.');
     } finally {
       setSending(false);
     }
   };
 
-  const handleCloseSession = async (sessionId: string) => {
-    setClosingId(sessionId);
+  const handleCloseSession = async () => {
+    if (!activeSession) return;
+    setClosing(true);
     try {
-      await chatApi.closeSession(sessionId);
-      toast.success('Session closed successfully');
+      await chatApi.closeSession(activeSession.id);
+      toast.success('Support session closed.');
+      setCloseDialogOpen(false);
       setActiveSession(null);
       setMessages([]);
-      loadSessions();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to close session');
+      await loadSessions();
+    } catch {
+      toast.error('Unable to close this session.');
     } finally {
-      setClosingId(null);
+      setClosing(false);
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  const openCount = sessions.filter((session) => session.status === 'open').length;
+  const unassignedCount = sessions.filter((session) => session.status === 'open' && !session.agentId).length;
 
   if (activeSession) {
+    const isMine = mySessionIds.has(activeSession.id);
+    const isUnassigned = !activeSession.agentId;
+
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col">
+      <div className="portal-page flex min-h-[100dvh] flex-col">
         <Navbar />
-        <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full p-4 md:p-6 space-y-4">
-          {/* Session Header */}
-          <div className="flex items-center justify-between bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center gap-3">
+        <main className="portal-main flex min-h-0 flex-1 flex-col gap-4 pb-4">
+          <div className="portal-surface flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
               <Button
                 variant="ghost"
-                size="sm"
-                onClick={() => { setActiveSession(null); setMessages([]); }}
-                className="text-slate-500 hover:text-slate-700"
+                size="icon-sm"
+                onClick={() => {
+                  setActiveSession(null);
+                  setMessages([]);
+                }}
+                aria-label="Back to support queue"
               >
-                <ArrowRight className="h-4 w-4 rotate-180 mr-1" />
-                Back
+                <ArrowLeft className="size-4" strokeWidth={1.8} />
               </Button>
-              <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                {activeSession.student?.user?.firstName?.[0] || 'S'}
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3fa] font-semibold text-[#0a439b]">
+                {studentInitial(activeSession)}
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">
-                  {activeSession.student?.user?.firstName} {activeSession.student?.user?.lastName}
-                </p>
-                <p className="text-[10px] text-slate-400">
-                  {activeSession.student?.studentNumber} • {activeSession.student?.user?.email}
+              <div className="min-w-0">
+                <h1 className="truncate font-semibold text-[#102f49]">{studentName(activeSession)}</h1>
+                <p className="truncate text-xs text-[#587387]">
+                  {activeSession.student?.studentNumber || 'Student record'}
+                  {activeSession.student?.user?.email ? ` · ${activeSession.student.user.email}` : ''}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[10px]">
-                <Clock className="h-3 w-3 mr-1" />
-                Open
-              </Badge>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={closingId === activeSession.id}
-                onClick={() => handleCloseSession(activeSession.id)}
-                className="border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold"
-              >
-                <X className="h-3.5 w-3.5 mr-1" />
-                {closingId === activeSession.id ? 'Closing...' : 'Close'}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border-[#cfe6db] bg-[#edf9f1] text-[#16794c]">Open</Badge>
+              {isUnassigned ? (
+                <Button size="sm" onClick={() => void handleAssignSession()} disabled={assigning}>
+                  <UserRound className="size-4" strokeWidth={1.8} />
+                  {assigning ? 'Assigning' : 'Assign to me'}
+                </Button>
+              ) : isMine ? (
+                <Badge variant="outline" className="border-[#b8d5ed] bg-[#f1f7fb] text-[#0a439b]">Assigned to you</Badge>
+              ) : (
+                <Badge variant="outline" className="border-[#f3d6a7] bg-[#fff8eb] text-[#9a5b05]">Assigned</Badge>
+              )}
+              <Button variant="outline" size="sm" className="border-[#f0c4c4] text-[#b42318] hover:bg-[#fff4f4]" onClick={() => setCloseDialogOpen(true)}>
+                Close session
               </Button>
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 bg-white border border-slate-100 rounded-xl p-4 overflow-y-auto min-h-[400px] space-y-3">
-            {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <MessageSquare className="h-8 w-8 mb-2 opacity-50" />
-                <p className="text-sm">No messages yet. Start the conversation!</p>
-              </div>
-            ) : (
-              messages.map((msg) => {
-                const isAgent = msg.senderRole !== 'student';
-                return (
-                  <div key={msg.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[75%] p-3 rounded-2xl text-sm shadow-sm ${
-                      isAgent
-                        ? 'bg-indigo-600 text-white rounded-br-sm'
-                        : 'bg-slate-100 text-slate-800 rounded-bl-sm'
-                    }`}>
-                      <p>{msg.content}</p>
-                      <p className={`text-[9px] mt-1 ${isAgent ? 'text-indigo-200' : 'text-slate-400'}`}>
-                        {msg.sender?.firstName || msg.senderRole} • {new Date(msg.createdAt).toLocaleTimeString()}
-                      </p>
-                    </div>
+          <section className="portal-surface flex min-h-[calc(100dvh-17rem)] flex-1 flex-col overflow-hidden">
+            <div className="border-b border-[#e7eef3] px-5 py-3">
+              <p className="text-sm font-semibold text-[#102f49]">Conversation</p>
+              <p className="mt-0.5 text-xs text-[#587387]">Keep replies clear, factual, and within school support policy.</p>
+            </div>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbfdfe] p-4 sm:p-5">
+              {messages.length === 0 ? (
+                <div className="portal-empty min-h-[16rem]">
+                  <MessageSquare className="size-8 text-[#0a439b]" strokeWidth={1.7} />
+                  <div>
+                    <h2 className="font-semibold text-[#102f49]">No messages yet</h2>
+                    <p className="mt-1 text-sm text-[#587387]">Start with a concise response when you are ready.</p>
                   </div>
-                );
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </div>
+                </div>
+              ) : (
+                messages.map((message) => {
+                  const isAgent = message.senderRole !== 'student';
+                  return (
+                    <article key={message.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:max-w-[72%] ${isAgent ? 'rounded-br-md bg-[#0a439b] text-white' : 'rounded-bl-md border border-[#dce7ef] bg-white text-[#102f49]'}`}>
+                        <p>{message.content}</p>
+                        <p className={`mt-2 text-[11px] ${isAgent ? 'text-blue-100' : 'text-[#6c879a]'}`}>
+                          {isAgent ? 'Support agent' : studentName(activeSession)} · {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </article>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            <form onSubmit={handleSendMessage} className="border-t border-[#dce7ef] bg-white p-3 sm:p-4">
+              <label htmlFor="agent-response" className="sr-only">Write a response</label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="agent-response"
+                  type="text"
+                  placeholder="Write a response"
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  disabled={sending}
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-[#cbdde9] bg-[#fbfdfe] px-4 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"
+                />
+                <Button type="submit" size="icon" disabled={!input.trim() || sending} aria-label="Send response">
+                  <Send className="size-4" strokeWidth={1.8} />
+                </Button>
+              </div>
+            </form>
+          </section>
+        </main>
 
-          {/* Input */}
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Type your response..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              disabled={sending}
-              className="flex-1 h-12 px-5 text-sm rounded-full border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
-            />
-            <Button
-              type="submit"
-              disabled={!input.trim() || sending}
-              className="h-12 w-12 shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-md active:scale-95 transition-all"
-            >
-              <Send className="h-5 w-5" />
-            </Button>
-          </form>
-        </div>
+        <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+          <DialogContent showCloseButton={!closing}>
+            <DialogHeader>
+              <DialogTitle>Close this support session?</DialogTitle>
+              <DialogDescription>
+                The student will no longer be able to continue this conversation through the active session.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" disabled={closing}>Cancel</Button>
+              </DialogClose>
+              <Button variant="destructive" onClick={() => void handleCloseSession()} disabled={closing}>
+                {closing ? 'Closing' : 'Close session'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="portal-page">
       <Navbar />
-
-      <main className="max-w-7xl mx-auto p-6 md:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-extrabold text-slate-900">Live Agent Queue</h1>
-            <p className="text-slate-500 text-sm">
-              Manage and respond to escalated student inquiries.
-            </p>
+      <main className="portal-main">
+        <div className="portal-page-header">
+          <div>
+            <h1 className="portal-title">Support queue</h1>
+            <p className="portal-description mt-2">Review escalated student concerns, then open or claim the session you can support.</p>
           </div>
-          <Button
-            onClick={loadSessions}
-            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 shadow-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <Button variant="outline" size="sm" onClick={() => void loadSessions()} disabled={loading}>
+            <RefreshCw className={loading ? 'animate-spin' : ''} strokeWidth={1.8} />
             Refresh
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Open Sessions</p>
-              <p className="text-3xl font-black text-indigo-700">{sessions.filter(s => s.status === 'open').length}</p>
-            </div>
-            <div className="h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 border border-indigo-100">
-              <MessageSquare className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assigned to Me</p>
-              <p className="text-3xl font-black text-blue-700">{sessions.filter(s => s.status === 'open').length}</p>
-            </div>
-            <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 border border-blue-100">
-              <User className="h-5 w-5" />
-            </div>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Unassigned</p>
-              <p className="text-3xl font-black text-amber-700">{sessions.filter(s => s.status === 'open' && !s.agentId).length}</p>
-            </div>
-            <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 border border-amber-100">
-              <AlertCircle className="h-5 w-5" />
-            </div>
-          </div>
-        </div>
+        <section className="mb-5 grid grid-cols-3 divide-x divide-[#dce7ef] overflow-hidden rounded-2xl border border-[#dce7ef] bg-white shadow-[0_10px_28px_rgb(15_45_74_/_0.055)]">
+          <div className="p-3 sm:p-4"><p className="text-xs text-[#587387]">Open</p><p className="mt-1 text-2xl font-semibold text-[#102f49]">{openCount}</p></div>
+          <div className="p-3 sm:p-4"><p className="text-xs text-[#587387]">Mine</p><p className="mt-1 text-2xl font-semibold text-[#0a439b]">{mySessionIds.size}</p></div>
+          <div className="p-3 sm:p-4"><p className="text-xs text-[#587387]">Unassigned</p><p className="mt-1 text-2xl font-semibold text-[#9a5b05]">{unassignedCount}</p></div>
+        </section>
 
-        <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5">
-          <h2 className="text-sm font-bold text-slate-800 mb-4">Open Sessions</h2>
-
-          {loading ? (
-            <div className="text-center py-10 text-xs text-slate-400">Loading sessions...</div>
-          ) : sessions.length === 0 ? (
-            <div className="text-center py-12">
-              <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-emerald-400" />
-              <p className="text-xs text-slate-500">No open sessions. All caught up!</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sessions.map((session) => (
-                <div
-                  key={session.id}
-                  onClick={() => handleOpenSession(session)}
-                  className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
-                      {session.student?.user?.firstName?.[0] || 'S'}
+        {loading ? (
+          <section className="portal-surface space-y-3 p-5">
+            <div className="portal-skeleton h-16 w-full" />
+            <div className="portal-skeleton h-16 w-full" />
+            <div className="portal-skeleton h-16 w-full" />
+          </section>
+        ) : error ? (
+          <section className="portal-surface portal-empty">
+            <AlertCircle className="size-8 text-[#b42318]" strokeWidth={1.8} />
+            <div><h2 className="font-semibold text-[#102f49]">Queue unavailable</h2><p className="mt-1 text-sm text-[#587387]">{error}</p></div>
+            <Button size="sm" onClick={() => void loadSessions()}>Try again</Button>
+          </section>
+        ) : sessions.length === 0 ? (
+          <section className="portal-surface portal-empty">
+            <CheckCircle2 className="size-8 text-[#16794c]" strokeWidth={1.8} />
+            <div><h2 className="font-semibold text-[#102f49]">The queue is clear</h2><p className="mt-1 text-sm text-[#587387]">No open student support sessions need attention.</p></div>
+          </section>
+        ) : (
+          <section className="portal-surface overflow-hidden">
+            <div className="border-b border-[#dce7ef] px-5 py-4"><h2 className="font-semibold text-[#102f49]">Open sessions</h2></div>
+            <div className="divide-y divide-[#e7eef3]">
+              {sessions.map((session) => {
+                const isMine = mySessionIds.has(session.id);
+                const isUnassigned = !session.agentId;
+                return (
+                  <article key={session.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <button type="button" onClick={() => void handleOpenSession(session)} className="flex min-w-0 items-start gap-3 text-left">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3fa] text-sm font-semibold text-[#0a439b]">{studentInitial(session)}</span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2"><span className="truncate font-semibold text-[#102f49]">{studentName(session)}</span>{isMine && <Badge variant="outline" className="border-[#b8d5ed] bg-[#f1f7fb] text-[#0a439b]">Mine</Badge>}</span>
+                        <span className="mt-1 block truncate text-xs text-[#587387]">{session.student?.studentNumber || 'Student record'}{session.messages?.[0]?.content ? ` · ${session.messages[0].content}` : ''}</span>
+                      </span>
+                    </button>
+                    <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
+                      <Badge className={isUnassigned ? 'border-[#f3d6a7] bg-[#fff8eb] text-[#9a5b05]' : 'border-[#b8d5ed] bg-[#f1f7fb] text-[#0a439b]'}>{isUnassigned ? 'Unassigned' : 'Assigned'}</Badge>
+                      <Button size="sm" onClick={() => void handleOpenSession(session)}>Open <ArrowRight className="size-4" strokeWidth={1.8} /></Button>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">
-                        {session.student?.user?.firstName} {session.student?.user?.lastName}
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        {session.student?.studentNumber} • {session.student?.user?.email}
-                      </p>
-                      {session.messages && session.messages[0] && (
-                        <p className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[300px]">
-                          Last: {session.messages[0].content}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge className={`text-[10px] ${
-                      session.agentId
-                        ? 'bg-blue-50 text-blue-600 border-blue-200'
-                        : 'bg-amber-50 text-amber-600 border-amber-200'
-                    }`}>
-                      {session.agentId ? 'Assigned' : 'Unassigned'}
-                    </Badge>
-                    <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg">
-                      Open
-                      <ArrowRight className="h-3 w-3 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                  </article>
+                );
+              })}
             </div>
-          )}
-        </div>
+          </section>
+        )}
       </main>
     </div>
   );

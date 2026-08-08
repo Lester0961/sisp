@@ -1,16 +1,4 @@
-import React from 'react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Cell,
-  Legend,
-} from 'recharts';
-
-const CHART_COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#3B82F6', '#10B981', '#F59E0B'];
+import { BarChart3 } from 'lucide-react';
 
 interface GpaBracket {
   bracket: string;
@@ -29,75 +17,73 @@ interface GpaDistributionWidgetProps {
   passFailData: PassFailRate[];
 }
 
-export function GpaDistributionWidget({ gpaChartData, passFailData }: GpaDistributionWidgetProps) {
+function ChartEmpty({ title, description }: { title: string; description: string }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      {/* GPA Distribution Matrix */}
-      <div className="lg:col-span-6 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-sm font-bold text-slate-800">SISP GPA Bracket Distributions</h3>
-          <p className="text-[10px] text-slate-400">Student count allocations per academic grading bracket</p>
-        </div>
-        <div className="h-[250px] w-full min-h-[250px] text-slate-500">
-          {gpaChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
-              <BarChart data={gpaChartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <XAxis dataKey="bracket" stroke="#64748B" fontSize={8} tickLine={false} />
-                <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                  labelStyle={{ color: '#0f172a', fontSize: '9px', fontWeight: 'bold' }}
-                  itemStyle={{ color: '#8b5cf6', fontSize: '9px' }}
-                />
-                <Bar dataKey="count" fill="#8B5CF6" radius={[4, 4, 0, 0]}>
-                  {gpaChartData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[(index + 1) % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex items-center justify-center text-xs text-slate-400 font-semibold uppercase tracking-wider">
-              No grade matrix profiles logged
-            </div>
-          )}
-        </div>
+    <section className="portal-surface portal-empty min-h-[15rem]">
+      <BarChart3 className="size-8 text-[#0a439b]" strokeWidth={1.7} />
+      <div>
+        <h3 className="font-semibold text-[#102f49]">{title}</h3>
+        <p className="mt-1 max-w-sm text-sm text-[#587387]">{description}</p>
       </div>
+    </section>
+  );
+}
 
-      {/* Course Grade Pass/Fail Rates */}
-      <div className="lg:col-span-6 bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-        <div>
-          <h3 className="text-sm font-bold text-slate-800">Class Performance Outcome Ratios</h3>
-          <p className="text-[10px] text-slate-400">Ratio of student passing outcomes versus failed scores per course</p>
-        </div>
-        <div className="h-[250px] w-full min-h-[250px] text-slate-500">
-          {passFailData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
-              <BarChart data={passFailData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <XAxis dataKey="code" stroke="#64748B" fontSize={8} tickLine={false} />
-                <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                  labelStyle={{ color: '#0f172a', fontSize: '9px', fontWeight: 'bold' }}
-                />
-                <Legend
-                  verticalAlign="top"
-                  height={24}
-                  iconType="circle"
-                  iconSize={6}
-                  formatter={(value) => <span className="text-[9px] text-slate-500 font-medium capitalize">{value}</span>}
-                />
-                <Bar dataKey="pass" fill="#10B981" radius={[4, 4, 0, 0]} name="Passed" />
-                <Bar dataKey="fail" fill="#EF4444" radius={[4, 4, 0, 0]} name="Failed" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex items-center justify-center text-xs text-slate-400 font-semibold uppercase tracking-wider">
-              No course outcome scores recorded
-            </div>
-          )}
-        </div>
-      </div>
+export function GpaDistributionWidget({ gpaChartData, passFailData }: GpaDistributionWidgetProps) {
+  if (!gpaChartData.length && !passFailData.length) {
+    return <ChartEmpty title="No grade analytics yet" description="Academic analytics will appear when grade data is available for reporting." />;
+  }
+
+  const maximumCount = Math.max(...gpaChartData.map((item) => item.count), 1);
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      {gpaChartData.length ? (
+        <section className="portal-surface p-5">
+          <div className="mb-5">
+            <h3 className="font-semibold text-[#102f49]">Grade distribution</h3>
+            <p className="mt-1 text-sm text-[#587387]">Students by final-grade bracket.</p>
+          </div>
+          <dl className="space-y-4">
+            {gpaChartData.map((item) => {
+              const percentage = Math.max(8, Math.round((item.count / maximumCount) * 100));
+              return (
+                <div key={item.bracket}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt className="text-sm text-[#365a72]">{item.bracket}</dt>
+                    <dd className="text-sm font-semibold text-[#102f49]">{item.count}</dd>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e8f0f5]" role="progressbar" aria-label={`${item.bracket}: ${item.count} students`} aria-valuemin={0} aria-valuemax={maximumCount} aria-valuenow={item.count}>
+                    <div className="h-full rounded-full bg-[#0a439b]" style={{ width: `${percentage}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </dl>
+        </section>
+      ) : <ChartEmpty title="No grade distribution yet" description="Grade brackets will appear when records are ready." />}
+
+      {passFailData.length ? (
+        <section className="portal-surface p-5">
+          <div className="mb-5">
+            <h3 className="font-semibold text-[#102f49]">Course outcomes</h3>
+            <p className="mt-1 text-sm text-[#587387]">Passing and failing outcomes by course.</p>
+          </div>
+          <ul className="divide-y divide-[#e8f0f5]">
+            {passFailData.map((item) => (
+              <li key={item.code} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0"><p className="font-medium text-[#102f49]">{item.code}</p><p className="mt-0.5 truncate text-xs text-[#587387]">{item.title}</p></div>
+                  <div className="grid shrink-0 grid-cols-2 overflow-hidden rounded-lg border border-[#dce7ef] text-center text-xs">
+                    <span className="bg-[#effaf4] px-2 py-1 font-semibold text-[#16794c]" aria-label={`${item.pass} passed`}>{item.pass} pass</span>
+                    <span className="border-l border-[#dce7ef] bg-[#fff4f4] px-2 py-1 font-semibold text-[#b42318]" aria-label={`${item.fail} failed`}>{item.fail} fail</span>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : <ChartEmpty title="No course outcomes yet" description="Course outcomes will appear when approved grades are available." />}
     </div>
   );
 }

@@ -3,15 +3,12 @@ import { cn } from '@/lib/utils';
 
 interface PageFooterProps {
   className?: string;
-  type?: 'cryptographic' | 'advising' | 'privacy';
+  type?: 'general' | 'advising' | 'privacy';
 }
 
-export function PageFooter({ className, type = 'cryptographic' }: PageFooterProps) {
+export function PageFooter({ className, type = 'general' }: PageFooterProps) {
   const currentYear = new Date().getFullYear();
-  let subtitle = 'cryptographic models';
-  if (type === 'advising') {
-    subtitle = 'advising models';
-  } else if (type === 'privacy') {
+  if (type === 'privacy') {
     return (
       <footer className={cn('w-full text-center py-6 border-t border-slate-100 text-slate-400 text-[10px] pointer-events-none select-none z-10', className)}>
         &copy; {currentYear} Regis Marie College SISP. Data secured under RA 10173.
@@ -19,9 +16,13 @@ export function PageFooter({ className, type = 'cryptographic' }: PageFooterProp
     );
   }
 
+  const suffix = type === 'advising'
+    ? 'ARIA provides academic guidance from approved school sources.'
+    : 'Student information and services portal.';
+
   return (
     <footer className={cn('w-full text-center py-6 border-t border-slate-100 text-slate-400 text-[10px] pointer-events-none select-none z-10', className)}>
-      &copy; {currentYear} Regis Marie College SISP. Built with high-fidelity {subtitle}.
+      &copy; {currentYear} Regis Marie College SISP. {suffix}
     </footer>
   );
 }

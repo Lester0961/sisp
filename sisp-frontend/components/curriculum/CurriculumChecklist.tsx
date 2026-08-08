@@ -35,7 +35,7 @@ export default function CurriculumChecklist({ curriculumCourses, completedCourse
                         ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
                         : <Circle className="w-4 h-4 text-gray-300 shrink-0" />}
                       <span className={done ? 'text-gray-500 line-through' : 'text-gray-700'}>
-                        {course.code} — {course.title}
+                        {course.code} · {course.title}
                       </span>
                       <span className="ml-auto text-gray-400">{course.units} units</span>
                     </li>

@@ -6,7 +6,6 @@ import { gradesApi, GradeItem } from '@/lib/api/grades';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
-import { AmbientBackground } from '@/components/shared/AmbientBackground';
 import { PageFooter } from '@/components/shared/PageFooter';
 import {
   Table,
@@ -166,6 +165,9 @@ export default function FacultyGradesPage() {
   };
 
   const handleSubmitForReview = async (gradeId: string) => {
+    if (!window.confirm('Submit this grade for registrar and dean review? You will not be able to edit it while it is under review.')) {
+      return;
+    }
     setSubmittingId(gradeId);
     try {
       await gradesApi.submitGrade(gradeId);
@@ -227,28 +229,27 @@ export default function FacultyGradesPage() {
   const gradedCount = filteredGrades.filter((g) => g.finalGrade !== null && g.finalGrade !== undefined).length;
   const averageGrade = gradedCount > 0 
     ? (filteredGrades.reduce((sum, g) => sum + (g.finalGrade ?? 0), 0) / gradedCount).toFixed(1)
-    : '—';
+    : 'N/A';
   const passCount = filteredGrades.filter((g) => g.finalGrade !== null && g.finalGrade !== undefined && g.finalGrade >= 75).length;
   const passRate = gradedCount > 0 
     ? `${((passCount / gradedCount) * 100).toFixed(0)}%`
-    : '—';
+    : 'N/A';
   const submittedCount = filteredGrades.filter((g) => g.status === 'submitted' || g.status === 'posted' || g.status === 'approved').length;
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden select-none">
-      <AmbientBackground topColor="bg-violet-500/5" bottomColor="bg-indigo-600/5" />
+    <div className="portal-page flex min-h-[100dvh] w-full flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-8 z-10">
+      <main className="portal-main flex-1 space-y-5">
         
         {/* Welcome Section */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
-              Grade Evaluation Matrix
+        <div className="portal-page-header">
+          <div>
+            <h1 className="portal-title">
+              Grade entry
             </h1>
-            <p className="text-slate-500 text-xs md:text-sm font-medium">
-              Encode scores, then submit for registrar review → dean approval → student visibility.
+            <p className="portal-description mt-2">
+              Encode scores, then submit for registrar review, dean approval, and student visibility.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -256,7 +257,7 @@ export default function FacultyGradesPage() {
               <Button
                 onClick={saveAllChanges}
                 disabled={savingAll || Object.keys(validationErrors).length > 0}
-                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-300 shadow-md animate-bounce"
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-sm"
               >
                 <FileCheck className="h-4 w-4" />
                 {savingAll ? 'Saving Changes...' : `Save All Changes (${dirtyGradesCount})`}
@@ -273,54 +274,54 @@ export default function FacultyGradesPage() {
         </div>
 
         {/* Live Class Performance Analytics */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-5 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="p-5 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm">
+        <section className="portal-surface grid grid-cols-2 divide-x divide-y divide-[#dce7ef] overflow-hidden p-0 lg:grid-cols-4 lg:divide-y-0">
+          <div className="min-w-0 p-4 sm:p-5">
             <div className="space-y-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Class Average</span>
-              <p className="text-2xl font-black text-indigo-750">{averageGrade === '—' ? '—' : `${averageGrade}%`}</p>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Average</span>
+              <p className="mt-2 text-2xl font-semibold text-[#0a439b]">{averageGrade === 'N/A' ? 'N/A' : `${averageGrade}%`}</p>
             </div>
-            <div className="h-10 w-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-650 border border-indigo-100">
+            <div className="hidden h-10 w-10 rounded-xl border border-[#c8d9e7] bg-[#eef6fc] text-[#0a439b] sm:flex items-center justify-center">
               <TrendingUp className="h-5 w-5" />
             </div>
           </div>
 
-          <div className="p-5 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="min-w-0 bg-emerald-50/35 p-4 sm:p-5">
             <div className="space-y-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Passing Rate</span>
-              <p className="text-2xl font-black text-emerald-700">{passRate}</p>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Passing</span>
+              <p className="mt-2 text-2xl font-semibold text-emerald-700">{passRate}</p>
             </div>
-            <div className="h-10 w-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 border border-emerald-100">
+            <div className="hidden h-10 w-10 rounded-xl border border-emerald-100 bg-white/70 text-emerald-600 sm:flex items-center justify-center">
               <GraduationCap className="h-5 w-5" />
             </div>
           </div>
 
-          <div className="p-5 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="min-w-0 bg-[#f1f6fb] p-4 sm:p-5">
             <div className="space-y-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Submitted</span>
-              <p className="text-2xl font-black text-blue-700">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0a439b]">Submitted</span>
+              <p className="mt-2 text-2xl font-semibold text-[#0a439b]">
                 {submittedCount} <span className="text-slate-300 text-xs font-normal">/ {filteredGrades.length}</span>
               </p>
             </div>
-            <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 border border-blue-100">
+            <div className="hidden h-10 w-10 rounded-xl border border-[#c8d9e7] bg-white/70 text-[#0a439b] sm:flex items-center justify-center">
               <Send className="h-5 w-5" />
             </div>
           </div>
 
-          <div className="p-5 bg-white border border-slate-100 rounded-2xl flex items-center justify-between shadow-sm">
+          <div className="min-w-0 bg-amber-50/45 p-4 sm:p-5">
             <div className="space-y-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Pending Draft</span>
-              <p className="text-2xl font-black text-amber-700">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-amber-700">Drafts</span>
+              <p className="mt-2 text-2xl font-semibold text-amber-700">
                 {filteredGrades.length - submittedCount}
               </p>
             </div>
-            <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 border border-amber-100">
+            <div className="hidden h-10 w-10 rounded-xl border border-amber-100 bg-white/70 text-amber-600 sm:flex items-center justify-center">
               <Clock className="h-5 w-5" />
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Searching & Filtering */}
-        <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5 flex flex-col lg:flex-row items-stretch lg:items-center gap-4">
+        <div className="portal-surface flex flex-col gap-4 p-4 lg:flex-row lg:items-center sm:p-5">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
             <input
@@ -362,9 +363,13 @@ export default function FacultyGradesPage() {
         </div>
 
         {/* Grades Table */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="overflow-x-auto">
-            <Table>
+        <div className="portal-surface space-y-3 p-4 sm:p-5">
+          <div>
+            <h2 className="font-semibold text-[#102f49]">Student evaluations</h2>
+            <p className="mt-1 text-sm text-[#587387]">Scroll horizontally to edit score fields on smaller screens.</p>
+          </div>
+          <div className="overflow-x-auto" role="region" aria-label="Grade evaluation table" tabIndex={0}>
+            <Table className="min-w-[900px]">
               <TableHeader className="border-b border-slate-100">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500">Student Info</TableHead>
@@ -421,7 +426,7 @@ export default function FacultyGradesPage() {
                           <div className="relative flex flex-col items-center">
                             <input
                               type="number"
-                              placeholder="—"
+                              placeholder="Score"
                               disabled={!canEdit}
                               value={g.prelim !== null && g.prelim !== undefined ? g.prelim : ''}
                               onChange={(e) => handleGradeChange(g.id, 'prelim', e.target.value)}
@@ -445,7 +450,7 @@ export default function FacultyGradesPage() {
                           <div className="relative flex flex-col items-center">
                             <input
                               type="number"
-                              placeholder="—"
+                              placeholder="Score"
                               disabled={!canEdit}
                               value={g.midterm !== null && g.midterm !== undefined ? g.midterm : ''}
                               onChange={(e) => handleGradeChange(g.id, 'midterm', e.target.value)}
@@ -469,7 +474,7 @@ export default function FacultyGradesPage() {
                           <div className="relative flex flex-col items-center">
                             <input
                               type="number"
-                              placeholder="—"
+                              placeholder="Score"
                               disabled={!canEdit}
                               value={g.finals !== null && g.finals !== undefined ? g.finals : ''}
                               onChange={(e) => handleGradeChange(g.id, 'finals', e.target.value)}
@@ -562,7 +567,7 @@ export default function FacultyGradesPage() {
 
       </main>
 
-      <PageFooter type="cryptographic" />
+      <PageFooter type="advising" />
     </div>
   );
 }

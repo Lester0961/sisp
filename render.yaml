@@ -16,5 +16,19 @@ services:
         generateValue: true
       - key: PORT
         value: "3001"
+      - key: NODE_ENV
+        value: production
       - key: FRONTEND_URL
         sync: false # Set this to the Vercel URL later
+      - key: ADDITIONAL_CORS_ORIGINS
+        sync: false # Keep the previous Vercel alias during migration
+      - key: MFA_ENABLED
+        value: "true"
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        sync: false
+      - key: RATE_LIMIT_PROFILE
+        value: production

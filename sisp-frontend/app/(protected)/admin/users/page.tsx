@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
-import { AmbientBackground } from '@/components/shared/AmbientBackground';
 import { PageFooter } from '@/components/shared/PageFooter';
 import {
   Users,
@@ -160,32 +159,30 @@ export default function AdminUsersPage() {
     { value: 'dean', label: 'Academic Dean' },
     { value: 'admin_staff', label: 'Admin Staff' },
     { value: 'live_agent', label: 'Live Agent' },
+    { value: 'sys_admin', label: 'System Administrator' },
   ];
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden selection:bg-[#1e3a8a]/20">
-      
-      <AmbientBackground topColor="bg-indigo-500/5" bottomColor="bg-violet-600/5" />
-
+    <div className="portal-page">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-8 space-y-8 z-10">
+      <main className="portal-main max-w-7xl space-y-6">
         
         {/* Welcome Section */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2">
-              <Users className="h-7 w-7 text-indigo-600" />
-              Users & Account Management
+        <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="portal-title flex items-center gap-2">
+              <Users className="size-6 text-[#0a439b]" strokeWidth={1.8} />
+              User accounts
             </h1>
-            <p className="text-slate-500 text-xs md:text-sm font-medium">
-              Create, inspect, configure roles, and manage credentials for SISP Students and Staff.
+            <p className="portal-description mt-2">
+              Create accounts, adjust roles, and manage access for students and staff.
             </p>
           </div>
-          <div className="flex gap-3 w-full md:w-auto">
+          <div className="flex w-full gap-3 sm:w-auto">
             <Button
               onClick={() => setShowCreateModal(true)}
-              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-md hover:shadow-indigo-500/10 active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto"
             >
               <UserPlus className="h-4 w-4" />
               Create User Account
@@ -194,17 +191,18 @@ export default function AdminUsersPage() {
         </div>
 
         {/* User Directory Table Card */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="portal-surface space-y-4 p-5">
+          <div className="flex flex-col items-start gap-4 border-b border-[#e8f0f5] pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Active User Enrollment Register</h3>
-              <p className="text-[10px] text-slate-400">Manage database roles, authorize system permissions, and revoke active sessions.</p>
+              <h2 className="text-sm font-semibold text-[#102f49]">Account directory</h2>
+              <p className="mt-1 text-xs text-[#587387]">Roles, account status, and access controls.</p>
+              <p className="mt-2 text-xs text-[#587387] sm:hidden">Scroll horizontally to review the full directory.</p>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="border-b border-slate-100">
+          <div className="overflow-x-auto" role="region" aria-label="Account directory table" tabIndex={0}>
+            <Table className="min-w-[850px]">
+              <TableHeader className="border-b border-[#e8f0f5]">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500">User Identification</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500">First Name</TableHead>
@@ -223,19 +221,28 @@ export default function AdminUsersPage() {
                   </TableRow>
                 ) : users.length > 0 ? (
                   users.map((u) => (
-                    <TableRow key={u.id} className="border-b border-slate-100 hover:bg-slate-50/50">
+                    <TableRow key={u.id} className="border-b border-[#e8f0f5] hover:bg-[#f8fbfd]">
                       <TableCell className="font-semibold text-xs text-slate-800">{u.email}</TableCell>
                       <TableCell className="text-xs text-slate-600">{u.firstName || 'N/A'}</TableCell>
                       <TableCell className="text-xs text-slate-600">{u.lastName || 'N/A'}</TableCell>
                       <TableCell className="text-xs">
                         <div className="flex items-center space-x-2">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700">
+                          <span className="rounded-full border border-[#c8d9e7] bg-[#eef6fc] px-2 py-0.5 text-[10px] font-semibold text-[#0a439b]">
                             {u.role?.name || 'unknown'}
                           </span>
                           
                           <select
                             defaultValue={u.role?.name || ''}
-                            onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                            onChange={(event) => {
+                              const nextRole = event.target.value;
+                              const currentRole = u.role?.name || '';
+                              if (nextRole === currentRole) return;
+                              if (!window.confirm(`Change ${u.email} to the ${roleOptions.find((option) => option.value === nextRole)?.label || nextRole} role?`)) {
+                                event.currentTarget.value = currentRole;
+                                return;
+                              }
+                              void handleRoleChange(u.id, nextRole);
+                            }}
                             className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-md text-[10px] p-1 text-slate-700 transition focus:outline-none"
                           >
                             {roleOptions.map((opt) => (
@@ -288,15 +295,16 @@ export default function AdminUsersPage() {
           </div>
 
           {/* Simple Pagination Controls */}
-          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+          <div className="flex items-center justify-between border-t border-[#e8f0f5] pt-4">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Showing page {currentPage} — {users.length} of {totalUsers} total entries
+              Showing page {currentPage} · {users.length} of {totalUsers} entries
             </span>
             <div className="flex items-center space-x-2">
               <Button
                 disabled={currentPage <= 1}
                 onClick={() => setPage(currentPage - 1)}
                 className="bg-white hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-slate-600 hover:text-slate-800 transition disabled:opacity-40 shadow-sm"
+                aria-label="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -304,6 +312,7 @@ export default function AdminUsersPage() {
                 disabled={currentPage * 5 >= totalUsers}
                 onClick={() => setPage(currentPage + 1)}
                 className="bg-white hover:bg-slate-100 border border-slate-200 p-2 rounded-lg text-slate-600 hover:text-slate-800 transition disabled:opacity-40 shadow-sm"
+                aria-label="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -346,6 +355,7 @@ export default function AdminUsersPage() {
                   <option value="dean">Academic Dean</option>
                   <option value="admin_staff">Admin Staff</option>
                   <option value="live_agent">Live Agent</option>
+                  <option value="sys_admin">System Administrator</option>
                 </select>
               </div>
 
@@ -561,7 +571,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <PageFooter type="cryptographic" />
+      <PageFooter type="general" />
 
     </div>
   );

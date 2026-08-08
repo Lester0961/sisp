@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { PageFooter } from '@/components/shared/PageFooter';
 
@@ -8,25 +9,25 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-x-hidden overflow-y-auto bg-[#F4F6F9] text-[#0A439B] px-4 font-sans select-none">
-      
-      {/* Top Navigation for Auth pages */}
-      <header className="absolute top-0 w-full max-w-7xl mx-auto flex items-center justify-between p-6 z-20">
-        <Link href="/" className="flex items-center space-x-2.5 hover:opacity-90 transition-all duration-300">
-          <div className="w-8 h-8 rounded bg-[#0A439B] text-white flex items-center justify-center font-bold text-lg">
-            R
-          </div>
-          <span className="font-extrabold tracking-wider text-sm text-[#0A439B]">SISP Portal</span>
+    <main className="flex min-h-[100dvh] w-full flex-col bg-[#f8fbfd] px-4 text-[#102f49]">
+      <header className="mx-auto flex w-full max-w-6xl items-center py-5 sm:py-6">
+        <Link href="/" className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0a439b] focus-visible:ring-offset-2">
+          <Image
+            src="/rmc/rmc-logo.png"
+            alt="Regis Marie College"
+            width={44}
+            height={44}
+            className="size-10 shrink-0 rounded-full object-contain"
+          />
+          <span className="text-sm font-semibold tracking-tight text-[#102f49]">Regis Marie College</span>
         </Link>
       </header>
 
-      {/* Auth Form Wrapper */}
-      <div className="relative z-10 w-full max-w-md my-16 px-2 flex flex-col items-center">
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-8 sm:py-12">
         {children}
       </div>
 
-      {/* Footer */}
-      <PageFooter type="privacy" className="absolute bottom-6 border-t-0 py-0 text-[#0A439B]/70 w-auto" />
+      <PageFooter type="privacy" className="mx-auto w-full max-w-6xl border-t-[#dce7ef] py-5 text-[#587387]" />
     </main>
   );
 }

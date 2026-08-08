@@ -181,7 +181,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           m.id === assistantMsgId
             ? {
                 ...m,
-                content: '⚠️ Failed to send message. Please check your connection and try again.',
+                content: 'Unable to send the message. Please check your connection and try again.',
                 isLoading: false,
               }
             : m

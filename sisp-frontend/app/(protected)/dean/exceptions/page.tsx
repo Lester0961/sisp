@@ -7,7 +7,6 @@ import { requestsApi, DocumentRequestItem } from '@/lib/api/requests';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
-import { AmbientBackground } from '@/components/shared/AmbientBackground';
 import { PageFooter } from '@/components/shared/PageFooter';
 
 import {
@@ -44,6 +43,10 @@ export default function DeanExceptionsPage() {
   }, []);
 
   const handleDecision = async (exceptionId: string, decision: 'approved' | 'rejected') => {
+    const action = decision === 'approved' ? 'approve' : 'reject';
+    if (!window.confirm(`Are you sure you want to ${action} this request?`)) {
+      return;
+    }
     setActioningId(exceptionId);
     try {
       await adminApi.approveException(exceptionId, decision);
@@ -57,48 +60,47 @@ export default function DeanExceptionsPage() {
   };
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-slate-50 text-slate-900 font-sans overflow-x-hidden select-none">
-      
-      <AmbientBackground topColor="bg-cyan-500/5" bottomColor="bg-indigo-600/5" />
-
+    <div className="portal-page flex min-h-[100dvh] w-full flex-col">
       <Navbar />
 
       {/* Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-6 md:p-8 space-y-8 z-10">
+      <main className="portal-main max-w-5xl flex-1 space-y-5">
         
         {/* Welcome Section */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900">
-              Dean Exceptions Queue
+        <div className="portal-page-header">
+          <div>
+            <h1 className="portal-title">
+              Exceptions queue
             </h1>
-            <p className="text-slate-500 text-xs md:text-sm font-medium">
+            <p className="portal-description mt-2">
               Review and act on academic overrides and registrar document requests.
             </p>
           </div>
           <Button
             onClick={loadRequests}
-            className="w-full sm:w-auto bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition duration-300 shadow-sm"
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Queue
+            Refresh
           </Button>
         </div>
 
         {/* Exceptions Grid */}
         <div className="space-y-6">
           {loading ? (
-            <div className="text-center py-16 bg-white border border-slate-100 rounded-2xl p-8 shadow-sm">
+            <div className="portal-surface text-center py-16 p-8">
               <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">
                 Scanning Exception Logs...
               </span>
             </div>
           ) : requests.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid gap-4 md:grid-cols-2">
               {requests.map((req) => (
                 <div
                   key={req.id}
-                  className="bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between transition-all duration-300"
+                  className="portal-surface flex flex-col justify-between p-5"
                 >
                   <div className="space-y-4">
                     
@@ -169,11 +171,11 @@ export default function DeanExceptionsPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-20 bg-white border border-slate-100 rounded-2xl p-8 shadow-sm space-y-3">
+            <div className="portal-surface portal-empty min-h-[18rem] space-y-3">
               <FileText className="h-10 w-10 text-slate-400 mx-auto" />
               <div>
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest">Queue Cleared</h3>
-                <p className="text-[10px] text-slate-500">No exception or override requests currently require Dean approval.</p>
+                <h3 className="font-semibold text-[#102f49]">Queue clear</h3>
+                <p className="mt-1 text-sm text-[#587387]">No exception or override requests currently need dean approval.</p>
               </div>
             </div>
           )}
@@ -182,7 +184,7 @@ export default function DeanExceptionsPage() {
       </main>
 
       {/* Footer */}
-      <PageFooter type="cryptographic" />
+      <PageFooter type="advising" />
 
     </div>
   );
