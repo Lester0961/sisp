@@ -247,7 +247,7 @@ export default function LandingPage() {
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,32,51,0.93)_0%,rgba(8,32,51,0.72)_42%,rgba(8,32,51,0.30)_75%,rgba(8,32,51,0.62)_100%)]" />
           <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(8,32,51,0.85)_0%,transparent_48%)]" />
 
-          <div className="relative mx-auto w-full max-w-7xl px-4 pb-28 sm:px-6 sm:pb-32 lg:px-8">
+          <div className="relative mx-auto w-full max-w-[1440px] px-4 pb-28 sm:px-6 sm:pb-32 lg:px-8 2xl:px-10">
             <Reveal className="max-w-3xl" amount={0.05}>
               <p className="mb-5 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold tracking-[0.16em] text-white backdrop-blur-md">
                 HOME OF EDUCATORS
@@ -277,7 +277,7 @@ export default function LandingPage() {
           </div>
 
           <div className="absolute inset-x-0 bottom-0">
-            <div className="glass-rail mx-auto grid max-w-7xl grid-cols-1 overflow-hidden rounded-t-2xl text-[#294d65] sm:grid-cols-3 lg:grid-cols-4">
+            <div className="glass-rail mx-auto grid max-w-[1440px] grid-cols-1 overflow-hidden rounded-t-2xl text-[#294d65] sm:grid-cols-3 lg:grid-cols-4">
               <div className="hidden border-r border-[#1a4a6e]/10 px-6 py-5 lg:block">
                 <p className="text-xs font-semibold tracking-[0.14em] text-[#517189]">SINCE 1992</p>
                 <p className="mt-1 text-sm font-medium">Educational excellence</p>
@@ -304,7 +304,7 @@ export default function LandingPage() {
         </section>
 
         <section id="aria" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-          <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[0.88fr_1.12fr] lg:gap-20">
+          <div className="mx-auto grid max-w-[1440px] items-center gap-12 lg:grid-cols-[0.88fr_1.12fr] lg:gap-20">
             <Reveal>
               <p className="text-sm font-semibold text-[#1a4a6e]">Academic guidance, made clearer</p>
               <h2 className="mt-4 max-w-xl font-display text-4xl font-semibold leading-tight tracking-[-0.025em] text-[#102f49] sm:text-5xl">
@@ -340,7 +340,7 @@ export default function LandingPage() {
         </section>
 
         <section id="why-rmc" className="scroll-mt-20 bg-[#eaf3f9] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-          <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-[1440px]">
             <Reveal className="max-w-3xl">
               <h2 className="font-display text-4xl font-semibold tracking-[-0.025em] text-[#102f49] sm:text-5xl">
                 Why choose Regis Marie College?
@@ -386,7 +386,7 @@ export default function LandingPage() {
         </section>
 
         <section id="programs" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-          <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-[1440px]">
             <Reveal className="max-w-3xl">
               <p className="text-sm font-semibold text-[#1a4a6e]">Find your path</p>
               <h2 className="mt-4 font-display text-4xl font-semibold tracking-[-0.025em] text-[#102f49] sm:text-5xl">
@@ -442,7 +442,7 @@ export default function LandingPage() {
         </section>
 
         <section id="senior-high" className="bg-[#eaf3f9] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-          <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
+          <div className="mx-auto grid max-w-[1440px] items-center gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
             <PosterReveal className="poster-frame overflow-hidden rounded-[1.75rem] p-2 sm:p-3">
               <Image
                 src="/rmc/senior-high.png"
@@ -475,7 +475,7 @@ export default function LandingPage() {
         </section>
 
         <section id="about" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-          <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-[1440px]">
             <Reveal className="grid gap-10 border-b border-[#1a4a6e]/20 pb-16 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
               <div>
                 <Image src="/rmc/rmc-logo.png" alt="Regis Marie College seal" width={170} height={170} className="size-28 object-contain sm:size-36" />

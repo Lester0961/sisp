@@ -4,7 +4,7 @@ import Link from 'next/link';
 export function PublicFooter() {
   return (
     <footer className="bg-[#0e2a41] px-4 pb-8 pt-14 text-white sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-[1440px]">
         <div className="grid gap-10 border-b border-white/10 pb-12 md:grid-cols-[1.1fr_0.9fr_0.9fr]">
           <div className="max-w-md">
             <div className="flex items-center gap-3">

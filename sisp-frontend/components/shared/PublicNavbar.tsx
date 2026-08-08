@@ -26,7 +26,7 @@ export function PublicNavbar() {
           : 'border-[#1a4a6e]/10 bg-white/95 text-[#102f49] backdrop-blur-xl'
       }`}
     >
-      <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-4 sm:px-6 lg:px-8 2xl:px-10">
         <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="Regis Marie College home">
           <Image
             src="/rmc/rmc-logo.png"
@@ -94,7 +94,7 @@ export function PublicNavbar() {
 
       {isMobileMenuOpen && (
         <div className="border-t border-white/10 bg-[#0e2a41] px-4 py-4 text-white lg:hidden">
-          <nav className="mx-auto grid max-w-7xl gap-1" aria-label="Mobile navigation">
+          <nav className="mx-auto grid max-w-[1440px] gap-1" aria-label="Mobile navigation">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
