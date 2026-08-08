@@ -1,102 +1,118 @@
 'use client';
 
-import React, { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState } from 'react';
+
+const navLinks = [
+  { href: '/#why-rmc', label: 'Why RMC' },
+  { href: '/#programs', label: 'Programs' },
+  { href: '/#aria', label: 'ARIA Advisor' },
+  { href: '/#about', label: 'About' },
+];
 
 export function PublicNavbar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  const navLinks = [
-    { href: '/about', label: 'About SISP' },
-    { href: '/services', label: 'Services' },
-    { href: '/support', label: 'Support' },
-  ];
+  const isHome = pathname === '/';
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#0A439B]/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-[72px] flex items-center justify-between">
-        {/* Left: Logo + Brand */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 -ml-2 text-[#0A439B] hover:bg-[#0A439B]/8 rounded-md md:hidden transition-colors"
-            aria-label="Toggle Menu"
-          >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+    <header
+      className={`fixed inset-x-0 top-0 z-50 border-b transition-colors ${
+        isHome
+          ? 'glass-nav text-white'
+          : 'border-[#1a4a6e]/10 bg-white/95 text-[#102f49] backdrop-blur-xl'
+      }`}
+    >
+      <div className="mx-auto flex h-[72px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="Regis Marie College home">
+          <Image
+            src="/rmc/rmc-logo.png"
+            alt=""
+            width={48}
+            height={48}
+            className="size-10 shrink-0 rounded-full object-contain"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold leading-tight sm:text-base">Regis Marie College</p>
+            <p className={`mt-0.5 text-[10px] font-medium tracking-[0.08em] ${isHome ? 'text-white/70' : 'text-[#587387]'}`}>
+              Home of Educators
+            </p>
+          </div>
+        </Link>
 
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-md bg-[#0A439B] flex items-center justify-center font-bold text-lg text-white">
-              R
-            </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-base tracking-tight text-[#0A439B] leading-none">
-                RMC SISP
-              </span>
-              <span className="text-[9px] font-bold tracking-[0.2em] text-[#0A439B]/70 uppercase mt-1">
-                Portal Gateway
-              </span>
-            </div>
-          </Link>
-        </div>
-
-        {/* Center: Nav Links */}
-        <nav className="hidden md:flex items-center gap-10">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  'text-sm font-semibold text-[#0A439B] py-1 transition-all duration-200 border-b-2',
-                  isActive
-                    ? 'border-[#0A439B]'
-                    : 'border-transparent hover:border-[#0A439B]/30',
-                )}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+        <nav className="hidden items-center gap-7 lg:flex" aria-label="Public navigation">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`text-sm font-medium transition hover:-translate-y-0.5 ${
+                isHome ? 'text-white/80 hover:text-white' : 'text-[#49697f] hover:text-[#102f49]'
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
-        {/* Right: Login Button */}
-        <Link
-          href="/login"
-          className="bg-[#0A439B] text-white font-bold py-2.5 px-6 text-sm transition-colors hover:opacity-90"
-          style={{ borderRadius: '6px' }}
-        >
-          Login Portal
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/login"
+            className={`hidden h-10 items-center justify-center rounded-full border px-5 text-sm font-semibold transition sm:inline-flex ${
+              isHome
+                ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
+                : 'border-[#1a4a6e]/20 bg-white text-[#1a4a6e] hover:bg-[#eef6fc]'
+            }`}
+          >
+            Portal Login
+          </Link>
+          <a
+            href="/#aria"
+            className={`hidden h-10 items-center justify-center rounded-full px-5 text-sm font-semibold transition md:inline-flex ${
+              isHome
+                ? 'bg-white text-[#1a4a6e] hover:bg-[#eef6fc]'
+                : 'bg-[#1a4a6e] text-white hover:bg-[#123a58]'
+            }`}
+          >
+            Ask ARIA
+          </a>
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen((open) => !open)}
+            className={`flex size-10 items-center justify-center rounded-xl transition lg:hidden ${
+              isHome ? 'text-white hover:bg-white/10' : 'text-[#1a4a6e] hover:bg-[#eef6fc]'
+            }`}
+            aria-label="Toggle navigation menu"
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-[#0A439B]/10 bg-white px-4 py-5 space-y-2 absolute w-full left-0">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
-            return (
+        <div className="border-t border-white/10 bg-[#0e2a41] px-4 py-4 text-white lg:hidden">
+          <nav className="mx-auto grid max-w-7xl gap-1" aria-label="Mobile navigation">
+            {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className={cn(
-                  'block px-4 py-3 font-semibold text-sm transition-colors',
-                  isActive
-                    ? 'text-[#0A439B] bg-[#0A439B]/8'
-                    : 'text-[#0A439B]/70 hover:text-[#0A439B] hover:bg-[#0A439B]/8',
-                )}
-                style={{ borderRadius: '6px' }}
+                className="rounded-xl px-4 py-3 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white"
               >
                 {link.label}
               </Link>
-            );
-          })}
+            ))}
+            <Link
+              href="/login"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="mt-2 rounded-xl bg-white px-4 py-3 text-center text-sm font-semibold text-[#1a4a6e]"
+            >
+              Portal Login
+            </Link>
+          </nav>
         </div>
       )}
     </header>
