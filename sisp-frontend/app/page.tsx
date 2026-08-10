@@ -277,23 +277,23 @@ export default function LandingPage() {
           </div>
 
           <div className="absolute inset-x-0 bottom-0">
-            <div className="glass-rail mx-auto grid max-w-[1440px] grid-cols-1 overflow-hidden rounded-t-2xl text-[#294d65] sm:grid-cols-3 lg:grid-cols-4">
+            <div className="glass-rail mx-auto grid max-w-[1440px] grid-cols-1 overflow-hidden rounded-t-2xl text-[#f7fbfd] sm:grid-cols-3 lg:grid-cols-4">
               <div className="hidden border-r border-[#1a4a6e]/10 px-6 py-5 lg:block">
-                <p className="text-xs font-semibold tracking-[0.14em] text-[#517189]">SINCE 1992</p>
-                <p className="mt-1 text-sm font-medium">Educational excellence</p>
+                <p className="text-xs font-semibold tracking-[0.14em] text-[#b8d6e8]">SINCE 1992</p>
+                <p className="mt-1 text-sm font-medium text-[#f7fbfd]">Educational excellence</p>
               </div>
               <div className="border-r border-[#1a4a6e]/10 px-5 py-4 sm:px-6 sm:py-5">
-                <p className="text-xs font-semibold tracking-[0.14em] text-[#517189]">PATHWAYS</p>
-                <p className="mt-1 text-sm font-medium">College and Senior High</p>
+                <p className="text-xs font-semibold tracking-[0.14em] text-[#b8d6e8]">PATHWAYS</p>
+                <p className="mt-1 text-sm font-medium text-[#f7fbfd]">College and Senior High</p>
               </div>
               <div className="hidden border-r border-[#1a4a6e]/10 px-6 py-5 sm:block">
-                <p className="text-xs font-semibold tracking-[0.14em] text-[#517189]">ADVISORY</p>
-                <p className="mt-1 text-sm font-medium">AI support with human escalation</p>
+                <p className="text-xs font-semibold tracking-[0.14em] text-[#b8d6e8]">ADVISORY</p>
+                <p className="mt-1 text-sm font-medium text-[#f7fbfd]">AI support with human escalation</p>
               </div>
               <div className="hidden items-center justify-between gap-4 px-6 py-5 sm:flex">
                 <div>
-                  <p className="text-sm font-semibold text-[#102f49]">Already a student?</p>
-                  <p className="mt-1 text-xs text-[#517189]">Open your secure portal</p>
+                  <p className="text-sm font-semibold text-[#f7fbfd]">Already a student?</p>
+                  <p className="mt-1 text-xs text-[#d5e8f2]">Open your secure portal</p>
                 </div>
                 <Link href="/login" className="shrink-0 rounded-full bg-[#1a4a6e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#123a58]">
                   Log in
@@ -499,16 +499,16 @@ export default function LandingPage() {
               </div>
             </Reveal>
 
-            <Reveal className="glass-panel-dark mt-12 flex flex-col items-start justify-between gap-6 rounded-[1.75rem] px-6 py-8 text-white sm:px-8 lg:flex-row lg:items-center lg:px-10">
+            <Reveal className="glass-panel-dark mt-12 flex flex-col items-start justify-between gap-6 rounded-[1.75rem] px-6 py-8 text-[#f7fbfd] sm:px-8 lg:flex-row lg:items-center lg:px-10">
               <div>
                 <h2 className="font-display text-3xl font-semibold">Ready to continue your RMC journey?</h2>
-                <p className="mt-2 text-sm text-white/75">Open the student portal or contact the school for admissions assistance.</p>
+                <p className="mt-2 text-sm text-[#d5e8f2]">Open the student portal or contact the school for admissions assistance.</p>
               </div>
               <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
                 <Link href="/login" className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 font-semibold text-[#1a4a6e] hover:bg-[#eef6fc]">
                   Open portal
                 </Link>
-                <a href="tel:09104947097" className="inline-flex h-11 items-center justify-center rounded-full border border-white/30 px-6 font-semibold text-white hover:bg-white/10">
+                <a href="tel:09104947097" className="inline-flex h-11 items-center justify-center rounded-full border border-[#b8d6e8] px-6 font-semibold text-[#f7fbfd] hover:bg-white/10">
                   Call admissions
                 </a>
               </div>
