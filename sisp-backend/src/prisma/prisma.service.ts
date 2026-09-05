@@ -21,10 +21,33 @@ function normalizeDatabaseUrl(value: unknown): string | undefined {
   return /^(postgresql|postgres):\/\//i.test(unquoted) ? unquoted : undefined;
 }
 
+function supabasePoolerUrl(directUrl: string | undefined): string | undefined {
+  if (!directUrl) return undefined;
+  try {
+    const parsed = new URL(directUrl);
+    const match = parsed.hostname.match(/^db\.([^.]+)\.supabase\.co$/i);
+    if (!match) return undefined;
+
+    parsed.hostname = 'aws-0-ap-southeast-1.pooler.supabase.com';
+    parsed.port = '6543';
+    if (parsed.username && !parsed.username.includes('.')) {
+      parsed.username = `${parsed.username}.${match[1]}`;
+    }
+    parsed.searchParams.set('pgbouncer', 'true');
+    parsed.searchParams.set('connection_limit', '1');
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 function prismaClientOptions() {
+  const databaseUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
+  const directUrl = normalizeDatabaseUrl(process.env.DIRECT_URL);
   const url =
-    normalizeDatabaseUrl(process.env.DATABASE_URL) ??
-    normalizeDatabaseUrl(process.env.DIRECT_URL) ??
+    databaseUrl ??
+    supabasePoolerUrl(directUrl) ??
+    directUrl ??
     FALLBACK_DATABASE_URL;
   return { datasources: { db: { url } } };
 }
