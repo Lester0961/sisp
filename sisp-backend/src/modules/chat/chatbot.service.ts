@@ -27,7 +27,10 @@ export class ChatbotService {
     // Keep the synchronous proxy comfortably below Render's request window.
     // A sleeping/unavailable ML service should become a persisted live-agent
     // handoff, not an abandoned HTTP request.
-    const ML_TIMEOUT_MS = 5000;
+    // The hosted ARIA service may need several seconds for provider routing
+    // and semantic retrieval, especially on a free-tier instance. Keep the
+    // request bounded while allowing the normal policy path to complete.
+    const ML_TIMEOUT_MS = 20000;
 
     try {
       this.logger.log(`Forwarding query to ML service: ${this.mlServiceUrl}/chat`);
