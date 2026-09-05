@@ -45,7 +45,7 @@ export class ChatQuotaService {
     } else {
       const rows = await this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
         INSERT INTO "chat_daily_usage" ("id", "user_id", "usage_date", "count", "created_at", "updated_at")
-        VALUES (${randomUUID()}, ${userId}, CAST(${window.dayKey} AS date), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES (CAST(${randomUUID()} AS uuid), CAST(${userId} AS uuid), CAST(${window.dayKey} AS date), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         ON CONFLICT ("user_id", "usage_date")
         DO UPDATE SET "count" = "chat_daily_usage"."count" + 1, "updated_at" = CURRENT_TIMESTAMP
         WHERE "chat_daily_usage"."count" < ${DAILY_LIMIT}
@@ -77,7 +77,7 @@ export class ChatQuotaService {
     const rows = await this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
       UPDATE "chat_daily_usage"
       SET "count" = GREATEST(0, "count" - 1), "updated_at" = CURRENT_TIMESTAMP
-      WHERE "user_id" = ${userId} AND "usage_date" = CAST(${window.dayKey} AS date)
+      WHERE "user_id" = CAST(${userId} AS uuid) AND "usage_date" = CAST(${window.dayKey} AS date)
       RETURNING "count"
     `);
     return this.toStatus(Number(rows[0]?.count ?? 0), window.resetsAt);
