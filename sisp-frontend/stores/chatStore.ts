@@ -177,7 +177,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       );
       
       const historyPayload: ChatMessageApi[] = recentMessages.slice(-8).map((m) => ({
-        role: m.role as 'user' | 'assistant',
+        // The backend NLP contract accepts only user/assistant/system roles.
+        // Live-agent replies are conversational assistant context when the
+        // student asks ARIA a follow-up question; never send the UI-only
+        // `live_agent` role to the API validator.
+        role: m.role === 'user' ? 'user' : 'assistant',
         content: m.content,
       }));
 
