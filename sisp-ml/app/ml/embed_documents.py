@@ -7,7 +7,6 @@ from sqlalchemy import text
 # Add parent directory to path so app module can be found
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from sentence_transformers import SentenceTransformer
 from app.config import get_settings
 from app.database import engine, check_db_connection
 
@@ -45,6 +44,10 @@ def chunk_text(file_path: str) -> list:
     return chunks
 
 def embed_and_index():
+    # Keep the API process lightweight at startup; this dependency is only
+    # needed when an authorized admin explicitly triggers re-indexing.
+    from sentence_transformers import SentenceTransformer
+
     print("[INDEXING] Starting institutional knowledge base embedding process...")
     
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
