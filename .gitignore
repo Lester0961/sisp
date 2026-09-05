@@ -84,3 +84,7 @@ sisp-frontend/public/.gitkeep
 sisp-frontend/stores/.gitkeep
 sisp-frontend/types/.gitkeep
 sisp-frontend/.env.production
+
+# Required, non-secret ARIA runtime artifacts (approved index + classifier).
+!sisp-ml/app/data/local_vector_index.pkl
+!sisp-ml/app/ml/models/intent_classifier_v*.pkl

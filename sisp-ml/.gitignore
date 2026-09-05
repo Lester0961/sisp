@@ -3,3 +3,7 @@ venv/
 __pycache__/
 *.pkl
 *.joblib
+
+# These two non-secret artifacts are required by the deployed service.
+!app/data/local_vector_index.pkl
+!app/ml/models/intent_classifier_v*.pkl
