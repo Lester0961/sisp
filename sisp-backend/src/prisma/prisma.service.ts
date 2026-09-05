@@ -45,8 +45,9 @@ function prismaClientOptions() {
   const databaseUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
   const directUrl = normalizeDatabaseUrl(process.env.DIRECT_URL);
   const url =
-    databaseUrl ??
+    supabasePoolerUrl(databaseUrl) ??
     supabasePoolerUrl(directUrl) ??
+    databaseUrl ??
     directUrl ??
     FALLBACK_DATABASE_URL;
   return { datasources: { db: { url } } };
