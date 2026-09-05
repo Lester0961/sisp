@@ -1,8 +1,8 @@
 import os
+import re
 import joblib
 import numpy as np
 from sqlalchemy import text
-from sentence_transformers import SentenceTransformer
 from app.config import get_settings
 from app.database import engine, check_db_connection
 
@@ -13,12 +13,15 @@ class RetrievalService:
         self.model = None
         self.local_index = []
         self.is_loaded = False
-        self.load_model()
+        # Load the small local index synchronously, but defer the heavyweight
+        # sentence-transformer import/model download until after the API binds.
         self.load_local_index()
 
     def load_model(self):
         """Load the sentence-transformers embedding model."""
         try:
+            from sentence_transformers import SentenceTransformer
+
             print(f"[RETRIEVAL] Loading embedding model: {settings.embedding_model}...")
             self.model = SentenceTransformer(settings.embedding_model)
             print("[RETRIEVAL] Embedding model loaded successfully!")
@@ -46,13 +49,15 @@ class RetrievalService:
             self.is_loaded = False
 
     def is_ready(self) -> bool:
-        return self.model is not None and (self.is_loaded or check_db_connection())
+        return bool(self.local_index) or (self.model is not None and check_db_connection())
 
     def retrieve(self, query: str, limit: int = 3, category: str = None) -> list:
         """Retrieve top matching document chunks using pgvector or in-memory fallback."""
         if self.model is None:
-            print("[RETRIEVAL] [ERROR] Embedding model is not loaded. Cannot retrieve.")
-            return []
+            # The API remains useful while the optional embedding model warms
+            # up (and on small deployments where it cannot be loaded). This is
+            # a deterministic lexical fallback over the same approved index.
+            return self._lexical_retrieve(query, limit, category)
 
         # 1. Compute query embedding
         try:
@@ -132,5 +137,34 @@ class RetrievalService:
         top_matches = matches[:limit]
         print(f"[RETRIEVAL] Local search returned {len(top_matches)} matches.")
         return top_matches
+
+    def _lexical_retrieve(self, query: str, limit: int, category: str | None) -> list:
+        if not self.local_index:
+            self.load_local_index()
+        if not self.local_index:
+            return []
+
+        query_terms = set(re.findall(r"[a-z0-9']+", query.casefold()))
+        if not query_terms:
+            return []
+
+        matches = []
+        for item in self.local_index:
+            if category and item.get("category") != category:
+                continue
+            content_terms = set(re.findall(r"[a-z0-9']+", item.get("content", "").casefold()))
+            overlap = len(query_terms & content_terms)
+            if not overlap:
+                continue
+            similarity = overlap / max(len(query_terms), 1)
+            matches.append({
+                "content": item["content"],
+                "source": item["source"],
+                "category": item["category"],
+                "similarity": float(similarity),
+            })
+
+        matches.sort(key=lambda x: x["similarity"], reverse=True)
+        return matches[:limit]
 
 retrieval_service = RetrievalService()

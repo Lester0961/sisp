@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import asyncio
 from app.config import get_settings
 from app.database import check_db_connection
+from app.services.retrieval_service import retrieval_service
 from app.routers import chat, classify, retrieve, feedback, admin, knowledge_base
 
 settings = get_settings()
@@ -21,7 +23,15 @@ async def lifespan(app: FastAPI):
     else:
         print("   [WARNING] Database connection: FAILED (will retry on requests)")
 
+    # Do not block Render's port scan on downloading/importing the embedding
+    # model. RetrievalService serves the deterministic local-index fallback
+    # while this optional warm-up runs in the background.
+    model_task = asyncio.create_task(asyncio.to_thread(retrieval_service.load_model))
+
     yield
+
+    if not model_task.done():
+        model_task.cancel()
 
     # Shutdown
     print("[SHUTDOWN] ARIA ML Service shutting down...")
