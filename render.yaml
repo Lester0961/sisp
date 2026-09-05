@@ -32,3 +32,52 @@ services:
         sync: false
       - key: RATE_LIMIT_PROFILE
         value: production
+      - key: ML_SERVICE_URL
+        sync: false # Set to the deployed sisp-ml service URL
+      - key: ML_SECRET_TOKEN
+        sync: false # Must match the sisp-ml service secret
+
+  # ARIA's hybrid NLP, retrieval, moderation, and LLM-router service.
+  # Keep provider credentials in Render's encrypted environment settings;
+  # never commit them to this blueprint or the repository.
+  - type: web
+    name: sisp-ml
+    env: python
+    rootDir: sisp-ml
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GOOGLE_AI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: qwen/qwen3.6-27b
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: OPENROUTER_MODEL
+        value: openrouter/free
+      - key: LLM_PROVIDER_ORDER
+        value: groq,gemini,openrouter
+      - key: LLM_REQUEST_TIMEOUT_SECONDS
+        value: "18"
+      - key: LLM_MAX_TOKENS
+        value: "900"
+      - key: GROQ_ENABLED
+        value: "true"
+      - key: GEMINI_ENABLED
+        value: "true"
+      - key: OPENROUTER_ENABLED
+        value: "true"
+      - key: ADVISORY_SUPPORTED_LANGUAGES
+        value: en,fil,ceb,ilo,hil,war
+      - key: ML_SECRET_TOKEN
+        sync: false
