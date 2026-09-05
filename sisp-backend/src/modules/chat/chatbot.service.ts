@@ -24,7 +24,10 @@ export class ChatbotService {
     const { message, history, preferredLanguage } = sendMessageDto;
     let quota = await this.chatQuotaService.consume(userId);
     let mlResponse: any;
-    const ML_TIMEOUT_MS = 12000;
+    // Keep the synchronous proxy comfortably below Render's request window.
+    // A sleeping/unavailable ML service should become a persisted live-agent
+    // handoff, not an abandoned HTTP request.
+    const ML_TIMEOUT_MS = 5000;
 
     try {
       this.logger.log(`Forwarding query to ML service: ${this.mlServiceUrl}/chat`);
