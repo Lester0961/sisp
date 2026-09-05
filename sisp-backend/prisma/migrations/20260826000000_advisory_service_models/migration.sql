@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS "document_catalog_items" (
-  "id" TEXT NOT NULL,
+  "id" UUID NOT NULL,
   "code" TEXT NOT NULL,
   "label" TEXT NOT NULL,
   "fee" DECIMAL(10,2) NOT NULL,
@@ -14,9 +14,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS "document_catalog_items_code_key"
   ON "document_catalog_items"("code");
 
 CREATE TABLE IF NOT EXISTS "document_request_items" (
-  "id" TEXT NOT NULL,
-  "request_id" TEXT NOT NULL,
-  "catalog_item_id" TEXT NOT NULL,
+  "id" UUID NOT NULL,
+  "request_id" UUID NOT NULL,
+  "catalog_item_id" UUID NOT NULL,
   "type" TEXT NOT NULL,
   "label" TEXT NOT NULL,
   "quantity" INTEGER NOT NULL DEFAULT 1,
@@ -41,8 +41,8 @@ ALTER TABLE "document_request_items"
   ON DELETE RESTRICT ON UPDATE CASCADE;
 
 CREATE TABLE IF NOT EXISTS "chat_daily_usage" (
-  "id" TEXT NOT NULL,
-  "user_id" TEXT NOT NULL,
+  "id" UUID NOT NULL,
+  "user_id" UUID NOT NULL,
   "usage_date" DATE NOT NULL,
   "count" INTEGER NOT NULL DEFAULT 0,
   "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
