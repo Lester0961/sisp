@@ -151,10 +151,15 @@ export class ChatbotService {
     });
   }
 
-  async resolveEscalation(escalationId: string, resolution: string, resolverId: string) {
+  async resolveEscalation(
+    escalationId: string,
+    resolution: string,
+    resolverId: string,
+    resolverRole = 'admin_staff',
+  ) {
     const escalation = await this.prisma.escalationQueue.findUnique({
       where: { id: escalationId },
-      include: { chat: true },
+      include: { chat: { include: { chatSession: true } } },
     });
     if (!escalation) throw new HttpException('Escalation record not found.', HttpStatus.NOT_FOUND);
 
@@ -171,6 +176,18 @@ export class ChatbotService {
         confidence: 1.0,
       },
     });
+
+    if (escalation.chat.chatSession) {
+      await this.prisma.chatMessage.create({
+        data: {
+          sessionId: escalation.chat.chatSession.id,
+          senderId: resolverId,
+          senderRole: resolverRole,
+          content: `Official Advisor Resolution:\n\n${resolution}`,
+        },
+      });
+    }
+
     return updatedEscalation;
   }
 

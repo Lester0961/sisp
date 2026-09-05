@@ -44,6 +44,6 @@ export class ChatbotAdminController {
     @Body() body: { resolution: string },
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.chatbotService.resolveEscalation(id, body.resolution, user.sub);
+    return this.chatbotService.resolveEscalation(id, body.resolution, user.sub, user.role);
   }
 }
