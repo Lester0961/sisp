@@ -65,6 +65,10 @@ export interface ChatLogDb {
     createdAt: string;
     updatedAt: string;
   } | null;
+  chatSession?: {
+    id: string;
+    status: string;
+  } | null;
 }
 
 export interface EscalationRecord {

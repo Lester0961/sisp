@@ -80,6 +80,8 @@ export default function ChatPage() {
     messages,
     isTyping,
     isLoadingHistory,
+    historyLoaded,
+    loadHistory,
     loadQuota,
     error,
     clearMessages,
@@ -96,6 +98,10 @@ export default function ChatPage() {
   } = useChatStore();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!historyLoaded) void loadHistory();
+  }, [historyLoaded, loadHistory]);
 
   useEffect(() => {
     void loadQuota();

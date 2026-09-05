@@ -87,6 +87,20 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       const mappedMessages: ChatMessage[] = [];
       
       data.forEach((log) => {
+        const isAdvisorResolution = log.message.startsWith('[ADVISOR ANSWER TO ESCALATION ID ');
+
+        if (isAdvisorResolution) {
+          mappedMessages.push({
+            id: `${log.id}-advisor`,
+            role: 'live_agent',
+            content: log.response,
+            intent: log.intent || undefined,
+            confidence: log.confidence || undefined,
+            timestamp: new Date(log.createdAt),
+          });
+          return;
+        }
+
         mappedMessages.push({
           id: `${log.id}-user`,
           role: 'user',
@@ -102,7 +116,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           confidence: log.confidence || undefined,
           timestamp: new Date(log.createdAt),
           escalated: !!log.escalation,
-          sessionId: log.escalation?.chatId || null,
+          sessionId: log.chatSession?.id || null,
         });
       });
       
