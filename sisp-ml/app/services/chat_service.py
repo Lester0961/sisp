@@ -144,6 +144,24 @@ class ChatService:
                 moderation,
             )
 
+        # Examination-permit policy is an approved, deterministic institutional
+        # rule. Return the complete localized wording directly instead of
+        # allowing long conversation history or provider output limits to cut
+        # an official instruction off mid-sentence. Retrieved policy sources
+        # remain attached for transparency.
+        if intent == "examination_permit_inquiry":
+            result = self._fixed_result(
+                message(language_code, "exam_permit"),
+                intent,
+                confidence,
+                False,
+                "policy",
+                language,
+                moderation,
+            )
+            result["sources"] = self._sources(context_chunks)
+            return result
+
         system_prompt = (
             "You are ARIA, the academic advisory assistant for Regis Marie College. "
             "Answer only academic advising and authorized student-service questions. "
