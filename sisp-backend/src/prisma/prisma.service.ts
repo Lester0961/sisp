@@ -5,13 +5,37 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { DOCUMENT_CATALOG } from '../common/constants/document-catalog';
 
+const FALLBACK_DATABASE_URL =
+  'postgresql://invalid:invalid@127.0.0.1:1/invalid?connect_timeout=2';
+
+function normalizeDatabaseUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  const unquoted =
+    trimmed.length >= 2 &&
+    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+      (trimmed.startsWith('`') && trimmed.endsWith('`')))
+      ? trimmed.slice(1, -1).trim()
+      : trimmed;
+  return /^(postgresql|postgres):\/\//i.test(unquoted) ? unquoted : undefined;
+}
+
+function prismaClientOptions() {
+  const url =
+    normalizeDatabaseUrl(process.env.DATABASE_URL) ??
+    normalizeDatabaseUrl(process.env.DIRECT_URL) ??
+    FALLBACK_DATABASE_URL;
+  return { datasources: { db: { url } } };
+}
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   public isOffline = false;
   private mockDb: any = {};
 
   constructor() {
-    super();
+    super(prismaClientOptions());
     this.initMockDb();
 
     // Proxy the entire service. If offline, return mock model handlers.
