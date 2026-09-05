@@ -28,12 +28,11 @@ function supabasePoolerUrl(directUrl: string | undefined): string | undefined {
     const match = parsed.hostname.match(/^db\.([^.]+)\.supabase\.co$/i);
     if (!match) return undefined;
 
-    parsed.hostname = 'aws-0-ap-southeast-1.pooler.supabase.com';
-    parsed.port = '6543';
+    parsed.hostname = 'aws-1-ap-southeast-1.pooler.supabase.com';
+    parsed.port = '5432';
     if (parsed.username && !parsed.username.includes('.')) {
       parsed.username = `${parsed.username}.${match[1]}`;
     }
-    parsed.searchParams.set('pgbouncer', 'true');
     parsed.searchParams.set('connection_limit', '1');
     return parsed.toString();
   } catch {
