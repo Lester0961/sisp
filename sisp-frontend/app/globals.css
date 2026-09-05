@@ -139,6 +139,7 @@
   }
 
   .portal-surface {
+    min-width: 0;
     border: 1px solid #dce7ef;
     border-radius: 1rem;
     background: #fff;
