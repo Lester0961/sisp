@@ -23,6 +23,14 @@ INTENT_CATEGORIES = {
 EXAM_MARKERS = (
     "exam permit",
     "examination permit",
+    "permit for exam",
+    "permit for exams",
+    "permit for examination",
+    "permit for examinations",
+    "request an exam permit",
+    "request a permit for exams",
+    "request a permit for examinations",
+    "request examination permit",
     "exam stub",
     "finals permit",
     "midterm permit",
@@ -33,6 +41,13 @@ EXAM_MARKERS = (
     "permit iti exam",
     "permit han exam",
     "permit sang exam",
+    "paano kumuha ng permit sa exam",
+    "paano humingi ng permit sa pagsusulit",
+    "unsaon pagkuha og permit sa exam",
+    "giunsa pagkuha og permit sa exam",
+    "kasano ti panagkiddaw iti permit ti exam",
+    "paano mangayo sang permit sa exam",
+    "paonan-o pagkuha hin permit ha exam",
 )
 
 
