@@ -1,25 +1,50 @@
-import { IsString, IsNotEmpty, IsOptional, IsIn } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import { DOCUMENT_TYPE_CODES } from '../../../common/constants/document-catalog';
 
-export class CreateRequestDto {
+export class CreateRequestItemDto {
   @IsString()
   @IsNotEmpty()
-  @IsIn(
-    [
-      'transcript_of_records',
-      'certificate_of_enrollment',
-      'certificate_of_good_moral',
-      'diploma',
-      'course_description',
-      'authentication',
-      'other',
-    ],
-    {
-      message: 'Document type must be one of the allowed types',
-    },
-  )
+  @IsIn(DOCUMENT_TYPE_CODES, {
+    message: 'Document type must be one of the active catalog types',
+  })
   type: string;
 
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  quantity: number;
+
   @IsString()
+  @MaxLength(300)
+  @IsOptional()
+  remarks?: string;
+}
+
+export class CreateRequestDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(7)
+  @ValidateNested({ each: true })
+  @Type(() => CreateRequestItemDto)
+  items: CreateRequestItemDto[];
+
+  @IsString()
+  @MaxLength(500)
   @IsOptional()
   remarks?: string;
 }

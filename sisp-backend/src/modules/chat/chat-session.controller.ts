@@ -1,17 +1,22 @@
-import { Controller, Get, Post, Patch, Param, Body, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ChatSessionService } from './chat-session.service';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
+import { ChatSessionMessageDto } from './dto/chat-session-message.dto';
+import { ChatGateway } from './chat.gateway';
 
 @Controller('chat/sessions')
 export class ChatSessionController {
-  constructor(private readonly sessionService: ChatSessionService) {}
+  constructor(
+    private readonly sessionService: ChatSessionService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   @Get()
   @Roles('admin_staff', 'dean', 'live_agent')
-  async getSessions(@Query('status') status?: string) {
-    return this.sessionService.getSessions(undefined, status);
+  async getSessions(@CurrentUser() user: JwtPayload, @Query('status') status?: string) {
+    return this.sessionService.getVisibleSessions(user.sub, user.role, status);
   }
 
   @Get('assigned')
@@ -23,26 +28,20 @@ export class ChatSessionController {
   @Get('me')
   @Roles('student')
   async getMySessions(@CurrentUser() user: JwtPayload) {
-    // Get student profile from user
-    const profile = await this.sessionService['prisma'].studentProfile.findUnique({
-      where: { userId: user.sub },
-    });
-    if (!profile) {
-      return [];
-    }
-    return this.sessionService.getMySessions(profile.id);
+    const profile = await this.sessionService.getStudentProfileForUser(user.sub);
+    return profile ? this.sessionService.getMySessions(profile.id) : [];
   }
 
   @Get(':id')
   @Roles('student', 'admin_staff', 'dean', 'live_agent')
-  async getSession(@Param('id') id: string) {
-    return this.sessionService.getSessionById(id);
+  async getSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.sessionService.getAuthorizedSession(id, user.sub, user.role);
   }
 
   @Get(':id/messages')
   @Roles('student', 'admin_staff', 'dean', 'live_agent')
-  async getMessages(@Param('id') id: string) {
-    return this.sessionService.getMessages(id);
+  async getMessages(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.sessionService.getMessages(id, user.sub, user.role);
   }
 
   @Post(':id/messages')
@@ -50,26 +49,26 @@ export class ChatSessionController {
   async sendMessage(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
-    @Body() body: { content: string },
+    @Body() body: ChatSessionMessageDto,
   ) {
-    return this.sessionService.sendMessage(id, user.sub, body.content, user.role);
+    const message = await this.sessionService.sendMessage(id, user.sub, body.content, user.role);
+    this.chatGateway.emitMessage(id, message);
+    return message;
   }
 
   @Patch(':id/assign')
   @Roles('admin_staff', 'dean', 'live_agent')
-  async assignAgent(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
-  ) {
-    return this.sessionService.assignAgent(id, user.sub);
+  async assignAgent(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    const session = await this.sessionService.assignAgent(id, user.sub, user.role);
+    this.chatGateway.emitSessionUpdated(id, session);
+    return session;
   }
 
   @Patch(':id/close')
   @Roles('admin_staff', 'dean', 'live_agent')
-  async closeSession(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
-  ) {
-    return this.sessionService.closeSession(id, user.sub);
+  async closeSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    const session = await this.sessionService.closeSession(id, user.sub, user.role);
+    this.chatGateway.emitSessionUpdated(id, session);
+    return session;
   }
 }

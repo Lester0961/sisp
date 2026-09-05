@@ -80,6 +80,7 @@ export default function ChatPage() {
     messages,
     isTyping,
     isLoadingHistory,
+    loadQuota,
     error,
     clearMessages,
     sendMessage,
@@ -89,9 +90,16 @@ export default function ChatPage() {
     loadLiveMessages,
     sendLiveMessage,
     setLiveChatMode,
+    quota,
+    preferredLanguage,
+    setPreferredLanguage,
   } = useChatStore();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    void loadQuota();
+  }, [loadQuota]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
@@ -138,10 +146,36 @@ export default function ChatPage() {
               <div><h1 className="font-semibold text-[#102f49]">{title}</h1><p className="mt-0.5 max-w-xl text-sm text-[#587387]">{helper}</p></div>
             </div>
             <div className="flex items-center gap-2">
+              {!isLiveChatMode ? (
+                <label className="flex items-center gap-2 text-xs text-[#587387]">
+                  <span className="sr-only">Response language</span>
+                  <select
+                    value={preferredLanguage}
+                    onChange={(event) => setPreferredLanguage(event.target.value)}
+                    className="h-8 rounded-lg border border-[#cbdde9] bg-white px-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
+                    aria-label="Response language"
+                  >
+                    <option value="auto">Auto-detect</option>
+                    <option value="en">English</option>
+                    <option value="fil">Filipino / Tagalog</option>
+                    <option value="ceb">Cebuano / Bisaya</option>
+                    <option value="ilo">Ilocano</option>
+                    <option value="hil">Hiligaynon / Ilonggo</option>
+                    <option value="war">Waray</option>
+                  </select>
+                </label>
+              ) : null}
               {isLiveChatMode ? <Button variant="outline" size="sm" onClick={() => setLiveChatMode(false)}>Return to ARIA</Button> : null}
               {!isLiveChatMode ? <Button variant="ghost" size="icon-sm" onClick={clearMessages} aria-label="Clear ARIA conversation"><Trash2 className="size-4" strokeWidth={1.8} /></Button> : null}
             </div>
           </header>
+
+          {!isLiveChatMode && quota ? (
+            <div className="flex items-center justify-between gap-3 border-b border-[#dce7ef] bg-[#f7fbfd] px-5 py-2 text-xs text-[#587387]">
+              <span>ARIA messages today</span>
+              <span className="font-semibold text-[#102f49]">{quota.remainingToday} of {quota.dailyLimit} remaining</span>
+            </div>
+          ) : null}
 
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[#fbfdfe] p-4 sm:p-5">
             {isLoadingHistory ? (

@@ -1,17 +1,24 @@
+from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+
 from app.services.chat_service import chat_service
+
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
+
 class ChatMessage(BaseModel):
-    role: str  # 'user', 'assistant', 'system'
+    role: str
     content: str
+
 
 class ChatRequest(BaseModel):
     query: str
     history: Optional[List[ChatMessage]] = None
+    preferred_language: Optional[str] = None
+
 
 class SourceCitation(BaseModel):
     source: str
@@ -19,35 +26,38 @@ class SourceCitation(BaseModel):
     similarity: float
     content_snippet: str
 
+
 class ChatResponse(BaseModel):
     response: str
     intent: str
     confidence: float
     escalate: bool
     sources: List[SourceCitation]
+    route: str
+    action: Optional[str] = None
+    language: Dict[str, Any]
+    moderationCategories: List[str] = []
+
 
 @router.get("/health")
 async def chat_health():
     return {"status": "ok", "router": "chat"}
 
+
 @router.post("", response_model=ChatResponse)
 async def chat_query(payload: ChatRequest):
     try:
-        # Convert Pydantic ChatMessage list to dictionaries
-        history_dicts = []
-        if payload.history:
-            for msg in payload.history:
-                history_dicts.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-                
-        result = chat_service.process_query(
+        history_dicts = [
+            {"role": message.role, "content": message.content}
+            for message in (payload.history or [])
+        ]
+        return await chat_service.process_query(
             query=payload.query,
-            conversation_history=history_dicts
+            conversation_history=history_dicts,
+            preferred_language=payload.preferred_language,
         )
-        return result
-    except Exception as e:
+    except Exception as exc:
         import traceback
+
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="ARIA advisory processing is temporarily unavailable") from exc

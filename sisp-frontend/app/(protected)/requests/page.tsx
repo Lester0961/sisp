@@ -13,13 +13,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import {
   Loader2,
@@ -28,7 +22,6 @@ import {
   ChevronDown,
   ChevronUp,
   Wallet,
-  QrCode,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
@@ -48,7 +41,8 @@ export default function RequestsPage() {
   const { requests, isLoading, isSubmitting, fetchRequests, submitRequest, confirmPayment } =
     useRequestStore();
   const [showForm, setShowForm] = useState(false);
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
+  const [requestRemarks, setRequestRemarks] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [paymentRequestId, setPaymentRequestId] = useState<string | null>(null);
 
@@ -57,15 +51,20 @@ export default function RequestsPage() {
   }, [requests.length, fetchRequests]);
 
   const handleSubmit = async () => {
-    if (!selectedType) {
-      toast.error('Please select a document type');
+    const items = DOCUMENT_TYPES.filter((type) => (selectedItems[type.value] ?? 0) > 0).map((type) => ({
+      type: type.value,
+      quantity: selectedItems[type.value],
+    }));
+    if (items.length === 0) {
+      toast.error('Please select at least one document');
       return;
     }
     try {
-      const newRequest = await submitRequest(selectedType);
+      const newRequest = await submitRequest(items, requestRemarks.trim() || undefined);
       toast.success('Document request submitted. Please complete payment to proceed.');
       setShowForm(false);
-      setSelectedType('');
+      setSelectedItems({});
+      setRequestRemarks('');
       // Show payment modal for the new request
       if (newRequest?.id) {
         setPaymentRequestId(newRequest.id);
@@ -90,7 +89,11 @@ export default function RequestsPage() {
   ).length;
   const awaitingPaymentCount = requests.filter((r) => r.status === 'awaiting_payment').length;
 
-  const selectedDocType = DOCUMENT_TYPES.find((d) => d.value === selectedType);
+  const selectedCount = Object.values(selectedItems).filter((quantity) => quantity > 0).length;
+  const estimatedTotal = DOCUMENT_TYPES.reduce(
+    (sum, type) => sum + type.fee * (selectedItems[type.value] ?? 0),
+    0,
+  );
 
   return (
     <div className="portal-page">
@@ -120,30 +123,73 @@ export default function RequestsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Select
-                value={selectedType}
-                onValueChange={setSelectedType}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select document type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {DOCUMENT_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label} · ₱{type.fee.toFixed(2)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <fieldset disabled={isSubmitting} className="space-y-2">
+                <legend className="text-sm font-semibold text-[#102f49]">Choose documents</legend>
+                <p className="text-xs text-[#587387]">Select one or more document types, then set the quantity for each.</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {DOCUMENT_TYPES.map((type) => {
+                    const quantity = selectedItems[type.value] ?? 0;
+                    const selected = quantity > 0;
+                    return (
+                      <div
+                        key={type.value}
+                        className={`flex items-center gap-3 rounded-xl border p-3 transition-colors ${selected ? 'border-[#0a439b] bg-[#f1f7fb]' : 'border-[#dce7ef] bg-white'}`}
+                      >
+                        <Checkbox
+                          id={`document-${type.value}`}
+                          checked={selected}
+                          onCheckedChange={(checked) =>
+                            setSelectedItems((current) => ({
+                              ...current,
+                              [type.value]: checked ? Math.max(1, current[type.value] ?? 1) : 0,
+                            }))
+                          }
+                        />
+                        <label htmlFor={`document-${type.value}`} className="min-w-0 flex-1 cursor-pointer">
+                          <span className="block text-sm font-medium text-[#102f49]">{type.label}</span>
+                          <span className="text-xs text-[#587387]">₱{type.fee.toFixed(2)} per copy</span>
+                        </label>
+                        <input
+                          aria-label={`${type.label} quantity`}
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={selected ? quantity : 1}
+                          disabled={!selected}
+                          onChange={(event) =>
+                            setSelectedItems((current) => ({
+                              ...current,
+                              [type.value]: Math.min(10, Math.max(1, Number(event.target.value) || 1)),
+                            }))
+                          }
+                          className="h-9 w-16 rounded-lg border border-[#cbdde9] bg-white px-2 text-center text-sm text-[#102f49] disabled:cursor-not-allowed disabled:bg-[#f6f9fb] disabled:text-[#9ab0bf]"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </fieldset>
 
-              {selectedDocType && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
-                  <Wallet className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <label className="block space-y-1" htmlFor="request-remarks">
+                <span className="text-sm font-medium text-[#102f49]">Notes (optional)</span>
+                <textarea
+                  id="request-remarks"
+                  value={requestRemarks}
+                  onChange={(event) => setRequestRemarks(event.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder="Add a note for the administration office"
+                  className="w-full rounded-xl border border-[#cbdde9] bg-white px-3 py-2 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"
+                />
+              </label>
+
+              {selectedCount > 0 && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                   <div>
                     <p className="text-xs font-semibold text-amber-800">Payment Required</p>
-                    <p className="text-xs text-amber-600">
-                      Fee: ₱{selectedDocType.fee.toFixed(2)}. You will receive a payment reference and QR code after submission.
+                    <p className="text-xs text-amber-700">
+                      {selectedCount} document type{selectedCount === 1 ? '' : 's'} · Estimated total: ₱{estimatedTotal.toFixed(2)}. A payment reference and QR code will be issued after submission.
                     </p>
                   </div>
                 </div>
@@ -152,7 +198,7 @@ export default function RequestsPage() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => void handleSubmit()}
-                  disabled={isSubmitting || !selectedType}
+                  disabled={isSubmitting || selectedCount === 0}
                   size="sm"
                 >
                   {isSubmitting ? (
@@ -169,7 +215,8 @@ export default function RequestsPage() {
                   size="sm"
                   onClick={() => {
                     setShowForm(false);
-                    setSelectedType('');
+                    setSelectedItems({});
+                    setRequestRemarks('');
                   }}
                   disabled={isSubmitting}
                 >
@@ -239,7 +286,7 @@ export default function RequestsPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <CardTitle className="text-sm font-bold text-slate-800 leading-tight">
-                        {request.typeLabel}
+                        {request.documentNames || request.typeLabel}
                       </CardTitle>
                       <CardDescription>
                         Submitted{' '}
@@ -343,6 +390,19 @@ export default function RequestsPage() {
                       statusStep={request.statusStep}
                       updatedAt={request.updatedAt}
                     />
+                    {request.items?.length ? (
+                      <div className="mt-4 rounded-lg border border-[#dce7ef] bg-[#fbfdfe] px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-[#587387]">Requested copies</p>
+                        <ul className="mt-2 space-y-1 text-sm text-[#102f49]">
+                          {request.items.map((item) => (
+                            <li key={item.id || `${request.id}-${item.type}`} className="flex items-center justify-between gap-3">
+                              <span>{item.label}</span>
+                              <span className="font-semibold">×{item.quantity}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     {request.remarks && (
                       <div className="mt-4 rounded-lg bg-muted px-4 py-3">
                         <p className="text-xs font-medium text-muted-foreground">

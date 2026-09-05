@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateRequestDto } from './dto/create-request.dto';
@@ -15,32 +15,12 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   rejected: [],
 };
 
-const DOCUMENT_LABELS: Record<string, string> = {
-  transcript_of_records: 'Transcript of Records',
-  certificate_of_enrollment: 'Certificate of Enrollment',
-  certificate_of_good_moral: 'Certificate of Good Moral Character',
-  diploma: 'Diploma',
-  course_description: 'Course Description',
-  authentication: 'Document Authentication',
-  other: 'Other Document',
-};
-
-const DOCUMENT_FEES: Record<string, number> = {
-  transcript_of_records: 200.0,
-  certificate_of_enrollment: 150.0,
-  certificate_of_good_moral: 100.0,
-  diploma: 500.0,
-  course_description: 50.0,
-  authentication: 300.0,
-  other: 100.0,
-};
-
 const STATUS_MESSAGES: Record<string, string> = {
   awaiting_payment: 'is awaiting payment confirmation',
   pending: 'is now pending review',
   under_review: 'is now under review',
   approved: 'has been approved',
-  released: 'is ready for release/pickup',
+  released: 'is ready for release or pickup',
   rejected: 'has been rejected',
 };
 
@@ -51,8 +31,6 @@ function generatePaymentReference(): string {
 }
 
 function generateQrCodeUrl(reference: string): string {
-  // Placeholder QR code using a placeholder image service
-  // In production, this would be a real QR code generation service
   return `https://placehold.co/300x300/1e3a8a/FFFFFF/png?text=InstaPay+QR%0A${encodeURIComponent(reference)}`;
 }
 
@@ -63,47 +41,83 @@ export class DocumentsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  getDocumentFees() {
-    return Object.entries(DOCUMENT_FEES).map(([type, fee]) => ({
-      type,
-      label: DOCUMENT_LABELS[type] ?? type,
-      fee,
-    }));
+  async getDocumentFees() {
+    const catalog = await this.prisma.documentCatalogItem.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    return catalog
+      .filter((item: any) => item.isActive)
+      .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+      .map((item: any) => ({
+        type: item.code,
+        label: item.label,
+        fee: Number(item.fee),
+      }));
   }
 
   async createRequest(userId: string, dto: CreateRequestDto) {
     const profile = await requireStudentProfile(this.prisma, userId);
+    const typeCodes = dto.items.map((item) => item.type);
+    if (new Set(typeCodes).size !== typeCodes.length) {
+      throw new BadRequestException('Each document type can only appear once per request');
+    }
 
-    const fee = DOCUMENT_FEES[dto.type] ?? 0;
+    const catalog = await this.prisma.documentCatalogItem.findMany({
+      where: { code: { in: typeCodes }, isActive: true },
+    });
+    const catalogByCode = new Map(
+      catalog.filter((item: any) => item.isActive).map((item: any) => [item.code, item]),
+    );
+    const missingType = typeCodes.find((type) => !catalogByCode.has(type));
+    if (missingType) {
+      throw new BadRequestException(`Document type '${missingType}' is not available`);
+    }
+
+    const requestItems = dto.items.map((item) => {
+      const catalogItem: any = catalogByCode.get(item.type);
+      const unitFee = Number(catalogItem.fee);
+      return {
+        catalogItemId: catalogItem.id,
+        type: catalogItem.code,
+        label: catalogItem.label,
+        quantity: item.quantity,
+        unitFee,
+        lineTotal: unitFee * item.quantity,
+        remarks: item.remarks,
+      };
+    });
+    const totalFee = requestItems.reduce((sum, item) => sum + item.lineTotal, 0);
     const paymentReference = generatePaymentReference();
-    const qrCodeUrl = generateQrCodeUrl(paymentReference);
 
-    const request = await this.prisma.documentRequest.create({
-      data: {
-        studentId: profile.id,
-        type: dto.type,
-        status: 'awaiting_payment',
-        remarks: dto.remarks,
-        fee,
-        paymentStatus: 'unpaid',
-        paymentReference,
-        qrCodeUrl,
-      },
-      include: {
-        student: {
-          include: {
-            user: { select: { email: true } },
-          },
+    const request = await this.prisma.$transaction(async (transaction: any) => {
+      const created = await transaction.documentRequest.create({
+        data: {
+          studentId: profile.id,
+          type: requestItems.length === 1 ? requestItems[0].type : 'multiple_documents',
+          status: 'awaiting_payment',
+          remarks: dto.remarks,
+          fee: totalFee,
+          paymentStatus: 'unpaid',
+          paymentReference,
+          qrCodeUrl: generateQrCodeUrl(paymentReference),
         },
-      },
+      });
+      await transaction.documentRequestItem.createMany({
+        data: requestItems.map((item) => ({ ...item, requestId: created.id })),
+      });
+      return transaction.documentRequest.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          items: { orderBy: { createdAt: 'asc' } },
+          student: { include: { user: { select: { email: true } } } },
+        },
+      });
     });
 
     return {
-      message: `Document request for '${DOCUMENT_LABELS[dto.type] ?? dto.type}' submitted. Please complete payment to proceed.`,
-      data: {
-        ...request,
-        typeLabel: DOCUMENT_LABELS[request.type] ?? request.type,
-      },
+      message: `${requestItems.length} document type${requestItems.length === 1 ? '' : 's'} submitted. Please complete the combined payment to proceed.`,
+      data: this.serializeRequest(request),
     };
   }
 
@@ -111,22 +125,16 @@ export class DocumentsService {
     const request = await this.prisma.documentRequest.findUnique({
       where: { id: requestId },
       include: {
-        student: {
-          include: {
-            user: { select: { id: true, email: true } },
-          },
-        },
+        items: true,
+        student: { include: { user: { select: { id: true, email: true } } } },
       },
     });
-
     if (!request) {
       throw new NotFoundException(`Document request with ID ${requestId} not found`);
     }
-
     if (request.status !== 'awaiting_payment') {
-      throw new NotFoundException(`Request is not awaiting payment (current status: ${request.status})`);
+      throw new BadRequestException(`Request is not awaiting payment (current status: ${request.status})`);
     }
-
     assertTransition(request.status, 'pending', STATUS_TRANSITIONS);
 
     const updated = await this.prisma.documentRequest.update({
@@ -138,82 +146,55 @@ export class DocumentsService {
         paymentConfirmedAt: new Date(),
       },
       include: {
-        student: {
-          include: {
-            user: { select: { id: true, email: true } },
-          },
-        },
+        items: true,
+        student: { include: { user: { select: { id: true, email: true } } } },
       },
     });
-
-    // Send notification to the student
-    const docLabel = DOCUMENT_LABELS[request.type] ?? request.type;
     await this.notificationsService.sendToUser(
       request.student.user.id,
       'Payment Confirmed',
-      `Your payment for ${docLabel} has been confirmed. Your request is now pending review.`,
+      `Your combined payment for ${this.documentNames(request)} has been confirmed. Your request is now pending review.`,
     );
-
     return {
       message: 'Payment confirmed. Request is now pending review.',
-      data: {
-        ...updated,
-        typeLabel: DOCUMENT_LABELS[updated.type] ?? updated.type,
-        statusStep: this.getStatusStep(updated.status),
-      },
+      data: this.serializeRequest(updated),
     };
   }
 
   async getMyRequests(userId: string) {
     const profile = await requireStudentProfile(this.prisma, userId);
-
     const requests = await this.prisma.documentRequest.findMany({
       where: { studentId: profile.id },
+      include: { items: { orderBy: { createdAt: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     });
-
     return {
-      data: requests.map((r) => ({
-        ...r,
-        typeLabel: DOCUMENT_LABELS[r.type] ?? r.type,
-        statusStep: this.getStatusStep(r.status),
-      })),
+      data: requests.map((request: any) => this.serializeRequest(request)),
       total: requests.length,
     };
   }
 
   async getAllRequests(status?: string, type?: string) {
-    const where: {
-      status?: string;
-      type?: string;
-    } = {};
-
-    if (status) where.status = status;
-    if (type) where.type = type;
-
     const requests = await this.prisma.documentRequest.findMany({
-      where,
+      where: status ? { status } : undefined,
       include: {
+        items: { orderBy: { createdAt: 'asc' } },
         student: {
           include: {
             user: { select: { email: true, firstName: true, lastName: true } },
             program: { select: { code: true, name: true } },
           },
         },
-        paymentConfirmedBy: {
-          select: { firstName: true, lastName: true, email: true },
-        },
+        paymentConfirmedBy: { select: { firstName: true, lastName: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
-
+    const filtered = type
+      ? requests.filter((request: any) => request.items.some((item: any) => item.type === type))
+      : requests;
     return {
-      data: requests.map((r) => ({
-        ...r,
-        typeLabel: DOCUMENT_LABELS[r.type] ?? r.type,
-        statusStep: this.getStatusStep(r.status),
-      })),
-      total: requests.length,
+      data: filtered.map((request: any) => this.serializeRequest(request)),
+      total: filtered.length,
     };
   }
 
@@ -221,6 +202,7 @@ export class DocumentsService {
     const request = await this.prisma.documentRequest.findUnique({
       where: { id },
       include: {
+        items: { orderBy: { createdAt: 'asc' } },
         student: {
           include: {
             user: { select: { email: true } },
@@ -229,34 +211,23 @@ export class DocumentsService {
         },
       },
     });
-
     if (!request) {
       throw new NotFoundException(`Document request with ID ${id} not found`);
     }
-
-    return {
-      ...request,
-      typeLabel: DOCUMENT_LABELS[request.type] ?? request.type,
-      statusStep: this.getStatusStep(request.status),
-    };
+    return this.serializeRequest(request);
   }
 
   async updateRequestStatus(id: string, dto: UpdateRequestDto) {
     const request = await this.prisma.documentRequest.findUnique({
       where: { id },
       include: {
-        student: {
-          include: {
-            user: { select: { id: true, email: true } },
-          },
-        },
+        items: true,
+        student: { include: { user: { select: { id: true, email: true } } } },
       },
     });
-
     if (!request) {
       throw new NotFoundException(`Document request with ID ${id} not found`);
     }
-
     assertTransition(request.status, dto.status, STATUS_TRANSITIONS);
 
     const updated = await this.prisma.documentRequest.update({
@@ -266,32 +237,21 @@ export class DocumentsService {
         ...(dto.remarks !== undefined && { remarks: dto.remarks }),
       },
       include: {
-        student: {
-          include: {
-            user: { select: { id: true, email: true } },
-          },
-        },
+        items: true,
+        student: { include: { user: { select: { id: true, email: true } } } },
       },
     });
-
-    // Send notification to the student
     const statusMessage = STATUS_MESSAGES[dto.status];
     if (statusMessage) {
-      const docLabel = DOCUMENT_LABELS[request.type] ?? request.type;
       await this.notificationsService.sendToUser(
         request.student.user.id,
         'Document Request Update',
-        `Your request for ${docLabel} ${statusMessage}.${dto.remarks ? ` Remarks: ${dto.remarks}` : ''}`,
+        `Your request for ${this.documentNames(request)} ${statusMessage}.${dto.remarks ? ` Remarks: ${dto.remarks}` : ''}`,
       );
     }
-
     return {
       message: `Request status updated to '${dto.status}'`,
-      data: {
-        ...updated,
-        typeLabel: DOCUMENT_LABELS[updated.type] ?? updated.type,
-        statusStep: this.getStatusStep(updated.status),
-      },
+      data: this.serializeRequest(updated),
     };
   }
 
@@ -304,7 +264,6 @@ export class DocumentsService {
       this.prisma.documentRequest.count({ where: { status: 'released' } }),
       this.prisma.documentRequest.count({ where: { status: 'rejected' } }),
     ]);
-
     return {
       awaiting_payment,
       pending,
@@ -313,6 +272,36 @@ export class DocumentsService {
       released,
       rejected,
       total: awaiting_payment + pending + under_review + approved + released + rejected,
+    };
+  }
+
+  private documentNames(request: any): string {
+    if (request.items?.length) return request.items.map((item: any) => item.label).join(', ');
+    return request.type.replaceAll('_', ' ');
+  }
+
+  private serializeRequest(request: any) {
+    const items = Array.isArray(request.items)
+      ? request.items.map((item: any) => ({
+          ...item,
+          unitFee: Number(item.unitFee),
+          lineTotal: Number(item.lineTotal),
+        }))
+      : [];
+    const typeLabel =
+      items.length === 1
+        ? items[0].label
+        : items.length > 1
+          ? `${items.length} document types`
+          : request.type.replaceAll('_', ' ');
+    return {
+      ...request,
+      fee: Number(request.fee),
+      items,
+      typeLabel,
+      documentNames: items.map((item: any) => item.label).join(', ') || typeLabel,
+      totalQuantity: items.reduce((sum: number, item: any) => sum + item.quantity, 0) || 1,
+      statusStep: this.getStatusStep(request.status),
     };
   }
 

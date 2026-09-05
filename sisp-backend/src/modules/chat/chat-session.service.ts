@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -67,6 +67,17 @@ export class ChatSessionService {
     return sessions;
   }
 
+  async getVisibleSessions(userId: string, role: string, status?: string) {
+    if (['admin_staff', 'dean'].includes(role)) {
+      return this.getSessions(undefined, status);
+    }
+    if (role === 'live_agent') {
+      return this.getSessions(userId, status);
+    }
+    const profile = await this.getStudentProfileForUser(userId);
+    return profile ? this.getMySessions(profile.id) : [];
+  }
+
   async getSessionById(sessionId: string) {
     const session = await this.prisma.chatSession.findUnique({
       where: { id: sessionId },
@@ -93,10 +104,14 @@ export class ChatSessionService {
     return session;
   }
 
-  async assignAgent(sessionId: string, agentId: string) {
-    const session = await this.prisma.chatSession.findUnique({
-      where: { id: sessionId },
-    });
+  async getAuthorizedSession(sessionId: string, userId: string, role: string) {
+    const session = await this.getSessionById(sessionId);
+    this.assertAccess(session, userId, role);
+    return session;
+  }
+
+  async assignAgent(sessionId: string, agentId: string, role = 'admin_staff') {
+    const session = await this.prisma.chatSession.findUnique({ where: { id: sessionId } });
 
     if (!session) {
       throw new NotFoundException(`Chat session ${sessionId} not found`);
@@ -104,6 +119,9 @@ export class ChatSessionService {
 
     if (session.status !== 'open') {
       throw new BadRequestException('Cannot assign agent to a closed session');
+    }
+    if (!['admin_staff', 'dean', 'live_agent'].includes(role)) {
+      throw new ForbiddenException('Only authorized advisor roles can assign sessions');
     }
 
     const updated = await this.prisma.chatSession.update({
@@ -151,7 +169,10 @@ export class ChatSessionService {
     return message;
   }
 
-  async getMessages(sessionId: string) {
+  async getMessages(sessionId: string, userId?: string, role?: string) {
+    if (userId && role) {
+      await this.getAuthorizedSession(sessionId, userId, role);
+    }
     const messages = await this.prisma.chatMessage.findMany({
       where: { sessionId },
       orderBy: { createdAt: 'asc' },
@@ -163,13 +184,16 @@ export class ChatSessionService {
     return messages;
   }
 
-  async closeSession(sessionId: string, resolverId: string) {
+  async closeSession(sessionId: string, resolverId: string, role = 'admin_staff') {
     const session = await this.prisma.chatSession.findUnique({
       where: { id: sessionId },
     });
 
     if (!session) {
       throw new NotFoundException(`Chat session ${sessionId} not found`);
+    }
+    if (!['admin_staff', 'dean', 'live_agent'].includes(role)) {
+      throw new ForbiddenException('Only authorized advisor roles can close sessions');
     }
 
     const updated = await this.prisma.chatSession.update({
@@ -210,5 +234,15 @@ export class ChatSessionService {
     });
 
     return sessions;
+  }
+
+  async getStudentProfileForUser(userId: string) {
+    return this.prisma.studentProfile.findUnique({ where: { userId } });
+  }
+
+  private assertAccess(session: any, userId: string, role: string) {
+    if (['admin_staff', 'dean', 'live_agent'].includes(role)) return;
+    if (role === 'student' && session.student?.userId === userId) return;
+    throw new ForbiddenException('You are not authorized to access this advisor session');
   }
 }

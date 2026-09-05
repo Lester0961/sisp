@@ -101,6 +101,17 @@ export interface DocumentRequest {
   id: string;
   type: string;
   typeLabel: string;
+  documentNames?: string;
+  totalQuantity?: number;
+  items?: Array<{
+    id?: string;
+    type: string;
+    label: string;
+    quantity: number;
+    unitFee: number;
+    lineTotal: number;
+    remarks?: string | null;
+  }>;
   status: string;
   statusStep: number;
   remarks: string | null;

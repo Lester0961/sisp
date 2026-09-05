@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { DocumentRequest } from '@/types';
-import { requestsApi } from '@/lib/api/requests';
+import { requestsApi, type CreateRequestLineItem } from '@/lib/api/requests';
 
 interface RequestState {
   // State
@@ -11,7 +11,7 @@ interface RequestState {
 
   // Actions
   fetchRequests: () => Promise<void>;
-  submitRequest: (type: string, remarks?: string) => Promise<any>;
+  submitRequest: (items: CreateRequestLineItem[], remarks?: string) => Promise<any>;
   confirmPayment: (requestId: string) => Promise<void>;
   clearRequests: () => void;
 }
@@ -40,10 +40,10 @@ export const useRequestStore = create<RequestState>()((set) => ({
     }
   },
 
-  submitRequest: async (type: string, remarks?: string) => {
+  submitRequest: async (items: CreateRequestLineItem[], remarks?: string) => {
     set({ isSubmitting: true, error: null });
     try {
-      const newRequest = await requestsApi.createRequest(type, remarks);
+      const newRequest = await requestsApi.createRequest(items, remarks);
       set((state) => ({
         requests: [newRequest, ...state.requests],
         isSubmitting: false,

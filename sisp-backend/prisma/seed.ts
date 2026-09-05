@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { DOCUMENT_CATALOG } from '../src/common/constants/document-catalog';
 
 const prisma = new PrismaClient();
 
@@ -85,6 +86,27 @@ async function main() {
     });
   }
   console.log('User accounts seeded successfully.');
+
+  for (const item of DOCUMENT_CATALOG) {
+    await prisma.documentCatalogItem.upsert({
+      where: { code: item.code },
+      update: {
+        label: item.label,
+        fee: item.fee,
+        sortOrder: item.sortOrder,
+        isActive: true,
+      },
+      create: {
+        id: item.id,
+        code: item.code,
+        label: item.label,
+        fee: item.fee,
+        sortOrder: item.sortOrder,
+        isActive: true,
+      },
+    });
+  }
+  console.log('Document catalog seeded successfully.');
 }
 
 main()

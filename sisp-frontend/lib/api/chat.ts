@@ -8,6 +8,7 @@ export interface ChatMessageApi {
 export interface SendMessagePayload {
   message: string;
   history?: ChatMessageApi[];
+  preferredLanguage?: string;
 }
 
 export interface ChatSource {
@@ -25,7 +26,26 @@ export interface SendMessageResponse {
   escalated: boolean;
   sessionId: string | null;
   sources: ChatSource[];
+  route: string;
+  action?: string | null;
+  language?: {
+    code: string;
+    name: string;
+    confidence?: number;
+    codeSwitched?: boolean;
+    register?: string;
+    nativeReviewRequired?: boolean;
+  };
+  moderationCategories?: string[];
+  quota?: ChatQuota;
   createdAt: string;
+}
+
+export interface ChatQuota {
+  dailyLimit: number;
+  usedToday: number;
+  remainingToday: number;
+  resetsAt: string;
 }
 
 export interface ChatLogDb {
@@ -128,6 +148,11 @@ export const chatApi = {
 
   getChatHistory: async (): Promise<ChatLogDb[]> => {
     const response = await apiClient.get<ChatLogDb[]>('/chat/history');
+    return response.data;
+  },
+
+  getQuota: async (): Promise<ChatQuota> => {
+    const response = await apiClient.get<ChatQuota>('/chat/quota');
     return response.data;
   },
 

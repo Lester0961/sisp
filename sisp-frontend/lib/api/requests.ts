@@ -1,11 +1,27 @@
 import apiClient from './client';
 
+export interface DocumentRequestLineItem {
+  id?: string;
+  catalogItemId?: string;
+  type: string;
+  label: string;
+  quantity: number;
+  unitFee: number;
+  lineTotal: number;
+  remarks?: string | null;
+  createdAt?: string;
+}
+
 export interface DocumentRequestItem {
   id: string;
   studentId: string;
   type: string;
   typeLabel: string;
+  documentNames?: string;
+  totalQuantity?: number;
+  items?: DocumentRequestLineItem[];
   status: string;
+  statusStep: number;
   remarks?: string | null;
   fee?: number;
   paymentStatus?: string;
@@ -15,38 +31,35 @@ export interface DocumentRequestItem {
   paymentConfirmedAt?: string | null;
   createdAt: string;
   updatedAt: string;
-  student: {
+  student?: {
     studentNumber: string;
-    user: {
-      email: string;
-      firstName: string;
-      lastName: string;
-    };
-    program: {
-      code: string;
-      name: string;
-    };
+    user: { email: string; firstName: string; lastName: string };
+    program: { code: string; name: string };
   };
 }
 
+export interface CreateRequestLineItem {
+  type: string;
+  quantity: number;
+  remarks?: string;
+}
+
 export const requestsApi = {
-  getMyRequests: async () => {
+  getMyRequests: async (): Promise<{ data: DocumentRequestItem[]; total: number }> => {
     const response = await apiClient.get('/requests/me');
     return response.data;
   },
 
-  createRequest: async (type: string, remarks?: string) => {
-    const response = await apiClient.post('/requests', {
-      type,
-      remarks,
-    });
+  createRequest: async (items: CreateRequestLineItem[], remarks?: string) => {
+    const response = await apiClient.post('/requests', { items, remarks });
     return response.data.data;
   },
 
-  getAllRequests: async (status?: string, type?: string): Promise<{ data: DocumentRequestItem[]; total: number }> => {
-    const response = await apiClient.get('/requests', {
-      params: { status, type },
-    });
+  getAllRequests: async (
+    status?: string,
+    type?: string,
+  ): Promise<{ data: DocumentRequestItem[]; total: number }> => {
+    const response = await apiClient.get('/requests', { params: { status, type } });
     return response.data;
   },
 

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { chatApi, ChatMessageApi, ChatSource } from '@/lib/api/chat';
+import { chatApi, ChatMessageApi, ChatQuota, ChatSource } from '@/lib/api/chat';
 
 export interface ChatMessage {
   id: string;
@@ -12,6 +12,8 @@ export interface ChatMessage {
   sources?: ChatSource[];
   escalated?: boolean;
   sessionId?: string | null;
+  language?: { code: string; name: string; register?: string; codeSwitched?: boolean };
+  quota?: ChatQuota;
 }
 
 interface ChatState {
@@ -25,6 +27,8 @@ interface ChatState {
   activeSessionId: string | null;
   isLiveChatMode: boolean;
   liveMessages: ChatMessage[];
+  quota: ChatQuota | null;
+  preferredLanguage: string;
 
   // Actions
   toggleChat: () => void;
@@ -32,10 +36,12 @@ interface ChatState {
   closeChat: () => void;
   clearMessages: () => void;
   loadHistory: () => Promise<void>;
+  loadQuota: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   loadLiveMessages: (sessionId: string) => Promise<void>;
   sendLiveMessage: (sessionId: string, content: string) => Promise<void>;
   setLiveChatMode: (mode: boolean) => void;
+  setPreferredLanguage: (language: string) => void;
 }
 
 const generateId = () =>
@@ -52,6 +58,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   activeSessionId: null,
   isLiveChatMode: false,
   liveMessages: [],
+  quota: null,
+  preferredLanguage: 'auto',
 
   toggleChat: () => set((state) => ({ isOpen: !state.isOpen })),
   openChat: () => {
@@ -103,12 +111,22 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         isLoadingHistory: false, 
         historyLoaded: true 
       });
+      void get().loadQuota();
     } catch (error: any) {
       console.error('Failed to load chat history:', error);
       set({ 
         error: 'Failed to load conversation history.', 
         isLoadingHistory: false 
       });
+    }
+  },
+
+  loadQuota: async () => {
+    try {
+      const quota = await chatApi.getQuota();
+      set({ quota });
+    } catch {
+      // Quota display should not prevent ARIA from opening if the endpoint is unavailable.
     }
   },
 
@@ -152,6 +170,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       const res = await chatApi.sendMessage({
         message: content.trim(),
         history: historyPayload,
+        preferredLanguage: get().preferredLanguage === 'auto' ? undefined : get().preferredLanguage,
       });
 
       set((state) => ({
@@ -165,6 +184,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
                 sources: res.sources,
                 escalated: res.escalated,
                 sessionId: res.sessionId,
+                language: res.language,
+                quota: res.quota,
                 isLoading: false,
               }
             : m
@@ -172,6 +193,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         isTyping: false,
         isLiveChatMode: res.escalated,
         activeSessionId: res.sessionId || null,
+        quota: res.quota ?? state.quota,
       }));
     } catch (error: any) {
       console.error('Failed to send message:', error);
@@ -187,7 +209,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             : m
         ),
         isTyping: false,
-        error: 'Failed to send message.',
+        error: error?.response?.status === 429
+          ? error?.response?.data?.message || 'You have reached today\'s ARIA message limit.'
+          : 'Failed to send message.',
       }));
     }
   },
@@ -227,4 +251,5 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   },
 
   setLiveChatMode: (mode: boolean) => set({ isLiveChatMode: mode }),
+  setPreferredLanguage: (language: string) => set({ preferredLanguage: language }),
 }));

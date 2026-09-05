@@ -1,8 +1,7 @@
-# ========================
 # Node / Next.js / NestJS
-# ========================
 node_modules/
 .next/
+.next-dev/
 .turbo/
 dist/
 build/
@@ -18,9 +17,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# ========================
 # Python / FastAPI / ML
-# ========================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -40,29 +37,21 @@ ENV/
 mlruns/
 .ipynb_checkpoints/
 
-# ========================
 # Prisma
-# ========================
 prisma/migrations/dev.db
 *.db
 *.db-journal
 
-# ========================
 # VS Code
-# ========================
 .vscode/
 *.code-workspace
 
-# ========================
 # OS
-# ========================
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# ========================
 # Vercel / Render / Supabase
-# ========================
 .vercel/
 .render/
 
@@ -79,8 +68,12 @@ frontend_full.md
 opencode.jsonc
 sisp_landing_*.png
 sisp_login_*.png
+artifacts/
+recovered-runtime/
+_tools/
 sisp-backend/eslint.config.mjs.bak
 sisp-backend/test-login-temp.js
+sisp-backend/mock-db.json
 sisp-backend/prisma/migrations/diff.sql
 sisp-backend/README.md
 sisp-frontend/README.md

@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
+import { DOCUMENT_CATALOG } from '../common/constants/document-catalog';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -390,6 +391,31 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
     ];
 
+    const documentCatalogItems = DOCUMENT_CATALOG.map((item) => ({
+      ...item,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    const documentRequestItems = documentRequests.map((request, index) => {
+      const catalogItem =
+        documentCatalogItems.find((item) => item.code === request.type || item.label === request.type) ??
+        documentCatalogItems[documentCatalogItems.length - 1];
+      return {
+        id: `mock-document-request-item-${index + 1}`,
+        requestId: request.id,
+        catalogItemId: catalogItem.id,
+        type: catalogItem.code,
+        label: catalogItem.label,
+        quantity: 1,
+        unitFee: request.fee,
+        lineTotal: request.fee,
+        remarks: request.remarks,
+        createdAt: new Date(),
+      };
+    });
+
     const notifications = [
       {
         id: 'mock-notif-1',
@@ -420,6 +446,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         createdAt: new Date(),
       },
     ];
+
+    const chatDailyUsage: any[] = [];
 
     const escalations = [
       {
@@ -482,8 +510,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       enrollment: enrollments,
       grade: grades,
       documentRequest: documentRequests,
+      documentCatalogItem: documentCatalogItems,
+      documentRequestItem: documentRequestItems,
       notification: notifications,
       chatLog: chatLogs,
+      chatDailyUsage,
       escalationQueue: escalations,
       chatSession: chatSessions,
       chatMessage: chatMessages,
@@ -646,6 +677,26 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               cloned.paymentConfirmedBy = resolveIncludes(userItem, subInclude, 'user');
             }
           }
+          if (key === 'items') {
+            const items = store.documentRequestItem.filter((requestItem) => requestItem.requestId === cloned.id);
+            cloned.items = items.map((requestItem) =>
+              resolveIncludes(requestItem, subInclude, 'documentRequestItem'),
+            );
+          }
+        }
+        if (modelKey === 'documentRequestItem') {
+          if (key === 'catalogItem') {
+            const catalogItem = store.documentCatalogItem.find((item) => item.id === cloned.catalogItemId);
+            if (catalogItem) {
+              cloned.catalogItem = resolveIncludes(catalogItem, subInclude, 'documentCatalogItem');
+            }
+          }
+          if (key === 'request') {
+            const request = store.documentRequest.find((item) => item.id === cloned.requestId);
+            if (request) {
+              cloned.request = resolveIncludes(request, subInclude, 'documentRequest');
+            }
+          }
         }
         if (modelKey === 'chatSession') {
           if (key === 'student') {
@@ -772,6 +823,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             if (args.data.paymentConfirmedById) {
               newItem.paymentConfirmedBy = users.find((u) => u.id === args.data.paymentConfirmedById);
             }
+          }
+          if (modelKey === 'documentRequestItem') {
+            newItem.catalogItem = documentCatalogItems.find((item) => item.id === args.data.catalogItemId);
+            newItem.request = documentRequests.find((request) => request.id === args.data.requestId);
           }
           if (modelKey === 'grade') {
             newItem.enrollment = enrollments.find((e) => e.id === args.data.enrollmentId);

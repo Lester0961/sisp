@@ -10,13 +10,21 @@ export class ChatbotController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
   @Post()
+  @Roles('student')
   async sendMessage(@CurrentUser() user: JwtPayload, @Body() sendMessageDto: SendMessageDto) {
     return this.chatbotService.sendMessage(user.sub, sendMessageDto);
   }
 
   @Get('history')
+  @Roles('student')
   async getHistory(@CurrentUser() user: JwtPayload) {
     return this.chatbotService.getHistory(user.sub);
+  }
+
+  @Get('quota')
+  @Roles('student')
+  async getQuota(@CurrentUser() user: JwtPayload) {
+    return this.chatbotService.getQuota(user.sub);
   }
 }
 
