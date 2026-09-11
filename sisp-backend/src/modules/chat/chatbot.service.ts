@@ -30,7 +30,10 @@ export class ChatbotService {
     // The hosted ARIA service may need several seconds for provider routing
     // and semantic retrieval, especially on a free-tier instance. Keep the
     // request bounded while allowing the normal policy path to complete.
-    const ML_TIMEOUT_MS = 20000;
+    // Render's free ML instance can take close to a minute to wake from idle.
+    // Keep the request bounded, but do not convert a normal cold start into a
+    // false live-agent escalation.
+    const ML_TIMEOUT_MS = 60000;
 
     try {
       this.logger.log(`Forwarding query to ML service: ${this.mlServiceUrl}/chat`);

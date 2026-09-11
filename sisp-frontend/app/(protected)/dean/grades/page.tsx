@@ -118,7 +118,7 @@ export default function DeanGradesPage() {
             })}
           </section>
         ) : (
-          <section className="portal-surface portal-empty"><FileCheck className="size-8 text-[#16794c]" strokeWidth={1.8} /><div><h2 className="font-semibold text-[#102f49]">No grades need approval</h2><p className="mt-1 text-sm text-[#587387]">Posted grades will appear here when they are ready for review.</p></div></section>
+          <section className="portal-surface portal-empty"><FileCheck className="size-8 text-[#16794c]" strokeWidth={1.8} /><div><h2 className="font-semibold text-[#102f49]">No grades need approval</h2><p className="mt-1 text-sm text-[#587387]">Faculty-submitted grades will appear here when they are ready for dean review.</p></div></section>
         )}
       </main>
     </div>
