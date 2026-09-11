@@ -63,6 +63,7 @@ model User {
   // Relations
   studentProfile StudentProfile?
   auditLogs      AuditLog[]
+  taughtEnrollments Enrollment[] @relation("FacultyEnrollments")
 
   notifications  Notification[]
   escalations    EscalationQueue[]
@@ -227,6 +228,8 @@ model Enrollment {
   status    String         @default("enrolled")
   semester  String? // e.g. "1st"
   year      String? // e.g. "2025-2026"
+  instructorId String? @map("instructor_id")
+  instructor   User? @relation("FacultyEnrollments", fields: [instructorId], references: [id])
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
 

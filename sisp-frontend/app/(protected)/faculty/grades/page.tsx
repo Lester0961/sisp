@@ -165,13 +165,13 @@ export default function FacultyGradesPage() {
   };
 
   const handleSubmitForReview = async (gradeId: string) => {
-    if (!window.confirm('Submit this grade for registrar and dean review? You will not be able to edit it while it is under review.')) {
+    if (!window.confirm('Submit this grade to the dean for approval? You will not be able to edit it while it is under review.')) {
       return;
     }
     setSubmittingId(gradeId);
     try {
       await gradesApi.submitGrade(gradeId);
-      toast.success('Grade submitted to registrar for review!');
+      toast.success('Grade submitted to the dean for approval!');
       setGrades((prev) =>
         prev.map((g) => (g.id === gradeId ? { ...g, status: 'submitted' } : g)),
       );
@@ -249,7 +249,7 @@ export default function FacultyGradesPage() {
               Grade entry
             </h1>
             <p className="portal-description mt-2">
-              Encode scores, then submit for registrar review, dean approval, and student visibility.
+              Encode scores only for your assigned students, then submit for dean approval and registrar publication.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">

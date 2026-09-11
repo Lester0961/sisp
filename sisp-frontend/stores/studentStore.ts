@@ -15,6 +15,7 @@ interface StudentState {
   isLoadingEnrollments: boolean;
   profileError: string | null;
   gradesError: string | null;
+  gradesMessage: string | null;
   enrollmentsError: string | null;
 
   // Actions
@@ -36,6 +37,7 @@ export const useStudentStore = create<StudentState>()((set, get) => ({
   isLoadingEnrollments: false,
   profileError: null,
   gradesError: null,
+  gradesMessage: null,
   enrollmentsError: null,
 
   fetchProfile: async () => {
@@ -57,12 +59,20 @@ export const useStudentStore = create<StudentState>()((set, get) => ({
     set({ isLoadingGrades: true, gradesError: null });
     try {
       const data = await gradesApi.getMyGrades();
-      set({ grades: data.data ?? [], isLoadingGrades: false });
+      const normalizedGrades = (data.data ?? []).map((grade) => ({
+        ...grade,
+        prelim: grade.prelim ?? null,
+        midterm: grade.midterm ?? null,
+        finals: grade.finals ?? null,
+        finalGrade: grade.finalGrade ?? null,
+      })) as unknown as Grade[];
+      set({ grades: normalizedGrades, gradesMessage: data.message ?? null, isLoadingGrades: false });
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       set({
         gradesError:
           err?.response?.data?.message ?? 'Failed to load grades',
+        gradesMessage: null,
         isLoadingGrades: false,
       });
     }
@@ -107,6 +117,7 @@ export const useStudentStore = create<StudentState>()((set, get) => ({
       isLoadingEnrollments: false,
       profileError: null,
       gradesError: null,
+      gradesMessage: null,
       enrollmentsError: null,
     });
   },

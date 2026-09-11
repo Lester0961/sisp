@@ -17,6 +17,7 @@ import {
   Save,
   X,
   Database,
+  MessageSquareText,
 } from 'lucide-react';
 import {
   Table,
@@ -175,6 +176,25 @@ export default function KbManagementPage() {
           </div>
         </div>
 
+        <section className="portal-surface border-l-4 border-[#0a439b] bg-[#f5faff] p-5" aria-labelledby="official-advice-placeholder">
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#e2effa] text-[#0a439b]">
+              <MessageSquareText className="size-4" strokeWidth={1.8} />
+            </span>
+            <div>
+              <h2 id="official-advice-placeholder" className="font-semibold text-[#102f49]">Direct official advice</h2>
+              <p className="mt-1 text-sm leading-relaxed text-[#587387]">
+                Placeholder for dean, registrar, and other authorized office advisories. Add the signed source, issuing office, effective date, and audience before making an advisory available to ARIA.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#365a72]">
+                <span className="rounded-full border border-[#cbdde9] bg-white px-2.5 py-1">Issuer: pending</span>
+                <span className="rounded-full border border-[#cbdde9] bg-white px-2.5 py-1">Effective date: pending</span>
+                <span className="rounded-full border border-[#cbdde9] bg-white px-2.5 py-1">Publication: not yet approved</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Document list */}
@@ -289,6 +309,7 @@ export default function KbManagementPage() {
                       <option value="enrollment_policy">enrollment_policy</option>
                       <option value="document_request">document_request</option>
                       <option value="general_policy">general_policy</option>
+                      <option value="official_advice">official_advice</option>
                     </select>
                   </div>
                 </div>

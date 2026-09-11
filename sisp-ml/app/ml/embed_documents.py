@@ -56,7 +56,8 @@ def embed_and_index():
     policy_files = {
         "document_requests.txt": "document_request",
         "enrollment_policy.txt": "enrollment_policy",
-        "grading_policy.txt": "grading_policy"
+        "grading_policy.txt": "grading_policy",
+        "official_advice.txt": "official_advice",
     }
     
     all_chunks = []

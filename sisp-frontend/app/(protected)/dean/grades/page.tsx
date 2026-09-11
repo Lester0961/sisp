@@ -23,7 +23,7 @@ export default function DeanGradesPage() {
   const loadGrades = async () => {
     setLoading(true);
     try {
-      const data = await gradesApi.getAllGrades(undefined, undefined, 'posted');
+      const data = await gradesApi.getAllGrades(undefined, undefined, 'submitted');
       setGrades(Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data ?? []);
     } catch {
       toast.error('Unable to load the grade approval queue.');
@@ -42,9 +42,9 @@ export default function DeanGradesPage() {
     }
     setActionId(gradeId);
     try {
-      await gradesApi.approveGrade(gradeId);
+      await gradesApi.postGrade(gradeId);
       setGrades((previous) => previous.filter((grade) => grade.id !== gradeId));
-      toast.success('Grade approved and published.');
+      toast.success('Grade approved by the dean and queued for registrar publication.');
     } catch (err: unknown) {
       toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Unable to approve this grade.');
     } finally {
@@ -89,7 +89,7 @@ export default function DeanGradesPage() {
       <Navbar />
       <main className="portal-main">
         <div className="portal-page-header">
-          <div><h1 className="portal-title">Grade approvals</h1><p className="portal-description mt-2">Review posted grades, approve them for student access, or return them with clear remarks.</p></div>
+          <div><h1 className="portal-title">Grade approvals</h1><p className="portal-description mt-2">Review faculty-submitted grades, approve them for registrar publication, or return them with clear remarks.</p></div>
           <Button variant="outline" size="sm" onClick={() => void loadGrades()} disabled={loading}><RefreshCw className={loading ? 'animate-spin' : ''} strokeWidth={1.8} />Refresh</Button>
         </div>
 

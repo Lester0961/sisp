@@ -33,7 +33,7 @@ function getGradeLabel(grade: number | null): string {
 }
 
 export default function GradesPage() {
-  const { grades, isLoadingGrades, fetchGrades } = useStudentStore();
+  const { grades, gradesMessage, isLoadingGrades, fetchGrades } = useStudentStore();
 
   useEffect(() => {
     if (grades.length === 0) void fetchGrades();
@@ -79,13 +79,13 @@ export default function GradesPage() {
         ) : (
           <div className="space-y-6">
             {/* Payment status banner */}
-            {grades.length === 0 && (
+            {(gradesMessage || grades.length === 0) && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-amber-800">Grades temporarily unavailable</p>
+                  <p className="text-sm font-semibold text-amber-800">{gradesMessage ? 'Some grades are temporarily hidden' : 'Grades temporarily unavailable'}</p>
                   <p className="text-xs text-amber-600 mt-0.5">
-                    Your grades are hidden until tuition is fully paid for this semester. Please settle your balance at the accounting office.
+                    {gradesMessage || 'Current-semester grades are hidden until tuition is fully paid. Paid past-semester grades remain available.'}
                   </p>
                 </div>
               </div>

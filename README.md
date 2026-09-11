@@ -25,8 +25,8 @@ The current frontend deployment is available at [sisp-rmc.vercel.app](https://si
 Think of it as the academic command center where:
 - **Students** check grades, request documents, chat with an AI advisor (ARIA), and track payments.
 - **Faculty** submit grades for review.
-- **Registrars** validate and post grades to the dean.
-- **Deans** approve or reject grades before they go live.
+- **Deans** review faculty-submitted grades before registrar publication.
+- **Registrars** publish dean-approved grades to the student record.
 - **Live Agents** take over when ARIA can't answer — all inside the same chat thread.
 
 ---
@@ -35,13 +35,14 @@ Think of it as the academic command center where:
 
 | Module | What It Does |
 |--------|-------------|
-| **Grade Workflow** | Faculty submit → Registrar posts → Dean approves → Student sees (only if tuition is paid for the semester). |
+| **Grade Workflow** | Assigned faculty encode and submit → Dean approves or returns → Registrar publishes → Student sees each semester's grades only when that semester is fully paid; paid past-semester grades remain visible. |
 | **Document Requests** | Students can select multiple document types, set a quantity (1–10 copies) for each, receive a combined fee, and complete the mock InstaPay payment step. |
 | **ARIA Chatbot** | A grounded hybrid NLP + semantic RAG advisor with English, Filipino/Tagalog, Cebuano, Ilocano, Hiligaynon, and Waray support. It answers advising/student-service topics only and protects personal records behind deterministic services. |
 | **LLM Provider Router** | Server-side Groq → Gemini → OpenRouter fallback with normalized requests, timeouts, rate-limit handling, and no key exposure to the browser. |
 | **Daily Chat Quota** | Students receive 20 ARIA messages per Manila calendar day, with an authenticated quota status endpoint and visible remaining-count indicator. |
 | **Live Agent Handoff** | Unanswered or safety-sensitive concerns escalate to a human advisor session with role-protected polling and Socket.IO events. |
-| **Multilingual moderation** | The supplied English/Philippine-language lexicon is normalized and categorized into allow, warning, review, block, and critical escalation signals. |
+| **Multilingual moderation** | The supplied English/Philippine-language lexicon detects direct, indirect, split-character, punctuation, repeated-character, leetspeak, and confusable-character variants before generation. Context-review terms remain available for benign academic/health wording. |
+| **Official advice placeholder** | The admin policy library includes a reserved direct-official-advice area for dean/registrar-issued notices with issuer, effective date, audience, and publication approval metadata. |
 | **Admin Dashboard** | Analytics, user management, audit logs, knowledge-base policies, and escalation queues. |
 | **Real-Time Notifications** | In-app toast and bell notifications for status updates, approvals, and rejections. |
 
@@ -181,7 +182,7 @@ sisp/
 
 ## Key Design Decisions
 
-1. **Grade Workflow with State Machine** — Grades move through `draft → submitted → posted → approved`. Only `approved` grades are visible to students, and only if they are fully paid for the semester.
+1. **Grade Workflow with State Machine** — Grades move through `draft → submitted (faculty) → posted (dean-approved) → approved (registrar-published)`. Faculty access is scoped to assigned enrollments. Only published grades are visible, and each grade is independently gated by its semester's payment status; paid past-semester grades remain available.
 
 2. **Payment Before Processing** — Document requests require a fee. A mock InstaPay QR code is generated per request. Admin confirms payment before the request enters the review pipeline. Each request stores one row per selected document type and quantity.
 
@@ -189,7 +190,7 @@ sisp/
 
 4. **Mock-Aware Prisma Client** — The backend gracefully falls back to an in-memory JSON store when the database is unreachable. This makes demos and offline development frictionless, including document catalog/items and daily chat usage.
 
-5. **Advisory guardrails before generation** — Language detection, moderation, scope routing, retrieval, and deterministic database responses run before the LLM router. The model only generates from verified institutional context.
+5. **Advisory guardrails before generation** — Language detection, obfuscation-aware moderation, strict school-topic scope routing, semantic retrieval, and deterministic database responses run before the LLM router. Out-of-topic questions receive a redirect back to supported school-advising topics, and the model only generates from verified institutional context.
 
 ---
 

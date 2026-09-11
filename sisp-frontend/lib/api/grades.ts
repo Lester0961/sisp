@@ -39,9 +39,16 @@ export interface GradeItem {
   };
 }
 
+export interface StudentGradesResponse {
+  data: GradeItem[];
+  total: number;
+  hiddenCount?: number;
+  message?: string;
+}
+
 export const gradesApi = {
-  getMyGrades: async () => {
-    const response = await apiClient.get('/grades/me');
+  getMyGrades: async (): Promise<StudentGradesResponse> => {
+    const response = await apiClient.get<StudentGradesResponse>('/grades/me');
     return response.data;
   },
 

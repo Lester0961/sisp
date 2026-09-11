@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
@@ -45,7 +45,7 @@ export class GradesService {
     }
   }
 
-  async createGrade(dto: CreateGradeDto) {
+  async createGrade(facultyId: string, dto: CreateGradeDto) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: dto.enrollmentId },
       include: {
@@ -60,6 +60,10 @@ export class GradesService {
 
     if (!enrollment) {
       throw new NotFoundException(`Enrollment with ID ${dto.enrollmentId} not found`);
+    }
+
+    if (enrollment.instructorId !== facultyId) {
+      throw new ForbiddenException('You can only encode grades for students assigned to you.');
     }
 
     const existing = await this.prisma.grade.findUnique({
@@ -104,13 +108,18 @@ export class GradesService {
     };
   }
 
-  async updateGrade(id: string, dto: UpdateGradeDto) {
+  async updateGrade(facultyId: string, id: string, dto: UpdateGradeDto) {
     const existing = await this.prisma.grade.findUnique({
       where: { id },
+      include: { enrollment: { select: { instructorId: true } } },
     });
 
     if (!existing) {
       throw new NotFoundException(`Grade with ID ${id} not found`);
+    }
+
+    if (existing.enrollment?.instructorId !== facultyId) {
+      throw new ForbiddenException('You can only edit grades for students assigned to you.');
     }
 
     // Only allow editing if status is draft or rejected
@@ -156,10 +165,15 @@ export class GradesService {
   async submitGrade(facultyId: string, gradeId: string) {
     const grade = await this.prisma.grade.findUnique({
       where: { id: gradeId },
+      include: { enrollment: { select: { instructorId: true } } },
     });
 
     if (!grade) {
       throw new NotFoundException(`Grade with ID ${gradeId} not found`);
+    }
+
+    if (grade.enrollment?.instructorId !== facultyId) {
+      throw new ForbiddenException('You can only submit grades for students assigned to you.');
     }
 
     this.assertTransition(grade.status, 'submitted');
@@ -191,12 +205,12 @@ export class GradesService {
     });
 
     return {
-      message: 'Grade submitted to registrar for review',
+      message: 'Grade submitted to the dean for approval',
       data: updated,
     };
   }
 
-  async postGrade(registrarId: string, gradeId: string) {
+  async postGrade(deanId: string, gradeId: string) {
     const grade = await this.prisma.grade.findUnique({
       where: { id: gradeId },
     });
@@ -211,7 +225,7 @@ export class GradesService {
       where: { id: gradeId },
       data: {
         status: 'posted',
-        postedById: registrarId,
+        postedById: deanId,
         postedAt: new Date(),
       },
       include: {
@@ -231,12 +245,12 @@ export class GradesService {
     });
 
     return {
-      message: 'Grade posted to dean for approval',
+      message: 'Grade approved by the dean and queued for registrar publication',
       data: updated,
     };
   }
 
-  async approveGrade(deanId: string, gradeId: string) {
+  async approveGrade(registrarId: string, gradeId: string) {
     const grade = await this.prisma.grade.findUnique({
       where: { id: gradeId },
     });
@@ -251,7 +265,7 @@ export class GradesService {
       where: { id: gradeId },
       data: {
         status: 'approved',
-        approvedById: deanId,
+        approvedById: registrarId,
         approvedAt: new Date(),
         isVisible: true,
       },
@@ -273,7 +287,7 @@ export class GradesService {
     });
 
     return {
-      message: 'Grade approved and published',
+      message: 'Grade published by the registrar',
       data: updated,
     };
   }
@@ -369,28 +383,33 @@ export class GradesService {
   async getMyGrades(userId: string) {
     const profile = await requireStudentProfile(this.prisma, userId);
 
-    // Get current semester to check payment
-    const currentSemester = await this.prisma.studentSemester.findFirst({
+    const semesters = await this.prisma.studentSemester.findMany({
       where: { studentId: profile.id },
       orderBy: [{ year: 'desc' }, { semester: 'desc' }],
     });
 
-    // Only show approved grades where student is fully paid for the matching semester
+    const semesterRank: Record<string, number> = { '1st': 1, '2nd': 2, summer: 3 };
+    semesters.sort((left: any, right: any) => {
+      const yearCompare = String(right.year).localeCompare(String(left.year));
+      if (yearCompare !== 0) return yearCompare;
+      return (semesterRank[String(right.semester).toLowerCase()] ?? 0)
+        - (semesterRank[String(left.semester).toLowerCase()] ?? 0);
+    });
+
+    const paymentByTerm = new Map(
+      semesters.map((semester: any) => [
+        `${semester.semester}|${semester.year}`,
+        Boolean(semester.isFullyPaid),
+      ]),
+    );
+    const latestSemester = semesters[0];
     const whereClause: any = {
       enrollment: {
         studentId: profile.id,
       },
       status: 'approved',
+      isVisible: true,
     };
-
-    // If student is not fully paid for current semester, don't show any grades
-    if (!currentSemester || !currentSemester.isFullyPaid) {
-      return {
-        data: [],
-        total: 0,
-        message: 'Grades are hidden until tuition is fully paid for this semester.',
-      };
-    }
 
     const grades = await this.prisma.grade.findMany({
       where: whereClause,
@@ -412,14 +431,36 @@ export class GradesService {
       },
     });
 
+    const visibleGrades = grades.filter((grade: any) => {
+      const semester = grade.enrollment?.semester;
+      const year = grade.enrollment?.year;
+      if (semester && year && paymentByTerm.has(`${semester}|${year}`)) {
+        return paymentByTerm.get(`${semester}|${year}`) === true;
+      }
+      return latestSemester?.isFullyPaid === true;
+    });
+    const hiddenCount = grades.length - visibleGrades.length;
+
     return {
-      data: grades,
-      total: grades.length,
+      data: visibleGrades,
+      total: visibleGrades.length,
+      hiddenCount,
+      message: hiddenCount > 0
+        ? 'Some current-semester grades are hidden until that semester is fully paid. Paid past-semester grades remain available.'
+        : undefined,
     };
   }
 
-  async getAllGrades() {
+  async getGradesByInstructor(instructorId: string, status?: string) {
+    return this.getAllGrades({
+      ...(status ? { status } : {}),
+      enrollment: { instructorId },
+    });
+  }
+
+  async getAllGrades(where: any = {}) {
     const grades = await this.prisma.grade.findMany({
+      where,
       include: {
         enrollment: {
           include: {
@@ -505,13 +546,13 @@ export class GradesService {
     };
   }
 
-  async bulkCreateGrades(dto: BulkGradeDto) {
+  async bulkCreateGrades(facultyId: string, dto: BulkGradeDto) {
     const results = [];
     const errors = [];
 
     for (const item of dto.grades) {
       try {
-        const result = await this.createGrade(item);
+        const result = await this.createGrade(facultyId, item);
         results.push(result.data);
       } catch (error: unknown) {
         const err = error as { message: string };

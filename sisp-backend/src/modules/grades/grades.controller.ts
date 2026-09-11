@@ -22,10 +22,14 @@ export class GradesController {
   @Get()
   @Roles('faculty', 'admin_staff', 'dean')
   async getAllGrades(
+    @CurrentUser() user: JwtPayload,
     @Query('studentId') studentId?: string,
     @Query('enrollmentId') enrollmentId?: string,
     @Query('status') status?: string,
   ) {
+    if (user.role === 'faculty') {
+      return this.gradesService.getGradesByInstructor(user.sub, status);
+    }
     if (status) {
       return this.gradesService.getGradesByStatus(status);
     }
@@ -40,42 +44,42 @@ export class GradesController {
 
   // Faculty encodes a grade for an enrollment
   @Post()
-  @Roles('faculty', 'admin_staff', 'dean')
-  async createGrade(@Body() dto: CreateGradeDto) {
-    return this.gradesService.createGrade(dto);
+  @Roles('faculty')
+  async createGrade(@CurrentUser() user: JwtPayload, @Body() dto: CreateGradeDto) {
+    return this.gradesService.createGrade(user.sub, dto);
   }
 
   // Faculty bulk encodes grades
   @Post('bulk')
-  @Roles('faculty', 'admin_staff', 'dean')
-  async bulkCreateGrades(@Body() dto: BulkGradeDto) {
-    return this.gradesService.bulkCreateGrades(dto);
+  @Roles('faculty')
+  async bulkCreateGrades(@CurrentUser() user: JwtPayload, @Body() dto: BulkGradeDto) {
+    return this.gradesService.bulkCreateGrades(user.sub, dto);
   }
 
   // Faculty updates grade components (only draft or rejected)
   @Patch(':id')
-  @Roles('faculty', 'admin_staff', 'dean')
-  async updateGrade(@Param('id') id: string, @Body() dto: UpdateGradeDto) {
-    return this.gradesService.updateGrade(id, dto);
+  @Roles('faculty')
+  async updateGrade(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() dto: UpdateGradeDto) {
+    return this.gradesService.updateGrade(user.sub, id, dto);
   }
 
-  // Faculty submits grade to registrar
+  // Faculty submits grade to dean approval
   @Post(':id/submit')
   @Roles('faculty')
   async submitGrade(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.gradesService.submitGrade(user.sub, id);
   }
 
-  // Registrar posts grade to dean
+  // Dean approves grade for registrar publication
   @Post(':id/post')
-  @Roles('admin_staff')
+  @Roles('dean')
   async postGrade(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.gradesService.postGrade(user.sub, id);
   }
 
-  // Dean approves grade
+  // Registrar publishes dean-approved grade
   @Post(':id/approve')
-  @Roles('dean')
+  @Roles('admin_staff')
   async approveGrade(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.gradesService.approveGrade(user.sub, id);
   }

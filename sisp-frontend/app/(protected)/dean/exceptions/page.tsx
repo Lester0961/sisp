@@ -120,17 +120,17 @@ export default function DeanExceptionsPage() {
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-[#1e3a8a]" />
                         <span className="font-bold text-xs text-slate-800">
-                          {req.student.user.email}
+                          {req.student?.user.email ?? 'Student record'}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500">
                         <div>
                           <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-semibold">Student Number</span>
-                          <span className="font-bold text-slate-700">{req.student.studentNumber}</span>
+                          <span className="font-bold text-slate-700">{req.student?.studentNumber ?? '—'}</span>
                         </div>
                         <div>
                           <span className="block text-[8px] uppercase tracking-wider text-slate-400 font-semibold">Program Code</span>
-                          <span className="font-bold text-slate-700">{req.student.program.code}</span>
+                          <span className="font-bold text-slate-700">{req.student?.program.code ?? '—'}</span>
                         </div>
                       </div>
                     </div>

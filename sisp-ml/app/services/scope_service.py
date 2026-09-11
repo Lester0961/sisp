@@ -8,12 +8,16 @@ ACADEMIC_TERMS = {
     "student", "subject", "transcript", "treasury", "tuition", "akademiko", "bayad", "bayranan",
     "dokumento", "grado", "iskedyul", "klase", "kurso", "mag enroll", "matrikula", "paaralan",
     "pagsusulit", "permiso", "subject ko", "enrolment", "eskwela", "iskwela", "pag enroll", "pasulit",
-    "grades", "enrollment_status", "document_request_status",
+    "grades", "enrollment_status", "document_request_status", "dean", "faculty", "teacher",
+    "official", "officials", "advice", "advising", "advisory", "policy", "policies", "handbook",
+    "school hours", "academic calendar", "requirements", "student services", "office", "publication",
+    "guro", "titser", "tagapayo", "opisina", "patakaran", "payong", "payo",
 }
 
 OUT_OF_SCOPE_TERMS = {
     "recipe", "celebrity", "politics", "weather", "movie", "write code", "game cheat", "sports score",
-    "stock price", "crypto", "write my essay", "dating",
+    "stock price", "crypto", "write my essay", "dating", "medical diagnosis", "relationship advice",
+    "religion", "horoscope", "lottery", "shopping recommendation", "travel itinerary", "legal advice",
 }
 
 PERSONAL_MARKERS = {"ko", "ako", "mine", "akong", "siak", "current", "akin", "my", "akon"}

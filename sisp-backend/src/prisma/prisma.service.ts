@@ -301,10 +301,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         status: 'enrolled',
         semester: '1st',
         year: '2025-2026',
+        instructorId: 'mock-faculty-id',
         createdAt: new Date(),
         updatedAt: new Date(),
         course: courses[0],
         student: studentProfiles[0],
+        instructor: users[2],
       },
       {
         id: 'mock-enrollment-cs302',
@@ -314,10 +316,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         status: 'enrolled',
         semester: '1st',
         year: '2025-2026',
+        instructorId: 'mock-faculty-id',
         createdAt: new Date(),
         updatedAt: new Date(),
         course: courses[1],
         student: studentProfiles[0],
+        instructor: users[2],
       },
       {
         id: 'mock-enrollment-cs303',
@@ -327,10 +331,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         status: 'enrolled',
         semester: '1st',
         year: '2025-2026',
+        instructorId: 'mock-faculty-id',
         createdAt: new Date(),
         updatedAt: new Date(),
         course: courses[2],
         student: studentProfiles[0],
+        instructor: users[2],
       },
     ];
 

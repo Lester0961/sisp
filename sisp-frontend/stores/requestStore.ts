@@ -27,8 +27,16 @@ export const useRequestStore = create<RequestState>()((set) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await requestsApi.getMyRequests();
+      const normalizedRequests: DocumentRequest[] = (data.data ?? []).map((request) => ({
+        ...request,
+        remarks: request.remarks ?? null,
+        items: request.items?.map((item) => ({
+          ...item,
+          remarks: item.remarks ?? null,
+        })),
+      }));
       set({
-        requests: data.data ?? [],
+        requests: normalizedRequests,
         isLoading: false,
       });
     } catch (error: unknown) {
@@ -44,8 +52,16 @@ export const useRequestStore = create<RequestState>()((set) => ({
     set({ isSubmitting: true, error: null });
     try {
       const newRequest = await requestsApi.createRequest(items, remarks);
+      const normalizedRequest: DocumentRequest = {
+        ...newRequest,
+        remarks: newRequest.remarks ?? null,
+        items: newRequest.items?.map((item: { remarks?: string | null }) => ({
+          ...item,
+          remarks: item.remarks ?? null,
+        })),
+      };
       set((state) => ({
-        requests: [newRequest, ...state.requests],
+        requests: [normalizedRequest, ...state.requests],
         isSubmitting: false,
       }));
       return newRequest;

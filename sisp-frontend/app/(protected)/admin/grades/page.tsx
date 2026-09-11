@@ -34,7 +34,7 @@ export default function RegistrarGradesPage() {
   const loadGrades = async () => {
     setLoading(true);
     try {
-      const data = await gradesApi.getAllGrades(undefined, undefined, 'submitted');
+      const data = await gradesApi.getAllGrades(undefined, undefined, 'posted');
       const gradesArray = Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data || [];
       setGrades(gradesArray);
     } catch (err) {
@@ -49,13 +49,13 @@ export default function RegistrarGradesPage() {
   }, []);
 
   const handlePost = async (gradeId: string) => {
-    if (!window.confirm('Post this grade to the dean approval queue? The faculty member will no longer be able to edit it while it is under review.')) {
+    if (!window.confirm('Publish this dean-approved grade to the student record? The registrar publication will make it visible when the semester payment rule allows it.')) {
       return;
     }
     setPostingId(gradeId);
     try {
-      await gradesApi.postGrade(gradeId);
-      toast.success('Grade posted to dean for approval!');
+      await gradesApi.approveGrade(gradeId);
+      toast.success('Grade published by the registrar.');
       setGrades((prev) => prev.filter((g) => g.id !== gradeId));
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to post grade.');
@@ -81,7 +81,7 @@ export default function RegistrarGradesPage() {
           <div>
             <h1 className="portal-title">Grade review</h1>
             <p className="portal-description mt-2">
-              Review submitted grades from faculty and post them to the dean for approval.
+              Publish grades already approved by the dean. Students will see them only when the matching semester is fully paid.
             </p>
           </div>
           <Button
@@ -124,7 +124,7 @@ export default function RegistrarGradesPage() {
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-400">
-                      Loading submitted grades...
+                      Loading dean-approved grades...
                     </TableCell>
                   </TableRow>
                 ) : filteredGrades.length > 0 ? (
@@ -165,7 +165,7 @@ export default function RegistrarGradesPage() {
                           className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded-lg text-[10px] shadow-sm active:scale-95 transition-all"
                         >
                           <FileCheck className="h-3.5 w-3.5 mr-1" />
-                          {postingId === g.id ? 'Posting...' : 'Post to Dean'}
+                          {postingId === g.id ? 'Publishing...' : 'Publish grade'}
                         </Button>
                       </TableCell>
                     </TableRow>

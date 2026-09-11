@@ -22,6 +22,12 @@ def test_moderation_escalates_credible_threat_phrase():
     assert result["action"] == "escalate"
 
 
+def test_moderation_catches_constructed_and_leetspeak_variants():
+    assert moderation_service.evaluate("f.u.c.k this")['action'] in {"block", "escalate"}
+    assert moderation_service.evaluate("p u t a n g 1 n a")['action'] in {"block", "escalate"}
+    assert moderation_service.evaluate("pakyuuu")['action'] in {"block", "escalate"}
+
+
 def test_language_and_scope_routing():
     language = language_service.detect("Paano ako kukuha ng exam permit po?")
     assert language["code"] == "fil"
