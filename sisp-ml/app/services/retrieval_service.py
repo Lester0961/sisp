@@ -197,7 +197,14 @@ class RetrievalService:
         if not self.local_index:
             return []
 
-        query_terms = set(re.findall(r"[a-z0-9']+", query.casefold()))
+        stopwords = {
+            "a", "an", "and", "are", "can", "do", "does", "for", "get", "how", "i", "in",
+            "is", "it", "my", "of", "or", "the", "to", "what", "when", "where", "who", "with",
+        }
+        query_terms = {
+            term for term in re.findall(r"[a-z0-9']+", query.casefold())
+            if term not in stopwords
+        }
         if not query_terms:
             return []
 
