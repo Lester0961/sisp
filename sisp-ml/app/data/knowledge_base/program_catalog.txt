@@ -1,5 +1,13 @@
 REGIS MARIE COLLEGE PROGRAM CATALOG — WORKING SOURCE
 
+SOURCE GOVERNANCE
+- Scope owner: the SISP/RMC program list supplied for this implementation.
+- Public corroboration: https://www.regismariecollege.com/ and https://www.regismariecollege.com/online_admission
+  publicly describe RMC programs, but those pages are not treated as registrar approval for a curriculum sequence.
+- Approval boundary: only a dated curriculum artifact approved by the RMC registrar or dean may add course codes,
+  units, prerequisites, or a course-to-term assignment. Until that artifact is uploaded, ARIA must describe the
+  program catalog and three-term structure only and refer students to the registrar for course planning.
+
 RMC organizes its academic year into three academic terms: Term 1, Term 2, and Term 3. Each term has three assessment periods: Prelim, Midterm, and Finals. A student's grade visibility follows the payment status of the matching academic term.
 
 The current program catalog supplied for SISP is:
