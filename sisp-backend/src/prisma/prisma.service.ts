@@ -666,6 +666,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           };
         });
         store.grade = store.grade.map((grade) => ({
+          // Older mock snapshots were written before the adapter mirrored
+          // Prisma's defaults. Normalize them on load so draft grades remain
+          // actionable after a local restart.
+          status: grade.status ?? 'draft',
+          isVisible: grade.isVisible ?? false,
           ...grade,
           enrollment: store.enrollment.find((enrollment) => enrollment.id === grade.enrollmentId),
         }));
@@ -981,6 +986,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             newItem.request = documentRequests.find((request) => request.id === args.data.requestId);
           }
           if (modelKey === 'grade') {
+            // Mirror Prisma schema defaults in local mock mode so an
+            // enrollment-created grade enters the same workflow state as
+            // production: draft and hidden until it is published.
+            newItem.status = newItem.status || 'draft';
+            newItem.isVisible = newItem.isVisible ?? false;
             newItem.enrollment = enrollments.find((e) => e.id === args.data.enrollmentId);
             if (args.data.submittedById) {
               newItem.submittedBy = users.find((u) => u.id === args.data.submittedById);
