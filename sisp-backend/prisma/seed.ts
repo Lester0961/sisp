@@ -87,6 +87,40 @@ async function main() {
   }
   console.log('User accounts seeded successfully.');
 
+  const programCatalog = [
+    { code: 'BSCS', name: 'Bachelor of Science in Computer Science' },
+    { code: 'BSOA', name: 'Bachelor of Science in Office Administration' },
+    { code: 'BSMA', name: 'Bachelor of Science in Multimedia Arts' },
+    { code: 'BSEd-English', name: 'Bachelor of Secondary Education – English' },
+    { code: 'BSEd-Math', name: 'Bachelor of Secondary Education – Mathematics' },
+    { code: 'BSEd-Secondary', name: 'Bachelor of Secondary Education' },
+    { code: 'BSCrim', name: 'Bachelor of Science in Criminology' },
+  ];
+
+  for (const program of programCatalog) {
+    await prisma.program.upsert({
+      where: { code: program.code },
+      update: { name: program.name },
+      create: { code: program.code, name: program.name },
+    });
+  }
+
+  for (const term of [1, 2, 3]) {
+    await prisma.academicTerm.upsert({
+      where: { code: `2026-2027-T${term}` },
+      update: { label: `Term ${term}`, termNumber: term },
+      create: {
+        academicYear: '2026-2027',
+        termNumber: term,
+        code: `2026-2027-T${term}`,
+        label: `Term ${term}`,
+        status: term === 1 ? 'active' : 'planned',
+        isCurrent: term === 1,
+      },
+    });
+  }
+  console.log('Program catalog and academic terms seeded successfully.');
+
   for (const item of DOCUMENT_CATALOG) {
     await prisma.documentCatalogItem.upsert({
       where: { code: item.code },

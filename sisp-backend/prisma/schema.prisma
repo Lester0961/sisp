@@ -61,9 +61,9 @@ model User {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
-  studentProfile StudentProfile?
-  auditLogs      AuditLog[]
-  taughtEnrollments Enrollment[] @relation("FacultyEnrollments")
+  studentProfile    StudentProfile?
+  auditLogs         AuditLog[]
+  taughtEnrollments Enrollment[]    @relation("FacultyEnrollments")
 
   notifications  Notification[]
   escalations    EscalationQueue[]
@@ -145,18 +145,50 @@ model StudentProfile {
 }
 
 // ============================================================
-// STUDENT SEMESTER (Payment tracking)
+// ACADEMIC TERMS (Trisemestral calendar)
+// ============================================================
+
+model AcademicTerm {
+  id           String    @id @default(uuid())
+  academicYear String    @map("academic_year")
+  termNumber   Int       @map("term_number")
+  code         String    @unique // e.g. 2026-2027-T1
+  label        String // e.g. Term 1
+  startsOn     DateTime? @map("starts_on") @db.Date
+  endsOn       DateTime? @map("ends_on") @db.Date
+  status       String    @default("planned") // planned | active | closed
+  isCurrent    Boolean   @default(false) @map("is_current")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  studentSemesters StudentSemester[]
+  enrollments      Enrollment[]
+
+  @@unique([academicYear, termNumber])
+  @@index([academicYear, termNumber])
+  @@map("academic_terms")
+}
+
+// ============================================================
+// STUDENT TERMS (Payment tracking; legacy table retained)
 // ============================================================
 
 model StudentSemester {
-  id          String         @id @default(uuid())
-  studentId   String         @map("student_id")
-  student     StudentProfile @relation(fields: [studentId], references: [id])
-  semester    String // e.g., "1st", "2nd", "Summer"
-  year        String // e.g., "2025-2026"
-  isFullyPaid Boolean        @default(false) @map("is_fully_paid")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
+  id               String         @id @default(uuid())
+  studentId        String         @map("student_id")
+  student          StudentProfile @relation(fields: [studentId], references: [id])
+  termId           String?        @map("term_id")
+  term             AcademicTerm?  @relation(fields: [termId], references: [id])
+  semester         String // e.g., "1st", "2nd", "Summer"
+  year             String // e.g., "2025-2026"
+  isFullyPaid      Boolean        @default(false) @map("is_fully_paid")
+  paymentStatus    String         @default("unpaid") @map("payment_status") // unpaid | partial | paid | waived
+  amountDue        Decimal?       @map("amount_due") @db.Decimal(10, 2)
+  amountPaid       Decimal?       @default(0) @map("amount_paid") @db.Decimal(10, 2)
+  paidAt           DateTime?      @map("paid_at")
+  paymentReference String?        @map("payment_reference")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
 
   @@unique([studentId, semester, year])
   @@map("student_semesters")
@@ -198,6 +230,7 @@ model CurriculumCourse {
   course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
   yearLevel    Int        @map("year_level")
   semester     Int
+  termNumber   Int?       @map("term_number")
 
   @@id([curriculumId, courseId])
   @@map("curriculum_courses")
@@ -219,19 +252,21 @@ model EnrollmentHistory {
 }
 
 model Enrollment {
-  id        String         @id @default(uuid())
-  studentId String         @map("student_id")
-  student   StudentProfile @relation(fields: [studentId], references: [id])
-  courseId  String         @map("course_id")
-  course    Course         @relation(fields: [courseId], references: [id])
-  section   String?
-  status    String         @default("enrolled")
-  semester  String? // e.g. "1st"
-  year      String? // e.g. "2025-2026"
-  instructorId String? @map("instructor_id")
-  instructor   User? @relation("FacultyEnrollments", fields: [instructorId], references: [id])
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime       @updatedAt @map("updated_at")
+  id           String         @id @default(uuid())
+  studentId    String         @map("student_id")
+  student      StudentProfile @relation(fields: [studentId], references: [id])
+  courseId     String         @map("course_id")
+  course       Course         @relation(fields: [courseId], references: [id])
+  section      String?
+  status       String         @default("enrolled")
+  termId       String?        @map("term_id")
+  term         AcademicTerm?  @relation(fields: [termId], references: [id])
+  semester     String? // e.g. "1st"
+  year         String? // e.g. "2025-2026"
+  instructorId String?        @map("instructor_id")
+  instructor   User?          @relation("FacultyEnrollments", fields: [instructorId], references: [id])
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
 
   grade Grade?
 

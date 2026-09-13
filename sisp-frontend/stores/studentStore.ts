@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { StudentProfile, Grade, Enrollment } from '@/types';
 import { studentsApi } from '@/lib/api/students';
-import { gradesApi } from '@/lib/api/grades';
+import { AcademicTermSummary, gradesApi } from '@/lib/api/grades';
 import { enrollmentsApi } from '@/lib/api/enrollments';
 
 interface StudentState {
@@ -16,11 +16,15 @@ interface StudentState {
   profileError: string | null;
   gradesError: string | null;
   gradesMessage: string | null;
+  gradeTerms: AcademicTermSummary[];
+  currentGradeTerm: AcademicTermSummary | null;
+  selectedGradeTermId: string | null;
   enrollmentsError: string | null;
 
   // Actions
   fetchProfile: () => Promise<void>;
-  fetchGrades: () => Promise<void>;
+  fetchGrades: (termId?: string) => Promise<void>;
+  setSelectedGradeTerm: (termId: string | null) => Promise<void>;
   fetchEnrollments: () => Promise<void>;
   fetchAll: () => Promise<void>;
   clearStudent: () => void;
@@ -38,6 +42,9 @@ export const useStudentStore = create<StudentState>()((set, get) => ({
   profileError: null,
   gradesError: null,
   gradesMessage: null,
+  gradeTerms: [],
+  currentGradeTerm: null,
+  selectedGradeTermId: null,
   enrollmentsError: null,
 
   fetchProfile: async () => {
@@ -55,10 +62,10 @@ export const useStudentStore = create<StudentState>()((set, get) => ({
     }
   },
 
-  fetchGrades: async () => {
+  fetchGrades: async (termId?: string) => {
     set({ isLoadingGrades: true, gradesError: null });
     try {
-      const data = await gradesApi.getMyGrades();
+      const data = await gradesApi.getMyGrades(termId);
       const normalizedGrades = (data.data ?? []).map((grade) => ({
         ...grade,
         prelim: grade.prelim ?? null,
@@ -66,7 +73,14 @@ export const useStudentStore = create<StudentState>()((set, get) => ({
         finals: grade.finals ?? null,
         finalGrade: grade.finalGrade ?? null,
       })) as unknown as Grade[];
-      set({ grades: normalizedGrades, gradesMessage: data.message ?? null, isLoadingGrades: false });
+      set({
+        grades: normalizedGrades,
+        gradesMessage: data.message ?? null,
+        gradeTerms: data.terms ?? get().gradeTerms,
+        currentGradeTerm: data.currentTerm ?? get().currentGradeTerm,
+        selectedGradeTermId: termId ?? get().selectedGradeTermId,
+        isLoadingGrades: false,
+      });
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       set({
@@ -76,6 +90,11 @@ export const useStudentStore = create<StudentState>()((set, get) => ({
         isLoadingGrades: false,
       });
     }
+  },
+
+  setSelectedGradeTerm: async (termId: string | null) => {
+    set({ selectedGradeTermId: termId, grades: [] });
+    await get().fetchGrades(termId ?? undefined);
   },
 
   fetchEnrollments: async () => {
@@ -118,6 +137,9 @@ export const useStudentStore = create<StudentState>()((set, get) => ({
       profileError: null,
       gradesError: null,
       gradesMessage: null,
+      gradeTerms: [],
+      currentGradeTerm: null,
+      selectedGradeTermId: null,
       enrollmentsError: null,
     });
   },

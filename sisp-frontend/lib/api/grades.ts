@@ -23,6 +23,15 @@ export interface GradeItem {
     section?: string;
     semester?: string;
     year?: string;
+    term?: {
+      id: string;
+      code: string;
+      label: string;
+      academicYear: string;
+      termNumber: number;
+      status?: string;
+      isCurrent?: boolean;
+    } | null;
     student: {
       id: string;
       studentNumber: string;
@@ -44,11 +53,24 @@ export interface StudentGradesResponse {
   total: number;
   hiddenCount?: number;
   message?: string;
+  terms?: AcademicTermSummary[];
+  currentTerm?: AcademicTermSummary | null;
+}
+
+export interface AcademicTermSummary {
+  id: string;
+  code: string;
+  label: string;
+  academicYear: string;
+  termNumber: number;
+  isCurrent?: boolean;
+  isFullyPaid: boolean;
+  paymentStatus: string;
 }
 
 export const gradesApi = {
-  getMyGrades: async (): Promise<StudentGradesResponse> => {
-    const response = await apiClient.get<StudentGradesResponse>('/grades/me');
+  getMyGrades: async (termId?: string): Promise<StudentGradesResponse> => {
+    const response = await apiClient.get<StudentGradesResponse>('/grades/me', { params: { termId } });
     return response.data;
   },
 
@@ -56,9 +78,10 @@ export const gradesApi = {
     studentId?: string,
     enrollmentId?: string,
     status?: string,
+    termId?: string,
   ): Promise<GradeItem[]> => {
     const response = await apiClient.get('/grades', {
-      params: { studentId, enrollmentId, status },
+      params: { studentId, enrollmentId, status, termId },
     });
     return Array.isArray(response.data)
       ? response.data

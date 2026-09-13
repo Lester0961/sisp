@@ -3,6 +3,7 @@ import { EnrollmentService } from './enrollment.service';
 import { EnrollDto } from './dto/enroll.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { CreateHistoryDto } from './dto/create-history.dto';
+import { AssignInstructorDto } from './dto/assign-instructor.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
@@ -45,8 +46,10 @@ export class EnrollmentController {
   async getAllEnrollments(
     @Query('studentId') studentId?: string,
     @Query('courseId') courseId?: string,
+    @Query('termId') termId?: string,
+    @Query('instructorId') instructorId?: string,
   ) {
-    return this.enrollmentService.getAllEnrollments(studentId, courseId);
+    return this.enrollmentService.getAllEnrollments(studentId, courseId, termId, instructorId);
   }
 
   // Student enrolls in a course
@@ -68,6 +71,13 @@ export class EnrollmentController {
   @Roles('admin_staff', 'dean')
   async updateStatus(@Param('id') id: string, @Body() dto: UpdateEnrollmentDto) {
     return this.enrollmentService.updateEnrollmentStatus(id, dto);
+  }
+
+  // Registrar/dean assigns the faculty owner for a term enrollment.
+  @Patch(':id/instructor')
+  @Roles('admin_staff', 'dean')
+  async assignInstructor(@Param('id') id: string, @Body() dto: AssignInstructorDto) {
+    return this.enrollmentService.assignInstructor(id, dto.instructorId);
   }
 
   // Admin creates enrollment history record

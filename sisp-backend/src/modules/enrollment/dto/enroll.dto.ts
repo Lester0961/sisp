@@ -8,4 +8,8 @@ export class EnrollDto {
   @IsString()
   @IsOptional()
   section?: string;
+
+  @IsString()
+  @IsOptional()
+  termId?: string;
 }

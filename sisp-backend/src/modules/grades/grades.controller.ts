@@ -14,8 +14,8 @@ export class GradesController {
   // Student views their own visible grades
   @Get('me')
   @Roles('student')
-  async getMyGrades(@CurrentUser() user: JwtPayload) {
-    return this.gradesService.getMyGrades(user.sub);
+  async getMyGrades(@CurrentUser() user: JwtPayload, @Query('termId') termId?: string) {
+    return this.gradesService.getMyGrades(user.sub, termId);
   }
 
   // Faculty/Admin views all grades
@@ -26,9 +26,13 @@ export class GradesController {
     @Query('studentId') studentId?: string,
     @Query('enrollmentId') enrollmentId?: string,
     @Query('status') status?: string,
+    @Query('termId') termId?: string,
   ) {
     if (user.role === 'faculty') {
-      return this.gradesService.getGradesByInstructor(user.sub, status);
+      return this.gradesService.getGradesByInstructor(user.sub, status, termId);
+    }
+    if (termId) {
+      return this.gradesService.getAllGrades({ ...(status ? { status } : {}), enrollment: { termId } });
     }
     if (status) {
       return this.gradesService.getGradesByStatus(status);

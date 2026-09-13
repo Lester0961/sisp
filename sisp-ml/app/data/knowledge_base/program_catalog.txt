@@ -1,0 +1,14 @@
+REGIS MARIE COLLEGE PROGRAM CATALOG — WORKING SOURCE
+
+RMC organizes its academic year into three academic terms: Term 1, Term 2, and Term 3. Each term has three assessment periods: Prelim, Midterm, and Finals. A student's grade visibility follows the payment status of the matching academic term.
+
+The current program catalog supplied for SISP is:
+- Bachelor of Science in Computer Science (BSCS)
+- Bachelor of Science in Office Administration (BSOA)
+- Bachelor of Science in Multimedia Arts (BSMA)
+- Bachelor of Secondary Education – English (BSEd-English)
+- Bachelor of Secondary Education – Mathematics (BSEd-Math)
+- Bachelor of Secondary Education (BSEd-Secondary)
+- Bachelor of Science in Criminology (BSCrim)
+
+This source identifies the supported program names and trisemestral structure. Course-to-term curriculum mappings must be published from an approved registrar or dean curriculum source before ARIA presents specific prerequisite, unit, or course-sequence claims.

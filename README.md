@@ -35,7 +35,9 @@ Think of it as the academic command center where:
 
 | Module | What It Does |
 |--------|-------------|
-| **Grade Workflow** | Assigned faculty encode and submit → Dean approves or returns → Registrar publishes → Student sees each semester's grades only when that semester is fully paid; paid past-semester grades remain visible. |
+| **Trisemestral Grade Workflow** | Assigned faculty encode and submit → Dean approves or returns → Registrar publishes → Student sees each academic term's grades only when that term is fully paid; paid historical terms remain visible. Every term groups Prelim, Midterm, and Finals. |
+| **Academic Terms** | RMC academic years are represented as Term 1, Term 2, and Term 3. Legacy 1st/2nd/Summer records remain compatible while new enrollments use stable academic-term IDs. |
+| **Enrollment Assignments** | Registrar/dean staff assign each term enrollment to a faculty owner before grade entry. Faculty grade queries are scoped to those assignments. |
 | **Document Requests** | Students can select multiple document types, set a quantity (1–10 copies) for each, receive a combined fee, and complete the mock InstaPay payment step. |
 | **ARIA Chatbot** | A grounded hybrid NLP + semantic RAG advisor with English, Filipino/Tagalog, Cebuano, Ilocano, Hiligaynon, and Waray support. It answers advising/student-service topics only and protects personal records behind deterministic services. |
 | **LLM Provider Router** | Server-side Groq → Gemini → OpenRouter fallback with normalized requests, timeouts, rate-limit handling, and no key exposure to the browser. |
@@ -109,7 +111,7 @@ npm run dev                    # Runs on http://localhost:3000
 ```
 
 For this recovery copy, the validated manual-test wiring uses the frontend on
-`http://localhost:3014` and the backend on `http://localhost:3013`.
+`http://localhost:3002` and the backend on `http://localhost:3013`.
 
 ### 4. ML Service (optional — ARIA works without it)
 ```bash
@@ -163,6 +165,7 @@ For this recovery test profile, `local-demo-only` is the canonical password and
 sisp/
 ├── sisp-frontend/          # Next.js 14 app
 │   ├── app/(protected)/    # Authenticated pages
+│   │   ├── admin/enrollments/ # Term-aware faculty assignment console
 │   ├── components/         # Reusable UI components
 │   ├── stores/             # Zustand state management
 │   └── lib/api/            # API client wrappers
@@ -182,7 +185,7 @@ sisp/
 
 ## Key Design Decisions
 
-1. **Grade Workflow with State Machine** — Grades move through `draft → submitted (faculty) → posted (dean-approved) → approved (registrar-published)`. Faculty access is scoped to assigned enrollments. Only published grades are visible, and each grade is independently gated by its semester's payment status; paid past-semester grades remain available.
+1. **Grade Workflow with State Machine** — Grades move through `draft → submitted (faculty) → posted (dean-approved) → approved (registrar-published)`. Faculty access is scoped to assigned enrollments. Only published grades are visible, and each grade is gated by its academic term's payment status; paid historical terms remain available. Each term contains Prelim, Midterm, and Finals.
 
 2. **Payment Before Processing** — Document requests require a fee. A mock InstaPay QR code is generated per request. Admin confirms payment before the request enters the review pipeline. Each request stores one row per selected document type and quantity.
 
@@ -191,6 +194,8 @@ sisp/
 4. **Mock-Aware Prisma Client** — The backend gracefully falls back to an in-memory JSON store when the database is unreachable. This makes demos and offline development frictionless, including document catalog/items and daily chat usage.
 
 5. **Advisory guardrails before generation** — Language detection, obfuscation-aware moderation, strict school-topic scope routing, semantic retrieval, and deterministic database responses run before the LLM router. Out-of-topic questions receive a redirect back to supported school-advising topics, and the model only generates from verified institutional context.
+
+6. **Approved knowledge sources** — Program names, trisemestral structure, policies, and direct official advice are represented as versioned knowledge-base sources. ARIA may explain a program catalog source, but it must not invent course-to-term mappings that have not been approved by the registrar or dean.
 
 ---
 

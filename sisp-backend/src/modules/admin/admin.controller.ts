@@ -25,10 +25,10 @@ export class AdminController {
   // ── User management (FIX #2 — routes under /admin prefix) ──
   @Get('users')
   @Roles('admin_staff')
-  async listUsers(@Query('page') page?: string, @Query('limit') limit?: string) {
+  async listUsers(@Query('page') page?: string, @Query('limit') limit?: string, @Query('role') roleName?: string) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
-    return this.adminService.listUsers(pageNum, limitNum);
+    return this.adminService.listUsers(pageNum, limitNum, roleName);
   }
 
   @Get('users/:id')

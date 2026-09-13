@@ -1,6 +1,16 @@
 import apiClient from './client';
 
 export const enrollmentsApi = {
+  getAllEnrollments: async (params?: { termId?: string; instructorId?: string }) => {
+    const response = await apiClient.get('/enrollments', { params });
+    return response.data;
+  },
+
+  assignInstructor: async (enrollmentId: string, instructorId: string) => {
+    const response = await apiClient.patch(`/enrollments/${enrollmentId}/instructor`, { instructorId });
+    return response.data;
+  },
+
   getMyEnrollments: async () => {
     const response = await apiClient.get('/enrollments/me');
     return response.data;

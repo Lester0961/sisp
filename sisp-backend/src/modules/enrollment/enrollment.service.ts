@@ -27,6 +27,13 @@ export class EnrollmentService {
       throw new NotFoundException(`Course with ID ${dto.courseId} not found`);
     }
 
+    const term = dto.termId
+      ? await this.prisma.academicTerm.findUnique({ where: { id: dto.termId } })
+      : await this.prisma.academicTerm.findFirst({ where: { isCurrent: true } });
+    if (dto.termId && !term) {
+      throw new NotFoundException(`Academic term ${dto.termId} not found`);
+    }
+
     // Check if already enrolled in this course
     const existing = await this.prisma.enrollment.findFirst({
       where: {
@@ -46,8 +53,12 @@ export class EnrollmentService {
         courseId: dto.courseId,
         section: dto.section,
         status: 'enrolled',
+        termId: term?.id,
+        semester: term ? `T${term.termNumber}` : undefined,
+        year: term?.academicYear,
       },
       include: {
+        term: true,
         course: {
           select: {
             code: true,
@@ -95,6 +106,7 @@ export class EnrollmentService {
     const enrollments = await this.prisma.enrollment.findMany({
       where: { studentId: profile.id },
       include: {
+        term: true,
         course: {
           select: {
             code: true,
@@ -126,18 +138,23 @@ export class EnrollmentService {
     };
   }
 
-  async getAllEnrollments(studentId?: string, courseId?: string) {
+  async getAllEnrollments(studentId?: string, courseId?: string, termId?: string, instructorId?: string) {
     const where: {
       studentId?: string;
       courseId?: string;
+      termId?: string;
+      instructorId?: string;
     } = {};
 
     if (studentId) where.studentId = studentId;
     if (courseId) where.courseId = courseId;
+    if (termId) where.termId = termId;
+    if (instructorId) where.instructorId = instructorId;
 
     const enrollments = await this.prisma.enrollment.findMany({
       where,
       include: {
+        term: true,
         course: {
           select: {
             code: true,
@@ -152,6 +169,7 @@ export class EnrollmentService {
             },
           },
         },
+        instructor: { select: { id: true, email: true, firstName: true, lastName: true } },
         grade: {
           select: {
             finalGrade: true,
@@ -206,6 +224,38 @@ export class EnrollmentService {
       message: `Enrollment status updated to '${dto.status}'`,
       data: updated,
     };
+  }
+
+  async assignInstructor(id: string, instructorId: string) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: { id },
+      include: { course: { select: { code: true, title: true } } },
+    });
+    if (!enrollment) throw new NotFoundException(`Enrollment with ID ${id} not found`);
+
+    const instructor = await this.prisma.user.findUnique({
+      where: { id: instructorId },
+      include: { role: true },
+    });
+    if (!instructor || instructor.role?.name !== 'faculty') {
+      throw new BadRequestException('The selected instructor must be an active faculty account.');
+    }
+    if (!instructor.isActive) {
+      throw new BadRequestException('The selected faculty account is inactive.');
+    }
+
+    const updated = await this.prisma.enrollment.update({
+      where: { id },
+      data: { instructorId },
+      include: {
+        term: true,
+        course: { select: { code: true, title: true, units: true } },
+        instructor: { select: { id: true, email: true, firstName: true, lastName: true } },
+        student: { include: { user: { select: { email: true, firstName: true, lastName: true } } } },
+      },
+    });
+
+    return { message: 'Faculty assignment updated successfully', data: updated };
   }
 
   async dropCourse(enrollmentId: string, userId: string) {

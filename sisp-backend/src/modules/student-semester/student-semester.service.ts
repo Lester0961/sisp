@@ -16,13 +16,26 @@ export class StudentSemesterService {
       throw new NotFoundException(`Student profile with ID ${dto.studentId} not found`);
     }
 
+    const term = dto.termId
+      ? await this.prisma.academicTerm.findUnique({ where: { id: dto.termId } })
+      : null;
+    if (dto.termId && !term) {
+      throw new NotFoundException(`Academic term ${dto.termId} not found`);
+    }
+    const semester = term ? `T${term.termNumber}` : dto.semester;
+    const year = term?.academicYear ?? dto.year;
+    if (!semester || !year) {
+      throw new ConflictException('Provide an academic term or the legacy semester and year fields.');
+    }
+    const isFullyPaid = dto.isFullyPaid ?? (dto.paymentStatus === 'paid' || dto.paymentStatus === 'waived');
+
     // Check for duplicate
     const existing = await this.prisma.studentSemester.findUnique({
       where: {
         studentId_semester_year: {
           studentId: dto.studentId,
-          semester: dto.semester,
-          year: dto.year,
+          semester,
+          year,
         },
       },
     });
@@ -36,9 +49,15 @@ export class StudentSemesterService {
     const record = await this.prisma.studentSemester.create({
       data: {
         studentId: dto.studentId,
-        semester: dto.semester,
-        year: dto.year,
-        isFullyPaid: dto.isFullyPaid ?? false,
+        termId: term?.id,
+        semester,
+        year,
+        isFullyPaid,
+        paymentStatus: dto.paymentStatus ?? (isFullyPaid ? 'paid' : 'unpaid'),
+        amountDue: dto.amountDue,
+        amountPaid: dto.amountPaid ?? 0,
+        paymentReference: dto.paymentReference,
+        paidAt: isFullyPaid ? new Date() : undefined,
       },
       include: {
         student: {
@@ -66,7 +85,14 @@ export class StudentSemesterService {
 
     const updated = await this.prisma.studentSemester.update({
       where: { id },
-      data: { isFullyPaid: dto.isFullyPaid },
+      data: {
+        isFullyPaid: dto.isFullyPaid,
+        paymentStatus: dto.paymentStatus ?? (dto.isFullyPaid ? 'paid' : 'unpaid'),
+        ...(dto.amountDue !== undefined ? { amountDue: dto.amountDue } : {}),
+        ...(dto.amountPaid !== undefined ? { amountPaid: dto.amountPaid } : {}),
+        ...(dto.paymentReference !== undefined ? { paymentReference: dto.paymentReference } : {}),
+        paidAt: dto.isFullyPaid ? new Date() : null,
+      },
       include: {
         student: {
           include: {
@@ -87,6 +113,7 @@ export class StudentSemesterService {
       where: { studentId },
       orderBy: [{ year: 'desc' }, { semester: 'desc' }],
       include: {
+        term: true,
         student: {
           include: {
             user: { select: { email: true, firstName: true, lastName: true } },
@@ -115,6 +142,7 @@ export class StudentSemesterService {
     const records = await this.prisma.studentSemester.findMany({
       orderBy: [{ year: 'desc' }, { semester: 'desc' }],
       include: {
+        term: true,
         student: {
           include: {
             user: { select: { email: true, firstName: true, lastName: true } },

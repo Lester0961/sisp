@@ -17,6 +17,7 @@ KNOWN_CATEGORIES = {
     "enrollment_policy.txt": "enrollment_policy",
     "grading_policy.txt": "grading_policy",
     "official_advice.txt": "official_advice",
+    "program_catalog.txt": "programs_curriculum",
 }
 
 

@@ -32,6 +32,7 @@ export class CurriculumService {
       units: cc.course.units,
       yearLevel: cc.yearLevel,
       semester: cc.semester,
+      termNumber: cc.termNumber ?? cc.semester,
     }));
   }
 }

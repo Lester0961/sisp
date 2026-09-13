@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { gradesApi, GradeItem } from '@/lib/api/grades';
+import { academicTermsApi, AcademicTerm } from '@/lib/api/academicTerms';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
@@ -49,11 +50,13 @@ export default function FacultyGradesPage() {
   const [savingAll, setSavingAll] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [terms, setTerms] = useState<AcademicTerm[]>([]);
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
 
-  const loadGrades = async () => {
+  const loadGrades = async (termId = selectedTermId ?? undefined) => {
     setLoading(true);
     try {
-      const data = await gradesApi.getAllGrades();
+      const data = await gradesApi.getAllGrades(undefined, undefined, undefined, termId);
       const gradesArray = Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data || [];
       setGrades(gradesArray);
       setOriginalGrades(JSON.parse(JSON.stringify(gradesArray)));
@@ -65,7 +68,17 @@ export default function FacultyGradesPage() {
   };
 
   useEffect(() => {
-    loadGrades();
+    void (async () => {
+      try {
+        const availableTerms = await academicTermsApi.list();
+        setTerms(availableTerms);
+        const current = availableTerms.find((term) => term.isCurrent) ?? availableTerms[0];
+        setSelectedTermId(current?.id ?? null);
+        await loadGrades(current?.id);
+      } catch {
+        await loadGrades();
+      }
+    })();
   }, []);
 
   const handleGradeChange = (
@@ -264,7 +277,7 @@ export default function FacultyGradesPage() {
               </Button>
             )}
             <Button
-              onClick={loadGrades}
+              onClick={() => void loadGrades()}
               className="w-full sm:w-auto bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition duration-300 shadow-sm"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -272,6 +285,30 @@ export default function FacultyGradesPage() {
             </Button>
           </div>
         </div>
+
+        <section className="portal-surface overflow-hidden" aria-label="Faculty academic term selector">
+          <div className="flex flex-col gap-1 border-b border-[#e8f0f5] px-4 py-3 sm:px-5">
+            <p className="text-sm font-semibold text-[#102f49]">Grade-entry term</p>
+            <p className="text-xs text-[#587387]">Only assigned students for the selected academic term are shown.</p>
+          </div>
+          <div className="flex gap-2 overflow-x-auto p-3 sm:p-4">
+            {terms.map((term) => (
+              <button
+                key={term.id}
+                type="button"
+                onClick={() => {
+                  setSelectedTermId(term.id);
+                  void loadGrades(term.id);
+                }}
+                className={`min-w-[9rem] rounded-xl border px-3 py-3 text-left transition ${selectedTermId === term.id ? 'border-[#0a439b] bg-[#f1f6fb] ring-2 ring-[#0a439b]/10' : 'border-[#dce7ef] bg-white hover:border-[#9bc2df]'}`}
+              >
+                <span className="block text-xs font-semibold text-[#102f49]">{term.label}</span>
+                <span className="mt-1 block text-[11px] text-[#587387]">{term.academicYear}{term.isCurrent ? ' · Current' : ''}</span>
+              </button>
+            ))}
+            {!terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">Academic terms are not configured yet.</p> : null}
+          </div>
+        </section>
 
         {/* Live Class Performance Analytics */}
         <section className="portal-surface grid grid-cols-2 divide-x divide-y divide-[#dce7ef] overflow-hidden p-0 lg:grid-cols-4 lg:divide-y-0">

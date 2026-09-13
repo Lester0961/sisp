@@ -25,9 +25,9 @@ export const adminApi = {
     return response.data;
   },
 
-  listUsers: async (page: number = 1, limit: number = 10): Promise<ListUsersResponse> => {
+  listUsers: async (page: number = 1, limit: number = 10, role?: string): Promise<ListUsersResponse> => {
     const response = await apiClient.get('/admin/users', {
-      params: { page, limit },
+      params: { page, limit, role },
     });
     return response.data;
   },

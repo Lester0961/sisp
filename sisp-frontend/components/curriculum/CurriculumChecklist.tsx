@@ -7,12 +7,13 @@ interface Props {
 }
 
 export default function CurriculumChecklist({ curriculumCourses, completedCourseIds }: Props) {
-  // Group by yearLevel then semester
+  // Group by yearLevel then trisemestral term, retaining the legacy semester field as a fallback.
   const grouped = curriculumCourses.reduce<Record<number, Record<number, CurriculumCourse[]>>>(
     (acc, course) => {
       acc[course.yearLevel] ??= {};
-      acc[course.yearLevel][course.semester] ??= [];
-      acc[course.yearLevel][course.semester].push(course);
+      const termNumber = course.termNumber ?? course.semester;
+      acc[course.yearLevel][termNumber] ??= [];
+      acc[course.yearLevel][termNumber].push(course);
       return acc;
     },
     {},
@@ -25,7 +26,7 @@ export default function CurriculumChecklist({ curriculumCourses, completedCourse
           <h3 className="font-semibold text-gray-700 mb-2">Year {year}</h3>
           {Object.entries(semesters).map(([sem, courses]) => (
             <div key={sem} className="mb-4">
-              <p className="text-sm text-gray-500 mb-1">Semester {sem}</p>
+              <p className="text-sm text-gray-500 mb-1">Term {sem}</p>
               <ul className="space-y-1">
                 {courses.map((course) => {
                   const done = completedCourseIds.includes(course.id);

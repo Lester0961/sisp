@@ -7,6 +7,7 @@ export interface CurriculumCourse {
   units: number;
   yearLevel: number;
   semester: number;
+  termNumber?: number;
 }
 
 export const curriculaApi = {

@@ -66,18 +66,20 @@ export class AdminService {
     };
   }
 
-  async listUsers(page: number = 1, limit: number = 10) {
+  async listUsers(page: number = 1, limit: number = 10, roleName?: string) {
     const skip = (page - 1) * limit;
+    const where = roleName ? { role: { name: roleName } } : undefined;
     const [data, total] = await Promise.all([
       this.prisma.user.findMany({
         skip,
         take: limit,
+        where,
         select: userSafeSelect,
         orderBy: {
           createdAt: 'desc',
         },
       }),
-      this.prisma.user.count(),
+      this.prisma.user.count({ where }),
     ]);
 
     return { data, total };

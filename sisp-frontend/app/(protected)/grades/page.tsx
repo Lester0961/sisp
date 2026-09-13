@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-import { Loader2, BookOpen, TrendingUp, AlertCircle } from 'lucide-react';
+import { Loader2, BookOpen, TrendingUp, AlertCircle, CalendarDays, CheckCircle2, LockKeyhole } from 'lucide-react';
 import { notificationsApi } from '@/lib/api/notifications';
 import { useEffect as useEffectNotif } from 'react';
 
@@ -33,11 +33,20 @@ function getGradeLabel(grade: number | null): string {
 }
 
 export default function GradesPage() {
-  const { grades, gradesMessage, isLoadingGrades, fetchGrades } = useStudentStore();
+  const {
+    grades,
+    gradesMessage,
+    isLoadingGrades,
+    fetchGrades,
+    gradeTerms,
+    currentGradeTerm,
+    selectedGradeTermId,
+    setSelectedGradeTerm,
+  } = useStudentStore();
 
   useEffect(() => {
-    if (grades.length === 0) void fetchGrades();
-  }, [grades.length, fetchGrades]);
+    if (grades.length === 0 && gradeTerms.length === 0 && !isLoadingGrades) void fetchGrades();
+  }, [grades.length, gradeTerms.length, isLoadingGrades, fetchGrades]);
 
   useEffectNotif(() => {
     notificationsApi
@@ -57,6 +66,11 @@ export default function GradesPage() {
     (sum, g) => sum + (g.enrollment?.course?.units ?? 0),
     0,
   );
+
+  const selectedTerm = selectedGradeTermId
+    ? gradeTerms.find((term) => term.id === selectedGradeTermId) ?? null
+    : currentGradeTerm;
+  const termLocked = Boolean(selectedTerm && !selectedTerm.isFullyPaid);
 
   return (
     <div className="portal-page">
@@ -78,14 +92,48 @@ export default function GradesPage() {
           </div>
         ) : (
           <div className="space-y-6">
+            <section className="portal-surface overflow-hidden" aria-label="Academic term selector">
+              <div className="flex flex-col gap-3 border-b border-[#e8f0f5] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                <div className="flex items-center gap-2">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-[#eaf3fa] text-[#0a439b]"><CalendarDays className="size-4" /></span>
+                  <div><p className="text-sm font-semibold text-[#102f49]">Academic terms</p><p className="text-xs text-[#587387]">Prelim, Midterm, and Finals are recorded inside each term.</p></div>
+                </div>
+                <span className="text-xs font-medium text-[#587387]">{selectedTerm ? `${selectedTerm.academicYear} · ${selectedTerm.label}` : 'All terms'}</span>
+              </div>
+              <div className="grid gap-2 p-3 sm:grid-cols-4 sm:p-4">
+                <button
+                  type="button"
+                  onClick={() => void setSelectedGradeTerm(null)}
+                  className={`rounded-xl border px-3 py-3 text-left transition ${selectedGradeTermId === null ? 'border-[#0a439b] bg-[#f1f6fb] ring-2 ring-[#0a439b]/10' : 'border-[#dce7ef] bg-white hover:border-[#9bc2df]'}`}
+                >
+                  <span className="block text-xs font-semibold text-[#102f49]">All terms</span>
+                  <span className="mt-1 block text-[11px] text-[#587387]">Complete approved record</span>
+                </button>
+                {gradeTerms.map((term) => {
+                  const locked = !term.isFullyPaid;
+                  return (
+                    <button
+                      type="button"
+                      key={term.id}
+                      onClick={() => void setSelectedGradeTerm(term.id)}
+                      className={`rounded-xl border px-3 py-3 text-left transition ${selectedGradeTermId === term.id ? 'border-[#0a439b] bg-[#f1f6fb] ring-2 ring-[#0a439b]/10' : 'border-[#dce7ef] bg-white hover:border-[#9bc2df]'}`}
+                    >
+                      <span className="flex items-center justify-between gap-2 text-xs font-semibold text-[#102f49]"><span>{term.label}</span>{locked ? <LockKeyhole className="size-3.5 text-[#a15c05]" /> : <CheckCircle2 className="size-3.5 text-[#16794c]" />}</span>
+                      <span className={`mt-1 block text-[11px] ${locked ? 'text-[#a15c05]' : 'text-[#16794c]'}`}>{locked ? 'Payment required to view' : 'Paid · grades available'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
             {/* Payment status banner */}
-            {(gradesMessage || grades.length === 0) && (
+            {(termLocked || gradesMessage || grades.length === 0) && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                {termLocked ? <LockKeyhole className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" /> : <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />}
                 <div>
-                  <p className="text-sm font-semibold text-amber-800">{gradesMessage ? 'Some grades are temporarily hidden' : 'Grades temporarily unavailable'}</p>
+                  <p className="text-sm font-semibold text-amber-800">{termLocked ? `${selectedTerm?.label ?? 'This term'} grades are locked` : gradesMessage ? 'Some grades are temporarily hidden' : 'Grades temporarily unavailable'}</p>
                   <p className="text-xs text-amber-600 mt-0.5">
-                    {gradesMessage || 'Current-semester grades are hidden until tuition is fully paid. Paid past-semester grades remain available.'}
+                    {termLocked ? 'Complete the payment requirement for this academic term to view its approved grades. Paid past terms remain available.' : gradesMessage || 'Current-term grades are hidden until the matching term is fully paid.'}
                   </p>
                 </div>
               </div>

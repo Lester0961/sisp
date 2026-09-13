@@ -40,6 +40,7 @@ const roleNavs: Record<string, NavItem[]> = {
   ],
   dean: [
     { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
+    { href: '/admin/enrollments', label: 'Assignments', icon: Users },
     { href: '/dean/grades', label: 'Approvals', icon: BookOpen },
     { href: '/dean/exceptions', label: 'Exceptions', icon: FileText },
     { href: '/settings', label: 'Settings', icon: Settings },
@@ -47,6 +48,7 @@ const roleNavs: Record<string, NavItem[]> = {
   admin_staff: [
     { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/enrollments', label: 'Assignments', icon: Users },
     { href: '/admin/grades', label: 'Grade review', icon: BookOpen },
     { href: '/admin/requests', label: 'Payments', icon: FileText },
     { href: '/admin/escalations', label: 'Escalations', icon: Sparkles },

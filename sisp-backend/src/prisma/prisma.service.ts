@@ -214,6 +214,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         code: 'BSIT',
         createdAt: new Date(),
       },
+      { id: 'mock-program-id-bsoa', name: 'Bachelor of Science in Office Administration', code: 'BSOA', createdAt: new Date() },
+      { id: 'mock-program-id-bsma', name: 'Bachelor of Science in Multimedia Arts', code: 'BSMA', createdAt: new Date() },
+      { id: 'mock-program-id-bsed-english', name: 'Bachelor of Secondary Education – English', code: 'BSEd-English', createdAt: new Date() },
+      { id: 'mock-program-id-bsed-math', name: 'Bachelor of Secondary Education – Mathematics', code: 'BSEd-Math', createdAt: new Date() },
+      { id: 'mock-program-id-bsed-secondary', name: 'Bachelor of Secondary Education', code: 'BSEd-Secondary', createdAt: new Date() },
+      { id: 'mock-program-id-bscrim', name: 'Bachelor of Science in Criminology', code: 'BSCrim', createdAt: new Date() },
     ];
 
     const courses = [
@@ -269,13 +275,41 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
     ];
 
+    const academicTerms = [
+      {
+        id: 'mock-term-2025-t1', academicYear: '2025-2026', termNumber: 1,
+        code: '2025-2026-T1', label: 'Term 1', status: 'closed', isCurrent: false,
+        startsOn: new Date('2025-08-01'), endsOn: new Date('2025-11-30'),
+        createdAt: new Date(), updatedAt: new Date(),
+      },
+      {
+        id: 'mock-term-2025-t2', academicYear: '2025-2026', termNumber: 2,
+        code: '2025-2026-T2', label: 'Term 2', status: 'active', isCurrent: true,
+        startsOn: new Date('2025-12-01'), endsOn: new Date('2026-03-31'),
+        createdAt: new Date(), updatedAt: new Date(),
+      },
+      {
+        id: 'mock-term-2025-t3', academicYear: '2025-2026', termNumber: 3,
+        code: '2025-2026-T3', label: 'Term 3', status: 'planned', isCurrent: false,
+        startsOn: new Date('2026-04-01'), endsOn: new Date('2026-07-31'),
+        createdAt: new Date(), updatedAt: new Date(),
+      },
+    ];
+
     const studentSemesters = [
       {
         id: 'mock-ss-1',
         studentId: 'mock-student-profile-id',
+        termId: 'mock-term-2025-t1',
+        term: academicTerms[0],
         semester: '1st',
         year: '2025-2026',
         isFullyPaid: true,
+        paymentStatus: 'paid',
+        amountDue: 45000,
+        amountPaid: 45000,
+        paidAt: new Date(),
+        paymentReference: 'MOCK-T1-PAID',
         createdAt: new Date(),
         updatedAt: new Date(),
         student: studentProfiles[0],
@@ -283,9 +317,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       {
         id: 'mock-ss-2',
         studentId: 'mock-student-profile-id',
+        termId: 'mock-term-2025-t2',
+        term: academicTerms[1],
         semester: '2nd',
         year: '2025-2026',
         isFullyPaid: false,
+        paymentStatus: 'partial',
+        amountDue: 45000,
+        amountPaid: 12500,
+        paidAt: null,
+        paymentReference: 'MOCK-T2-PARTIAL',
         createdAt: new Date(),
         updatedAt: new Date(),
         student: studentProfiles[0],
@@ -299,6 +340,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         courseId: 'mock-course-cs301',
         section: 'A',
         status: 'enrolled',
+        termId: 'mock-term-2025-t1',
+        term: academicTerms[0],
         semester: '1st',
         year: '2025-2026',
         instructorId: 'mock-faculty-id',
@@ -314,6 +357,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         courseId: 'mock-course-cs302',
         section: 'A',
         status: 'enrolled',
+        termId: 'mock-term-2025-t1',
+        term: academicTerms[0],
         semester: '1st',
         year: '2025-2026',
         instructorId: 'mock-faculty-id',
@@ -329,6 +374,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         courseId: 'mock-course-cs303',
         section: 'B',
         status: 'enrolled',
+        termId: 'mock-term-2025-t1',
+        term: academicTerms[0],
         semester: '1st',
         year: '2025-2026',
         instructorId: 'mock-faculty-id',
@@ -558,6 +605,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       user: users,
       program: programs,
       course: courses,
+      academicTerm: academicTerms,
       studentProfile: studentProfiles,
       studentSemester: studentSemesters,
       enrollment: enrollments,
@@ -586,6 +634,41 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             store[key] = parsed[key];
           }
         }
+        const termForLegacy = (semester: unknown, year: unknown) => {
+          const normalized = String(semester ?? '').toLowerCase();
+          const termNumber = normalized === '2nd' || normalized === 'second' || normalized === 'term 2' ? 2
+            : normalized === 'summer' || normalized === '3rd' || normalized === 'term 3' ? 3 : 1;
+          return store.academicTerm.find((term) => term.academicYear === year && term.termNumber === termNumber);
+        };
+        store.studentSemester = store.studentSemester.map((semester) => {
+          const term = semester.termId
+            ? store.academicTerm.find((candidate) => candidate.id === semester.termId)
+            : termForLegacy(semester.semester, semester.year);
+          return {
+            ...semester,
+            termId: term?.id ?? semester.termId,
+            term,
+            paymentStatus: semester.paymentStatus ?? (semester.isFullyPaid ? 'paid' : 'unpaid'),
+            amountPaid: semester.amountPaid ?? 0,
+          };
+        });
+        store.enrollment = store.enrollment.map((enrollment) => {
+          const term = enrollment.termId
+            ? store.academicTerm.find((candidate) => candidate.id === enrollment.termId)
+            : termForLegacy(enrollment.semester, enrollment.year);
+          const instructorId = enrollment.instructorId ?? 'mock-faculty-id';
+          return {
+            ...enrollment,
+            termId: term?.id ?? enrollment.termId,
+            term,
+            instructorId,
+            instructor: store.user.find((user) => user.id === instructorId),
+          };
+        });
+        store.grade = store.grade.map((grade) => ({
+          ...grade,
+          enrollment: store.enrollment.find((enrollment) => enrollment.id === grade.enrollmentId),
+        }));
         console.log('[Prisma Mock] Loaded database state from mock-db.json');
       } catch (err) {
         console.error('[Prisma Mock] Failed to read mock-db.json:', err);
@@ -790,6 +873,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               cloned.student = resolveIncludes(studentItem, subInclude, 'studentProfile');
             }
           }
+          if (key === 'term') {
+            const termItem = store.academicTerm.find((term) => term.id === cloned.termId);
+            if (termItem) cloned.term = resolveIncludes(termItem, subInclude, 'academicTerm');
+          }
+        }
+        if (modelKey === 'enrollment') {
+          if (key === 'term') {
+            const termItem = store.academicTerm.find((term) => term.id === cloned.termId);
+            if (termItem) cloned.term = resolveIncludes(termItem, subInclude, 'academicTerm');
+          }
+          if (key === 'instructor') {
+            const instructorItem = store.user.find((user) => user.id === cloned.instructorId);
+            if (instructorItem) cloned.instructor = resolveIncludes(instructorItem, subInclude, 'user');
+          }
         }
       }
       return cloned;
@@ -870,6 +967,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             newItem.course = courses.find((c) => c.id === args.data.courseId) || courses[0];
             newItem.student =
               studentProfiles.find((sp) => sp.id === args.data.studentId) || studentProfiles[0];
+            newItem.term = academicTerms.find((term) => term.id === args.data.termId);
+            newItem.instructor = users.find((user) => user.id === args.data.instructorId);
           }
           if (modelKey === 'documentRequest') {
             newItem.student = studentProfiles.find((sp) => sp.id === args.data.studentId);
@@ -898,6 +997,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           }
           if (modelKey === 'studentSemester') {
             newItem.student = studentProfiles.find((sp) => sp.id === args.data.studentId);
+            newItem.term = academicTerms.find((term) => term.id === args.data.termId);
+          }
+          if (modelKey === 'academicTerm') {
+            newItem.status = newItem.status || 'planned';
+            newItem.isCurrent = newItem.isCurrent || false;
           }
           if (modelKey === 'chatSession') {
             newItem.student = studentProfiles.find((sp) => sp.id === args.data.studentId);

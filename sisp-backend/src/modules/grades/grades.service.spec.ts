@@ -18,6 +18,9 @@ describe('GradesService', () => {
     studentProfile: {
       findUnique: jest.fn(),
     },
+    studentSemester: {
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -30,5 +33,24 @@ describe('GradesService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('hides grades for an unpaid term while keeping paid past terms visible', async () => {
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-profile' });
+    mockPrisma.studentSemester.findMany.mockResolvedValue([
+      { id: 'term-2', termId: 'term-2', semester: '2nd', year: '2025-2026', isFullyPaid: false, paymentStatus: 'partial', term: { id: 'term-2', code: '2025-2026-T2', label: 'Term 2', academicYear: '2025-2026', termNumber: 2, isCurrent: true } },
+      { id: 'term-1', termId: 'term-1', semester: '1st', year: '2025-2026', isFullyPaid: true, paymentStatus: 'paid', term: { id: 'term-1', code: '2025-2026-T1', label: 'Term 1', academicYear: '2025-2026', termNumber: 1, isCurrent: false } },
+    ]);
+    mockPrisma.grade.findMany.mockResolvedValue([
+      { id: 'grade-term-2', status: 'approved', isVisible: true, enrollment: { termId: 'term-2', semester: '2nd', year: '2025-2026', course: { units: 3 } } },
+      { id: 'grade-term-1', status: 'approved', isVisible: true, enrollment: { termId: 'term-1', semester: '1st', year: '2025-2026', course: { units: 3 } } },
+    ]);
+
+    const result = await service.getMyGrades('user-id');
+
+    expect(result.data.map((grade: any) => grade.id)).toEqual(['grade-term-1']);
+    expect(result.hiddenCount).toBe(1);
+    expect(result.currentTerm?.code).toBe('2025-2026-T2');
+    expect(result.terms?.find((term: any) => term.id === 'term-2')?.paymentStatus).toBe('partial');
   });
 });

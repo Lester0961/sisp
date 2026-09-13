@@ -138,18 +138,22 @@ export default function ChatPage() {
   const visibleMessages = isLiveChatMode ? liveMessages : messages;
   const title = isLiveChatMode ? 'Human support' : 'ARIA advisor';
   const helper = isLiveChatMode ? 'Continue the conversation with a school support representative.' : 'Ask about school procedures, curriculum progress, or official document requests.';
+  const latestAssistant = [...messages].reverse().find((message) => message.role === 'assistant' && !message.isLoading);
+  const detectedLanguage = latestAssistant?.language?.name ?? (preferredLanguage === 'auto' ? 'Auto-detect' : preferredLanguage.toUpperCase());
+  const ariaState = isLiveChatMode ? 'Human support' : isTyping ? 'Preparing a grounded reply' : 'Grounded advisory mode';
 
   return (
     <div className="portal-page flex min-h-[100dvh] flex-col">
       <Navbar />
       <main className="portal-main flex min-h-0 flex-1 flex-col pb-4">
+        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section className="portal-surface flex min-h-[calc(100dvh-11rem)] flex-1 flex-col overflow-hidden">
           <header className="flex flex-col gap-3 border-b border-[#dce7ef] bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <span className="flex size-10 items-center justify-center rounded-xl bg-[#eaf3fa] text-[#0a439b]">
                 {isLiveChatMode ? <UserRound className="size-5" strokeWidth={1.8} /> : <Sparkles className="size-5" strokeWidth={1.8} />}
               </span>
-              <div><h1 className="font-semibold text-[#102f49]">{title}</h1><p className="mt-0.5 max-w-xl text-sm text-[#587387]">{helper}</p></div>
+              <div><div className="flex items-center gap-2"><h1 className="font-semibold text-[#102f49]">{title}</h1><span className="inline-flex items-center gap-1.5 rounded-full border border-[#cfe6db] bg-[#edf9f1] px-2 py-1 text-[10px] font-semibold text-[#16794c]"><span className="size-1.5 rounded-full bg-[#16794c]" />{ariaState}</span></div><p className="mt-0.5 max-w-xl text-sm text-[#587387]">{helper}</p></div>
             </div>
             <div className="flex items-center gap-2">
               {!isLiveChatMode ? (
@@ -221,6 +225,29 @@ export default function ChatPage() {
             </div>
           </form>
         </section>
+        <aside className="hidden space-y-4 lg:block" aria-label="ARIA context">
+          <section className="portal-surface overflow-hidden">
+            <div className="border-b border-[#e8f0f5] px-4 py-4"><p className="text-sm font-semibold text-[#102f49]">ARIA context</p><p className="mt-1 text-xs leading-relaxed text-[#587387]">A focused academic assistant grounded in approved RMC sources.</p></div>
+            <div className="space-y-3 p-4">
+              {['Enrollment and terms', 'Grades and approvals', 'Payments and clearance', 'Documents and permits'].map((item) => <div key={item} className="flex items-center gap-2 text-xs text-[#365a72]"><span className="size-1.5 rounded-full bg-[#0a439b]" />{item}</div>)}
+            </div>
+          </section>
+          <section className="portal-surface p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Response language</p>
+            <p className="mt-2 text-sm font-semibold text-[#102f49]">{detectedLanguage}</p>
+            <p className="mt-1 text-xs leading-relaxed text-[#587387]">ARIA detects code-switching and keeps the explanation natural for the selected language.</p>
+          </section>
+          <section className="portal-surface p-4">
+            <div className="flex items-center justify-between gap-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Daily allowance</p><span className="text-xs font-semibold text-[#102f49]">{quota ? `${quota.remainingToday}/${quota.dailyLimit}` : '—'}</span></div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e8f0f5]"><div className="h-full rounded-full bg-[#0a439b] transition-all" style={{ width: `${quota ? Math.min(100, (quota.remainingToday / quota.dailyLimit) * 100) : 0}%` }} /></div>
+            <p className="mt-2 text-xs leading-relaxed text-[#587387]">Twenty advisory messages are available each day. Human support is not counted as ARIA quota.</p>
+          </section>
+          <section className="rounded-2xl border border-[#cfe6db] bg-[#edf9f1] p-4">
+            <p className="text-sm font-semibold text-[#16794c]">Need a person?</p>
+            <p className="mt-1 text-xs leading-relaxed text-[#397257]">If ARIA cannot answer from approved school sources, the conversation can move to an authorized adviser.</p>
+          </section>
+        </aside>
+        </div>
       </main>
     </div>
   );

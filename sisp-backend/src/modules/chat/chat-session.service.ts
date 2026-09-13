@@ -72,7 +72,11 @@ export class ChatSessionService {
       return this.getSessions(undefined, status);
     }
     if (role === 'live_agent') {
-      return this.getSessions(userId, status);
+      // Live agents need both the unassigned queue and sessions already assigned to them.
+      // The previous user-only filter made the unassigned queue invisible to the role that
+      // is responsible for picking it up.
+      const sessions = await this.getSessions(undefined, status);
+      return sessions.filter((session: any) => !session.agentId || session.agentId === userId);
     }
     const profile = await this.getStudentProfileForUser(userId);
     return profile ? this.getMySessions(profile.id) : [];

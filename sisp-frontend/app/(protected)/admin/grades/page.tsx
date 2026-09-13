@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { gradesApi, GradeItem } from '@/lib/api/grades';
+import { academicTermsApi, AcademicTerm } from '@/lib/api/academicTerms';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
@@ -30,11 +31,13 @@ export default function RegistrarGradesPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [postingId, setPostingId] = useState<string | null>(null);
+  const [terms, setTerms] = useState<AcademicTerm[]>([]);
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
 
-  const loadGrades = async () => {
+  const loadGrades = async (termId = selectedTermId ?? undefined) => {
     setLoading(true);
     try {
-      const data = await gradesApi.getAllGrades(undefined, undefined, 'posted');
+      const data = await gradesApi.getAllGrades(undefined, undefined, 'posted', termId);
       const gradesArray = Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data || [];
       setGrades(gradesArray);
     } catch (err) {
@@ -45,7 +48,13 @@ export default function RegistrarGradesPage() {
   };
 
   useEffect(() => {
-    loadGrades();
+    void (async () => {
+      const availableTerms = await academicTermsApi.list().catch(() => []);
+      setTerms(availableTerms);
+      const current = availableTerms.find((term) => term.isCurrent) ?? availableTerms[0];
+      setSelectedTermId(current?.id ?? null);
+      await loadGrades(current?.id);
+    })();
   }, []);
 
   const handlePost = async (gradeId: string) => {
@@ -85,13 +94,21 @@ export default function RegistrarGradesPage() {
             </p>
           </div>
           <Button
-            onClick={loadGrades}
+            onClick={() => void loadGrades()}
             variant="outline"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
+
+        <section className="portal-surface overflow-hidden" aria-label="Registrar publication term selector">
+          <div className="border-b border-[#e8f0f5] px-4 py-3 sm:px-5"><p className="text-sm font-semibold text-[#102f49]">Publication term</p><p className="text-xs text-[#587387]">Publish dean-approved grades for the selected academic term.</p></div>
+          <div className="flex gap-2 overflow-x-auto p-3 sm:p-4">
+            {terms.map((term) => <button key={term.id} type="button" onClick={() => { setSelectedTermId(term.id); void loadGrades(term.id); }} className={`min-w-[8rem] rounded-xl border px-3 py-2.5 text-left text-xs transition ${selectedTermId === term.id ? 'border-[#0a439b] bg-[#f1f6fb] text-[#0a439b]' : 'border-[#dce7ef] text-[#587387] hover:border-[#9bc2df]'}`}><span className="block font-semibold text-[#102f49]">{term.label}</span><span className="mt-1 block">{term.academicYear}</span></button>)}
+            {!terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">Academic terms are not configured yet.</p> : null}
+          </div>
+        </section>
 
         <div className="portal-surface p-5">
           <div className="relative mb-4">

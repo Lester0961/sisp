@@ -380,12 +380,13 @@ export class GradesService {
     return grade;
   }
 
-  async getMyGrades(userId: string) {
+  async getMyGrades(userId: string, termId?: string) {
     const profile = await requireStudentProfile(this.prisma, userId);
 
     const semesters = await this.prisma.studentSemester.findMany({
       where: { studentId: profile.id },
       orderBy: [{ year: 'desc' }, { semester: 'desc' }],
+      include: { term: true },
     });
 
     const semesterRank: Record<string, number> = { '1st': 1, '2nd': 2, summer: 3 };
@@ -396,16 +397,16 @@ export class GradesService {
         - (semesterRank[String(left.semester).toLowerCase()] ?? 0);
     });
 
-    const paymentByTerm = new Map(
-      semesters.map((semester: any) => [
-        `${semester.semester}|${semester.year}`,
-        Boolean(semester.isFullyPaid),
-      ]),
-    );
+    const paymentByTerm = new Map<string, boolean>();
+    semesters.forEach((semester: any) => {
+      if (semester.termId) paymentByTerm.set(`term:${semester.termId}`, Boolean(semester.isFullyPaid));
+      paymentByTerm.set(`legacy:${semester.semester}|${semester.year}`, Boolean(semester.isFullyPaid));
+    });
     const latestSemester = semesters[0];
     const whereClause: any = {
       enrollment: {
         studentId: profile.id,
+        ...(termId ? { termId } : {}),
       },
       status: 'approved',
       isVisible: true,
@@ -416,6 +417,7 @@ export class GradesService {
       include: {
         enrollment: {
           include: {
+            term: true,
             course: {
               select: {
                 code: true,
@@ -432,10 +434,14 @@ export class GradesService {
     });
 
     const visibleGrades = grades.filter((grade: any) => {
+      const termId = grade.enrollment?.termId;
       const semester = grade.enrollment?.semester;
       const year = grade.enrollment?.year;
-      if (semester && year && paymentByTerm.has(`${semester}|${year}`)) {
-        return paymentByTerm.get(`${semester}|${year}`) === true;
+      if (termId && paymentByTerm.has(`term:${termId}`)) {
+        return paymentByTerm.get(`term:${termId}`) === true;
+      }
+      if (semester && year && paymentByTerm.has(`legacy:${semester}|${year}`)) {
+        return paymentByTerm.get(`legacy:${semester}|${year}`) === true;
       }
       return latestSemester?.isFullyPaid === true;
     });
@@ -445,16 +451,37 @@ export class GradesService {
       data: visibleGrades,
       total: visibleGrades.length,
       hiddenCount,
+      terms: semesters.map((semester: any) => ({
+        id: semester.termId ?? `${semester.semester}|${semester.year}`,
+        code: semester.term?.code ?? `${semester.year}-${semester.semester}`,
+        label: semester.term?.label ?? semester.semester,
+        academicYear: semester.term?.academicYear ?? semester.year,
+        termNumber: semester.term?.termNumber ?? semesterRank[String(semester.semester).toLowerCase()] ?? 1,
+        isCurrent: Boolean(semester.term?.isCurrent),
+        isFullyPaid: Boolean(semester.isFullyPaid),
+        paymentStatus: semester.paymentStatus ?? (semester.isFullyPaid ? 'paid' : 'unpaid'),
+      })),
+      currentTerm: latestSemester
+        ? {
+            id: latestSemester.termId ?? `${latestSemester.semester}|${latestSemester.year}`,
+            code: latestSemester.term?.code ?? `${latestSemester.year}-${latestSemester.semester}`,
+            label: latestSemester.term?.label ?? latestSemester.semester,
+            academicYear: latestSemester.term?.academicYear ?? latestSemester.year,
+            termNumber: latestSemester.term?.termNumber ?? semesterRank[String(latestSemester.semester).toLowerCase()] ?? 1,
+            isFullyPaid: Boolean(latestSemester.isFullyPaid),
+            paymentStatus: latestSemester.paymentStatus ?? (latestSemester.isFullyPaid ? 'paid' : 'unpaid'),
+          }
+        : null,
       message: hiddenCount > 0
         ? 'Some current-semester grades are hidden until that semester is fully paid. Paid past-semester grades remain available.'
         : undefined,
     };
   }
 
-  async getGradesByInstructor(instructorId: string, status?: string) {
+  async getGradesByInstructor(instructorId: string, status?: string, termId?: string) {
     return this.getAllGrades({
       ...(status ? { status } : {}),
-      enrollment: { instructorId },
+      enrollment: { instructorId, ...(termId ? { termId } : {}) },
     });
   }
 
@@ -464,6 +491,8 @@ export class GradesService {
       include: {
         enrollment: {
           include: {
+            term: true,
+            instructor: { select: { id: true, email: true, firstName: true, lastName: true } },
             course: { select: { code: true, title: true, units: true } },
             student: {
               include: {

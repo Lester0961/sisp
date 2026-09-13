@@ -195,6 +195,25 @@ export default function KbManagementPage() {
           </div>
         </section>
 
+        <section className="portal-surface border-l-4 border-[#16794c] bg-[#f4fbf7] p-5" aria-labelledby="curriculum-source-placeholder">
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#e3f4e9] text-[#16794c]">
+              <BookOpen className="size-4" strokeWidth={1.8} />
+            </span>
+            <div>
+              <h2 id="curriculum-source-placeholder" className="font-semibold text-[#102f49]">Program and curriculum source</h2>
+              <p className="mt-1 text-sm leading-relaxed text-[#587387]">
+                Keep the approved RMC program catalog and trisemestral curriculum mappings in one versioned source so ARIA can explain programs without inventing course sequences.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#365a72]">
+                <span className="rounded-full border border-[#c8e3d1] bg-white px-2.5 py-1">Program catalog: supplied</span>
+                <span className="rounded-full border border-[#c8e3d1] bg-white px-2.5 py-1">Term mappings: awaiting approval</span>
+                <span className="rounded-full border border-[#c8e3d1] bg-white px-2.5 py-1">ARIA use: grounded only</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Document list */}
@@ -310,6 +329,7 @@ export default function KbManagementPage() {
                       <option value="document_request">document_request</option>
                       <option value="general_policy">general_policy</option>
                       <option value="official_advice">official_advice</option>
+                      <option value="programs_curriculum">programs_curriculum</option>
                     </select>
                   </div>
                 </div>
