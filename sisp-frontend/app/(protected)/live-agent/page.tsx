@@ -37,6 +37,15 @@ function studentInitial(session: ChatSessionRecord) {
   return studentName(session).charAt(0).toUpperCase() || 'S';
 }
 
+function studentTerm(session: ChatSessionRecord) {
+  const record = session.student?.studentSemesters?.[0];
+  if (!record) return null;
+  return {
+    label: record.term?.label ?? record.semester,
+    paid: record.isFullyPaid,
+  };
+}
+
 export default function LiveAgentPage() {
   const [sessions, setSessions] = useState<ChatSessionRecord[]>([]);
   const [mySessionIds, setMySessionIds] = useState<Set<string>>(new Set());
@@ -157,6 +166,7 @@ export default function LiveAgentPage() {
   if (activeSession) {
     const isMine = mySessionIds.has(activeSession.id);
     const isUnassigned = !activeSession.agentId;
+    const term = studentTerm(activeSession);
 
     return (
       <div className="portal-page flex min-h-[100dvh] flex-col">
@@ -184,6 +194,7 @@ export default function LiveAgentPage() {
                   {activeSession.student?.studentNumber || 'Student record'}
                   {activeSession.student?.user?.email ? ` · ${activeSession.student.user.email}` : ''}
                 </p>
+                {term ? <p className="mt-1 text-[11px] font-medium text-[#587387]">{term.label} · {term.paid ? 'Paid term' : 'Payment pending'}</p> : null}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -322,13 +333,14 @@ export default function LiveAgentPage() {
               {sessions.map((session) => {
                 const isMine = mySessionIds.has(session.id);
                 const isUnassigned = !session.agentId;
+                const term = studentTerm(session);
                 return (
                   <article key={session.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                     <button type="button" onClick={() => void handleOpenSession(session)} className="flex min-w-0 items-start gap-3 text-left">
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3fa] text-sm font-semibold text-[#0a439b]">{studentInitial(session)}</span>
                       <span className="min-w-0">
                         <span className="flex items-center gap-2"><span className="truncate font-semibold text-[#102f49]">{studentName(session)}</span>{isMine && <Badge variant="outline" className="border-[#b8d5ed] bg-[#f1f7fb] text-[#0a439b]">Mine</Badge>}</span>
-                        <span className="mt-1 block truncate text-xs text-[#587387]">{session.student?.studentNumber || 'Student record'}{session.messages?.[0]?.content ? ` · ${session.messages[0].content}` : ''}</span>
+                        <span className="mt-1 block truncate text-xs text-[#587387]">{session.student?.studentNumber || 'Student record'}{term ? ` · ${term.label} · ${term.paid ? 'Paid' : 'Payment pending'}` : ''}{session.messages?.[0]?.content ? ` · ${session.messages[0].content}` : ''}</span>
                       </span>
                     </button>
                     <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">

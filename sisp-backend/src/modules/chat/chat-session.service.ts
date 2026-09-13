@@ -50,6 +50,11 @@ export class ChatSessionService {
         student: {
           include: {
             user: { select: { id: true, email: true, firstName: true, lastName: true } },
+            studentSemesters: {
+              orderBy: [{ year: 'desc' }, { semester: 'desc' }],
+              take: 1,
+              include: { term: true },
+            },
           },
         },
         agent: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -89,6 +94,11 @@ export class ChatSessionService {
         student: {
           include: {
             user: { select: { id: true, email: true, firstName: true, lastName: true } },
+            studentSemesters: {
+              orderBy: [{ year: 'desc' }, { semester: 'desc' }],
+              take: 1,
+              include: { term: true },
+            },
           },
         },
         agent: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -135,6 +145,7 @@ export class ChatSessionService {
         student: {
           include: {
             user: { select: { id: true, email: true, firstName: true, lastName: true } },
+            studentSemesters: { orderBy: [{ year: 'desc' }, { semester: 'desc' }], take: 1, include: { term: true } },
           },
         },
         agent: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -210,6 +221,7 @@ export class ChatSessionService {
         student: {
           include: {
             user: { select: { id: true, email: true, firstName: true, lastName: true } },
+            studentSemesters: { orderBy: [{ year: 'desc' }, { semester: 'desc' }], take: 1, include: { term: true } },
           },
         },
         agent: { select: { id: true, email: true, firstName: true, lastName: true } },
@@ -226,6 +238,11 @@ export class ChatSessionService {
         student: {
           include: {
             user: { select: { id: true, email: true, firstName: true, lastName: true } },
+            studentSemesters: {
+              orderBy: [{ year: 'desc' }, { semester: 'desc' }],
+              take: 1,
+              include: { term: true },
+            },
           },
         },
         agent: { select: { id: true, email: true, firstName: true, lastName: true } },

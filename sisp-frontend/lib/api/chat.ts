@@ -118,6 +118,13 @@ export interface ChatSessionRecord {
       firstName: string;
       lastName: string;
     };
+    studentSemesters?: Array<{
+      semester: string;
+      year: string;
+      isFullyPaid: boolean;
+      paymentStatus?: string;
+      term?: { code: string; label: string; academicYear: string; termNumber: number } | null;
+    }>;
   };
   agent?: {
     id: string;
