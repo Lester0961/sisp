@@ -38,6 +38,23 @@ export class AuthController {
       limit: rateLimitConfig.loginLimit,
     },
   })
+  @Public()
+  @Get('debug-sysadmin')
+  async debugSysadmin() {
+    const user = await this.authService['prisma'].user.findMany({
+      where: { email: { contains: 'sysadmin' } }
+    });
+    return user.map(u => ({
+      id: u.id,
+      email: u.email,
+      isActive: u.isActive,
+      roleId: u.roleId,
+      hasPasswordHash: !!u.passwordHash,
+      hashPrefix: u.passwordHash ? u.passwordHash.substring(0, 10) : null
+    }));
+  }
+
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: LoginDto) {
