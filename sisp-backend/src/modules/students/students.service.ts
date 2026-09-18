@@ -344,15 +344,22 @@ export class StudentsService {
     const passwordHash = await bcrypt.hash(temporaryPassword, 10);
 
     // Link or update user email
-    await this.prisma.user.update({
-      where: { id: profile.userId },
-      data: {
-        email,
-        passwordHash,
-        mustChangePassword: true,
-        isActive: true,
-      },
-    });
+    try {
+      await this.prisma.user.update({
+        where: { id: profile.userId },
+        data: {
+          email,
+          passwordHash,
+          mustChangePassword: true,
+          isActive: true,
+        },
+      });
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        throw new ConflictException('The provided email address is already in use by another account.');
+      }
+      throw error;
+    }
 
     return {
       message: 'Student account successfully verified and activated!',
