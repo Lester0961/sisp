@@ -199,16 +199,46 @@ model StudentSemester {
 // ============================================================
 
 model Course {
-  id        String   @id @default(uuid())
-  code      String   @unique
-  title     String
-  units     Int
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid())
+  code        String
+  title       String
+  units       Int
+  lecUnits    Int      @default(0) @map("lec_units")
+  labUnits    Int      @default(0) @map("lab_units")
+  subjectArea String?  @map("subject_area")
+  catNo       String?  @map("cat_no")
+  // Raw prerequisite text from source doc (e.g. "MMA101", "ITE 6200A, CS 6201A").
+  // Never silently corrected; see CoursePrerequisite for resolved links.
+  prereqText  String?  @map("prereq_text")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   curriculumCourses CurriculumCourse[]
   enrollments       Enrollment[]
+  prerequisites     CoursePrerequisite[] @relation("CoursePrereqs")
+  requiredBy        CoursePrerequisite[] @relation("PrereqRequiredBy")
 
+  @@unique([code, title])
+  @@index([code])
   @@map("courses")
+}
+
+// Resolved prerequisite links. requiresId is null when the code is not
+// resolvable within the same curriculum (cross-program ref, typo preserved
+// from source, or self-reference anomaly from verification notes 10).
+model CoursePrerequisite {
+  id              String  @id @default(uuid())
+  courseId        String  @map("course_id")
+  course          Course  @relation("CoursePrereqs", fields: [courseId], references: [id], onDelete: Cascade)
+  requiresCode    String  @map("requires_code")
+  requiresId      String? @map("requires_id")
+  requires        Course? @relation("PrereqRequiredBy", fields: [requiresId], references: [id], onDelete: SetNull)
+  isSelfReference Boolean @default(false) @map("is_self_reference")
+  isUnresolved    Boolean @default(false) @map("is_unresolved")
+  note            String?
+
+  @@unique([courseId, requiresCode])
+  @@index([courseId])
+  @@map("course_prerequisites")
 }
 
 model Curriculum {
@@ -216,10 +246,14 @@ model Curriculum {
   programId     String   @map("program_id")
   program       Program  @relation(fields: [programId], references: [id])
   effectiveYear Int      @map("effective_year")
+  schoolYear    String?  @map("school_year")
+  cmo           String?  @map("cmo")
+  sourceFile    String?  @map("source_file")
   createdAt     DateTime @default(now()) @map("created_at")
 
   curriculumCourses CurriculumCourse[]
 
+  @@unique([programId, effectiveYear])
   @@map("curricula")
 }
 
@@ -231,8 +265,11 @@ model CurriculumCourse {
   yearLevel    Int        @map("year_level")
   semester     Int
   termNumber   Int?       @map("term_number")
+  termLabel    String?    @map("term_label")
+  sourceTotal  String?    @map("source_total")
 
   @@id([curriculumId, courseId])
+  @@index([curriculumId, yearLevel, termNumber])
   @@map("curriculum_courses")
 }
 

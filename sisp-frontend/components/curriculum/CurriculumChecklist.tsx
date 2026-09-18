@@ -37,8 +37,16 @@ export default function CurriculumChecklist({ curriculumCourses, completedCourse
                         : <Circle className="w-4 h-4 text-gray-300 shrink-0" />}
                       <span className={done ? 'text-gray-500 line-through' : 'text-gray-700'}>
                         {course.code} · {course.title}
+                        {course.prereqText ? (
+                          <span className="ml-1 text-xs text-gray-400">(Prereq: {course.prereqText})</span>
+                        ) : null}
                       </span>
-                      <span className="ml-auto text-gray-400">{course.units} units</span>
+                      <span className="ml-auto text-gray-400">
+                        {course.units} units
+                        {course.lecUnits != null || course.labUnits != null
+                          ? ` (LEC ${course.lecUnits ?? 0} / LAB ${course.labUnits ?? 0})`
+                          : ''}
+                      </span>
                     </li>
                   );
                 })}

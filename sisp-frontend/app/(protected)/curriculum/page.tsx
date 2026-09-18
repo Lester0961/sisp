@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 
 export default function CurriculumPage() {
   const [courses, setCourses] = useState<CurriculumCourse[]>([]);
+  const [programLine, setProgramLine] = useState<string | null>(null);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +23,7 @@ export default function CurriculumPage() {
         Promise.all([
           curriculaApi.getMyCurriculum(),
           curriculaApi.getCompletedCourseIds(),
+          curriculaApi.getMyCurriculumFull().catch(() => null),
         ]),
         new Promise<never>((_, reject) => {
           timeoutId = window.setTimeout(() => reject(new Error('timeout')), 10_000);
@@ -29,6 +31,12 @@ export default function CurriculumPage() {
       ]);
       setCourses(data[0]);
       setCompletedIds(data[1]);
+      const full = data[2];
+      if (full?.program) {
+        setProgramLine(`${full.program.code} · ${full.program.name} — Effective ${full.schoolYear ?? full.effectiveYear}`);
+      } else {
+        setProgramLine(null);
+      }
     } catch {
       setError('We could not load your curriculum. Confirm that your student profile has an assigned program, then try again.');
     } finally {
@@ -49,6 +57,9 @@ export default function CurriculumPage() {
           <div>
             <h1 className="portal-title">Curriculum checklist</h1>
             <p className="portal-description mt-2">Track required courses and the progress recorded for your program.</p>
+            {programLine ? (
+              <p className="mt-1 text-xs font-medium text-[#0a439b]">{programLine}</p>
+            ) : null}
           </div>
           <Button variant="outline" size="sm" onClick={() => void loadCurriculum()} disabled={loading}>
             <RefreshCw className={loading ? 'animate-spin' : ''} strokeWidth={1.8} />

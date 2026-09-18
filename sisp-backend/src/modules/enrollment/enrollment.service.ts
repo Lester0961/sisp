@@ -47,6 +47,27 @@ export class EnrollmentService {
       throw new ConflictException(`You are already enrolled in ${course.code} - ${course.title}`);
     }
 
+    // Prerequisite check (VERIFIED curricula): block unless each required
+    // course is completed. Self-references and unresolved codes (verification
+    // notes 10 anomalies) never block - they are recorded as warnings.
+    const prereqs = await this.prisma.coursePrerequisite.findMany({
+      where: { courseId: dto.courseId, isSelfReference: false, isUnresolved: false },
+      select: { requiresCode: true, requiresId: true },
+    });
+    if (prereqs.length > 0) {
+      const completed = await this.prisma.enrollment.findMany({
+        where: { studentId: profile.id, status: 'completed' },
+        select: { courseId: true },
+      });
+      const completedIds = new Set(completed.map((e) => e.courseId));
+      const missing = prereqs.filter((p) => p.requiresId && !completedIds.has(p.requiresId));
+      if (missing.length > 0) {
+        throw new BadRequestException(
+          `Prerequisite not met for ${course.code}: requires ${missing.map((m) => m.requiresCode).join(', ')}. Complete it first or request a dean exception.`,
+        );
+      }
+    }
+
     const enrollment = await this.prisma.enrollment.create({
       data: {
         studentId: profile.id,
@@ -344,7 +365,30 @@ export class EnrollmentService {
     };
   }
 
-  async getAvailableCourses() {
+  async getAvailableCourses(userId?: string, termId?: string) {
+    // Program-aware listing: when a student calls, return only their
+    // curriculum's courses for the current (or requested) term.
+    // Admin/faculty calls without userId keep the legacy full listing.
+    if (userId) {
+      const profile = await requireStudentProfile(this.prisma, userId);
+      const term = termId
+        ? await this.prisma.academicTerm.findUnique({ where: { id: termId } })
+        : await this.prisma.academicTerm.findFirst({ where: { isCurrent: true } });
+      const curriculum = await this.prisma.curriculum.findFirst({
+        where: { programId: profile.programId },
+        orderBy: { effectiveYear: 'desc' },
+        select: { id: true },
+      });
+      if (curriculum && term) {
+        const links = await this.prisma.curriculumCourse.findMany({
+          where: { curriculumId: curriculum.id, termNumber: term.termNumber },
+          include: { course: { include: { prerequisites: { select: { requiresCode: true } } } } },
+          orderBy: { course: { code: 'asc' } },
+        });
+        const courses = links.map((l) => l.course);
+        return { data: courses, total: courses.length, term: term.code, scoped: true };
+      }
+    }
     const courses = await this.prisma.course.findMany({
       orderBy: { code: 'asc' },
     });

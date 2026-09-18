@@ -1,22 +1,17 @@
-REGIS MARIE COLLEGE PROGRAM CATALOG — WORKING SOURCE
+REGIS MARIE COLLEGE PROGRAM CATALOG — VERIFIED SOURCE
+Source: docs/Regis_Marie_College_All_Curricula_Compiled_VERIFIED.md sha=505c33fb2b0a
+Generated: 2026-09-18T04:55:45.872Z | programs=9 rows=491
 
-SOURCE GOVERNANCE
-- Scope owner: the SISP/RMC program list supplied for this implementation.
-- Public corroboration: https://www.regismariecollege.com/ and https://www.regismariecollege.com/online_admission
-  publicly describe RMC programs, but those pages are not treated as registrar approval for a curriculum sequence.
-- Approval boundary: only a dated curriculum artifact approved by the RMC registrar or dean may add course codes,
-  units, prerequisites, or a course-to-term assignment. Until that artifact is uploaded, ARIA must describe the
-  program catalog and three-term structure only and refer students to the registrar for course planning.
+RMC runs three academic terms per year: Term 1, Term 2, Term 3. Assessment periods per term: Prelim, Midterm, Finals.
 
-RMC organizes its academic year into three academic terms: Term 1, Term 2, and Term 3. Each term has three assessment periods: Prelim, Midterm, and Finals. A student's grade visibility follows the payment status of the matching academic term.
+- BSMA: Bachelor of Science in Multimedia Arts | Effective 2026–2027 | CMO CMO No. 5, S. 2015 | 52 courses | file curriculum_BSMA_2026.txt
+- BSCS: Bachelor of Science in Computer Science | Effective 2024–2025 | CMO CMO NO.17 Series 17 | 56 courses | file curriculum_BSCS_2024.txt
+- BSCrim: Bachelor of Science in Criminology | Effective 2026–2027 | CMO CMO No. 5, s. 2018 | 60 courses | file curriculum_BSCrim_2026.txt
+- BSEd-Fil-2026: Bachelor of Secondary Education — Major in Filipino | Effective 2026–2027 | CMO CMO NO. 75 Series 17 | 55 courses | file curriculum_BSEd-Fil-2026_2026.txt
+- BSOA: Bachelor of Science in Office Administration | Effective  | CMO n/a | 50 courses | file curriculum_BSOA_2024.txt
+- BSEd-Fil-2024: Bachelor in Secondary Major in Filipino | Effective 2024–2025 | CMO CMO No.17 Series 2017 | 55 courses | file curriculum_BSEd-Fil-2024_2024.txt
+- BSEd-Math: Bachelor in Secondary Major in Mathematics | Effective 2024–2025 | CMO CMO No.17 Series 2017 | 55 courses | file curriculum_BSEd-Math_2024.txt
+- BSEd-Eng: Bachelor in Secondary Major in English | Effective 2024–2025 | CMO CMO No.17 Series 2017 | 56 courses | file curriculum_BSEd-Eng_2024.txt
+- BEED: Bachelor of Elementary Education | Effective 2024–2025 | CMO CMO No.17 Series 2017 | 52 courses | file curriculum_BEED_2024.txt
 
-The current program catalog supplied for SISP is:
-- Bachelor of Science in Computer Science (BSCS)
-- Bachelor of Science in Office Administration (BSOA)
-- Bachelor of Science in Multimedia Arts (BSMA)
-- Bachelor of Secondary Education – English (BSEd-English)
-- Bachelor of Secondary Education – Mathematics (BSEd-Math)
-- Bachelor of Secondary Education (BSEd-Secondary)
-- Bachelor of Science in Criminology (BSCrim)
-
-This source identifies the supported program names and trisemestral structure. Course-to-term curriculum mappings must be published from an approved registrar or dean curriculum source before ARIA presents specific prerequisite, unit, or course-sequence claims.
+Course sequences, units, and prerequisites below are registrar-verified. ARIA may cite specific course-to-term assignments from the per-program files.
