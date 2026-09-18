@@ -1,0 +1,75 @@
+Bachelor of Secondary Education — Major in Filipino (BSEd-Fil-2026) — Effective 2026–2027 | CMO NO. 75 Series 17 | Source: Curriculum Map - Bachelor of Secondary Education - Major in Filipino v1 (1).pdf
+Total courses: 55
+
+First Year — First Trimester:
+- PATH-FIT1 — Movement Competency Training | LEC 2 LAB 0 Units 2
+- GED011 — Living in the ICT Era | LEC 3 LAB 0 Units 3
+- GED002 — Purposive Communication | LEC 3 LAB 0 Units 3
+- GED004 — Mathematics in the Modern World | LEC 3 LAB 0 Units 3
+- PROFED101 — The Child & Adolescent & Learning Principles | LEC 3 LAB 0 Units 3
+- PROFED102 — The Teaching Profession | LEC 3 LAB 0 Units 3
+- PROFED109 — Foundation of Special & Inclusive Education | LEC 3 LAB 0 Units 3
+
+First Year — Second Trimester:
+- PATH-FIT2 — Exercise-based Fitness Activities | LEC 2 LAB 0 Units 2 | Prereq: PATH-FIT 1
+- NSTP1 — National Service Training Program 1 | LEC 3 LAB 0 Units 3
+- PROFED106 — Facilitating Learner-Centered Teaching | LEC 3 LAB 0 Units 3 | Prereq: PROFED101
+- PROFED107 — Technology for Teaching & Learning 1 | LEC 3 LAB 0 Units 3 | Prereq: GED011
+- FIL101 — Kontekswalisasyon sa Komunikasyon sa Filipino | LEC 3 LAB 0 Units 3
+- MCPL302 — Panimulang Linggwistika | LEC 3 LAB 0 Units 3
+- MCAFKBE303 — Ang Filipino sa Kurikulum ng Batayang Edukasyon | LEC 3 LAB 0 Units 3 | Prereq: PROFED102
+
+First Year — Third Trimester:
+- PATH-FIT3 — Sports and Dance | LEC 2 LAB 0 Units 2 | Prereq: PATH-FIT 2
+- NSTP2 — National Service Training Program 2 | LEC 3 LAB 0 Units 3 | Prereq: NSTP1
+- PROFED110 — Building & Enhancing New Literacies Across the Curriculum | LEC 3 LAB 0 Units 3
+- MCEWF3204 — Estruktura ng Wikang Filipino | LEC 3 LAB 0 Units 3 | Prereq: MCPL302
+- MCPPMKP305 — Pagtuturo at Pagtataya ng Makrong Kasanayang Pangwika | LEC 3 LAB 0 Units 3 | Prereq: PROFED106
+- MCUWKL306 — Ugnayan ng Wika, Kultura at Lipunan | LEC 3 LAB 0 Units 3 | Prereq: MCPL302
+- MCIPW301 — Introduksyon sa Pag-aaral ng Wika | LEC 3 LAB 0 Units 3
+
+Second Year — First Trimester:
+- PATH-FIT4 — Recreational and Lifetime Physical Activities | LEC 2 LAB 0 Units 2 | Prereq: PATH-FIT 3
+- GED010 — Science Technology and Society | LEC 3 LAB 0 Units 3
+- GED001 — Understanding the Self | LEC 3 LAB 0 Units 3
+- PROFED103 — Teacher and the School Curriculum | LEC 3 LAB 0 Units 3
+- PROFED104 — Assessment of Student Learning 1 | LEC 3 LAB 0 Units 3
+- MCPEKP307 — Paghahanda at Ebalwasyon ng Kagamitang Panturo | LEC 3 LAB 0 Units 3 | Prereq: MCPPMKP305
+- MCIP308 — Introduksyon sa Pagsasalin | LEC 3 LAB 0 Units 3 | Prereq: MCEWF3204
+
+Second Year — Second Trimester:
+- GED009 — Philippine Popular Culture | LEC 3 LAB 0 Units 3
+- GED008 — Reading in Philippine History | LEC 3 LAB 0 Units 3
+- PROFED105 — Assessment of Student Learning 2 | LEC 3 LAB 0 Units 3 | Prereq: PROFED104
+- MCIP310 — Introduksyon sa Pamamahayag | LEC 3 LAB 0 Units 3 | Prereq: GED002
+- FS1 — Field Study 1 | LEC 3 LAB 0 Units 3
+
+Second Year — Third Trimester:
+- GED007 — Art Appreciation | LEC 3 LAB 0 Units 3
+- MCBBW311 — Barayti at Baryasyon ng Wika | LEC 3 LAB 0 Units 3 | Prereq: MCUWKL306
+- MCMTDWP312 — Mga Natatanging Diskurso sa Wika at Panitikan | LEC 3 LAB 0 Units 3 | Prereq: MCEWF3204
+- MCPR313 — Panitikan ng Rehiyon | LEC 3 LAB 0 Units 3
+- MCST315 — Sanaysay at Talumpati | LEC 3 LAB 0 Units 3 | Prereq: GED102
+- MCRES301 — Introduksyon sa Pananaliksik-Wika at Panitikan | LEC 3 LAB 0 Units 3 | Prereq: GED102
+
+Third Year — First Trimester:
+- GED003 — Gender & Society | LEC 3 LAB 0 Units 3
+- PROFED111 — The Teacher & The Community, School Culture, & Organizational Leadership | LEC 3 LAB 0 Units 3
+- MCKP314 — Kulturang Popular | LEC 3 LAB 0 Units 3
+- ECMP321 — Malikhaing Pagsulat | LEC 3 LAB 0 Units 3
+- MC3PM16 — Panunuring Pampanitikan | LEC 3 LAB 0 Units 3 | Prereq: MCPR313
+- FS2 — Field Study 2 | LEC 3 LAB 0 Units 3 | Prereq: FS1
+
+Third Year — Second Trimester:
+- RIZ101 — Life and Works of Rizal | LEC 3 LAB 0 Units 3
+- GED006 — Ethics | LEC 3 LAB 0 Units 3
+- MCMKNF317 — Maikling Kuwento at Nobelang Filipino | LEC 3 LAB 0 Units 3
+- PT101 — Teaching Internship | LEC 0 LAB 6 Units 6 | Prereq: FS1, FS2
+
+Third Year — Third Trimester:
+- GED005 — The Contemporary World | LEC 3 LAB 0 Units 3
+- MCPF318 — Panulaang Filipino | LEC 3 LAB 0 Units 3
+- MCDF319 — Dulaang Filipino | LEC 3 LAB 0 Units 3
+- ECPIID322 — Pagsasalin sa Iba't-ibang Disiplina | LEC 3 LAB 0 Units 3 | Prereq: MCIP308
+- MCTPF220 — Teknolohiya sa Pagtuturo ng Filipino 2 | LEC 3 LAB 0 Units 3 | Prereq: PROFED107
+- THE301 — Tesis sa Filipino | LEC 3 LAB 0 Units 3 | Prereq: MCRES301

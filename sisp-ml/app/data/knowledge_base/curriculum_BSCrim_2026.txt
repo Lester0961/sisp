@@ -1,0 +1,80 @@
+Bachelor of Science in Criminology (BSCrim) — Effective 2026–2027 | CMO No. 5, s. 2018 | Source: Curriculum Map - Bachelor of Science in Criminology_v1-Final (2).pdf
+Total courses: 60
+
+First Year — First Term:
+- PED001 — Fundamental of Martial Arts | LEC 2.6 LAB 0 Units 2
+- GED011 — Living in the ICT Era | LEC 3 LAB 0 Units 3
+- GED002 — Purposive Communication | LEC 3 LAB 0 Units 3
+- GED004 — Mathematics in the Modern World | LEC 3 LAB 0 Units 3
+- CLJ001 — Introduction to Philippine Criminal Justice System | LEC 4 LAB 0 Units 3
+- CRM001 — Introduction to Criminology | LEC 4 LAB 0 Units 3
+- LEA001 — Law Enforcement Organization and Administration | LEC 5.3 LAB 0 Units 4
+
+First Year — Second Term:
+- PED002 — Arnis and Disarming Techniques | LEC 2.6 LAB 0 Units 2 | Prereq: PED001
+- NSTP001 — Reserved Officers Training Corps 1 | LEC 4 LAB 0 Units 3
+- CRM002 — Theories of Crime Causation | LEC 4 LAB 0 Units 3 | Prereq: CRM001
+- LEA002 — Comparative Models of Policing | LEC 4 LAB 0 Units 3
+- CRM003 — Human Behavior and Victimology | LEC 4 LAB 0 Units 3
+- CRM004 — Professional Conduct and Ethical Standard | LEC 4 LAB 0 Units 3
+- GEE001 — Entrepreneurial Mind | LEC 4 LAB 0 Units 3
+
+First Year — Third Term:
+- PED003 — First Aid and Water Survival | LEC 2.6 LAB 0 Units 2 | Prereq: PED002
+- NSTP002 — Reserved Officers Training Corps 2 | LEC 4 LAB 0 Units 3 | Prereq: NSTP001
+- LEA003 — Industrial Security Concepts | LEC 4 LAB 0 Units 3
+- CDI001 — Fundamental of Criminal Investigation and Intelligence | LEC 5.3 LAB 0 Units 4
+- CAD001 — Institutional Corrections | LEC 4 LAB 0 Units 3
+- CRM005 — Juvenile Delinquency and Juvenile Justice System | LEC 4 LAB 0 Units 3
+- CLJ002 — Human Rights Education | LEC 4 LAB 0 Units 3
+
+Second Year — First Term:
+- PED004 — Fundamentals of Marksmanship | LEC 2.6 LAB 0 Units 2 | Prereq: PED004
+- GED010 — Science, Technology, and Society | LEC 3 LAB 0 Units 3
+- GED001 — Understanding the Self | LEC 3 LAB 0 Units 3
+- CDI002 — Specialized Crime Investigation 1 with Legal Medicine | LEC 4 LAB 0 Units 3 | Prereq: CDI001
+- CFM001 — Character Formation 1: Nationalism and Patriotism | LEC 4 LAB 0 Units 3
+- FRS001 — Forensic Photography | LEC 2.6 LAB 0 Units 3
+- CLJ003 — Criminal Law (Book 1) | LEC 4 LAB 0 Units 3
+
+Second Year — Second Term:
+- GED009 — Philippine Popular Culture | LEC 3 LAB 0 Units 3
+- GED008 — Reading in Philippine History | LEC 3 LAB 0 Units 3
+- GEE002 — General Chemistry (organic) | LEC 4 LAB 0 Units 3
+- CAD002 — Non-Institutional Corrections | LEC 4 LAB 0 Units 3 | Prereq: CAD001
+- CFM002 — Character Formation 2: Leadership, Decision Making, Management and Administration | LEC 4 LAB 0 Units 3 | Prereq: CFM001
+- CDI003 — Specialized Crime Investigation 2 with Simulation on Interrogation and Interview | LEC 4 LAB 0 Units 3
+- CLJ004 — Criminal Law (Book 2) | LEC 4 LAB 0 Units 3 | Prereq: CLJ003
+
+Second Year — Third Term:
+- GED007 — Art Appreciation | LEC 3 LAB 0 Units 3
+- CRM006 — Dispute Resolution and Crises or Incidents Management | LEC 4 LAB 0 Units 3 | Prereq: CRM003
+- CDI004 — Traffic Management and Accident Investigation with Driving | LEC 4 LAB 0 Units 3
+- CAD003 — Therapeutic Modalities | LEC 4 LAB 0 Units 3 | Prereq: CAD002
+- CDI007 — Vice and Drug Education and Control | LEC 4 LAB 0 Units 3
+- CDI006 — Fire Protection and Arson Investigation | LEC 4 LAB 0 Units 3
+- FRS004 — Questioned Document Examination | LEC 4 LAB 4 Units 3
+
+Third Year — First Term:
+- GED003 — Gender & Society | LEC 3 LAB 0 Units 3
+- CDI005 — Technical English 1 (Investigative Writing and Presentation) | LEC 4 LAB 0 Units 3
+- LEA004 — Law Enforcement Operations and Planning with Crime Mapping | LEC 4 LAB 0 Units 3
+- CRM007 — Criminological Research 1: Methods and Applied Statistics | LEC 4 LAB 0 Units 3 | Prereq: CRM007
+- FRS002 — Personal Identification and Techniques | LEC 5.3 LAB 0 Units 3 | Prereq: FRS001
+- FRS003 — Forensic Chemistry and Toxicology | LEC 4 LAB 8 Units 5 | Prereq: GEE002
+- FRS005 — Lie Detection Techniques | LEC 4 LAB 4 Units 3
+
+Third Year — Second Term:
+- RIZ101 — Life and Works of Rizal | LEC 3 LAB 0 Units 3
+- GED006 — Ethics | LEC 3 LAB 0 Units 3
+- CLJ005 — Criminal Evidence | LEC 4 LAB 0 Units 3
+- CDI008 — Technical English 2 (Legal Forms) | LEC 4 LAB 0 Units 3
+- FRS006 — Forensic Ballistic | LEC 4 LAB 4 Units 3
+- CLJ006 — Criminal Procedure and Court Testimony | LEC 4 LAB 0 Units 3
+- CRM008 — Criminological Research 2: Thesis Writing and Presentation | LEC 4 LAB 0 Units 3 | Prereq: CRM007
+
+Third Year — Third Term:
+- GED005 — The Contemporary World | LEC 3 LAB 0 Units 3
+- CDI009 — Introduction to Cybercrime and Environmental Laws and Protection | LEC 4 LAB 0 Units 3 | Prereq: CRM007
+- BSC001 — Internship (On the Job Training) 270 HRS | LEC 0 LAB 3 Units 3
+- PRC001 — Professional Competency 1 | LEC 4 LAB 0 Units 3

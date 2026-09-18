@@ -91,10 +91,16 @@ async function main() {
     { code: 'BSCS', name: 'Bachelor of Science in Computer Science' },
     { code: 'BSOA', name: 'Bachelor of Science in Office Administration' },
     { code: 'BSMA', name: 'Bachelor of Science in Multimedia Arts' },
-    { code: 'BSEd-English', name: 'Bachelor of Secondary Education – English' },
-    { code: 'BSEd-Math', name: 'Bachelor of Secondary Education – Mathematics' },
-    { code: 'BSEd-Secondary', name: 'Bachelor of Secondary Education' },
     { code: 'BSCrim', name: 'Bachelor of Science in Criminology' },
+    { code: 'BEED', name: 'Bachelor of Elementary Education' },
+    { code: 'BSEd-Math', name: 'Bachelor in Secondary Major in Mathematics' },
+    { code: 'BSEd-Eng', name: 'Bachelor in Secondary Major in English' },
+    // Disambiguated Filipino tracks (VERIFIED doc §§4,6). Legacy aliases kept below.
+    { code: 'BSEd-Fil-2026', name: 'Bachelor of Secondary Education Major in Filipino (2026)' },
+    { code: 'BSEd-Fil-2024', name: 'Bachelor in Secondary Major in Filipino (2024)' },
+    // Legacy aliases (pre-verified catalog) — retained, do not assign new students.
+    { code: 'BSEd-English', name: 'Bachelor of Secondary Education – English (legacy)' },
+    { code: 'BSEd-Secondary', name: 'Bachelor of Secondary Education (legacy)' },
   ];
 
   for (const program of programCatalog) {

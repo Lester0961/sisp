@@ -15,7 +15,11 @@ export class EnrollmentController {
   // Get available courses for enrollment
   @Get('courses')
   @Roles('student', 'admin_staff', 'dean', 'faculty')
-  async getAvailableCourses() {
+  async getAvailableCourses(@CurrentUser() user: JwtPayload, @Query('termId') termId?: string) {
+    // Students get program+term scoped listing; staff keep full listing when needed.
+    const role = (user as { role?: string }).role;
+    if (role === 'student' || !role) return this.enrollmentService.getAvailableCourses(user.sub, termId);
+    if (termId) return this.enrollmentService.getAvailableCourses(undefined, termId);
     return this.enrollmentService.getAvailableCourses();
   }
 
