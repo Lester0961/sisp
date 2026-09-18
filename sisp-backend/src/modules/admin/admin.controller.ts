@@ -87,7 +87,6 @@ export class AdminController {
     return this.adminService.wipeDemoUsers();
   }
 
-  @Public()
   @Post('seed-curricula-debug')
   async seedCurriculaDebug() {
     const { execSync } = require('child_process');
