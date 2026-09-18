@@ -43,6 +43,9 @@ async function main() {
   console.log('--- RUNNING DB SEED ---');
   spawnSync('npx', ['prisma', 'db', 'seed'], { stdio: 'inherit' });
   
+  console.log('--- RUNNING CURRICULA SEED ---');
+  spawnSync('npx', ['ts-node', 'prisma/seed-curricula.ts'], { stdio: 'inherit', env: { ...process.env, NODE_ENV: 'development' } });
+  
   await ensureSysadmin();
   
   console.log('--- STARTING SERVER ---');
