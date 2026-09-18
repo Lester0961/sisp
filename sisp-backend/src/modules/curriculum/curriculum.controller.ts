@@ -3,6 +3,7 @@ import { CurriculumService } from './curriculum.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
@@ -17,8 +18,8 @@ export class CurriculumController {
     return this.curriculumService.getMyCurriculum(user.sub);
   }
 
+  @Public()
   @Get('programs')
-  @Roles('admin_staff', 'dean', 'sys_admin', 'faculty')
   async listPrograms() {
     return this.curriculumService.listPrograms();
   }

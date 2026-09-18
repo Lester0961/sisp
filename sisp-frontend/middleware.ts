@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_ROUTES = ['/login', '/register', '/about', '/services', '/support'];
+const PUBLIC_ROUTES = ['/login', '/register', '/about', '/services', '/support', '/admission', '/activate'];
 
 const ROLE_ROUTES: Record<string, string[]> = {
   '/admin': ['admin_staff', 'sys_admin', 'live_agent'],
@@ -12,6 +12,8 @@ const ROLE_ROUTES: Record<string, string[]> = {
   '/grades': ['student'],
   '/requests': ['student'],
   '/chat': ['student', 'admin_staff', 'dean', 'live_agent'],
+  '/enrollment': ['student'],
+  '/curriculum': ['student', 'admin_staff', 'dean', 'faculty'],
 };
 
 export function middleware(request: NextRequest) {
