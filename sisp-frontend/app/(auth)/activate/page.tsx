@@ -26,7 +26,7 @@ export default function ActivatePage() {
       setResult(res);
       toast.success('Account successfully verified and activated!');
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Verification failed. Please check your credentials.';
+      const msg = err.response?.data?.message || err.message || 'Verification failed. Please check your credentials.';
       toast.error(msg);
     } finally {
       setLoading(false);
