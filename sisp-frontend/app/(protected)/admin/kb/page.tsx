@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Navbar } from '@/components/shared/Navbar';
 import { PageFooter } from '@/components/shared/PageFooter';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -141,9 +140,7 @@ export default function KbManagementPage() {
   };
 
   return (
-    <div className="portal-page">
-      <Navbar />
-
+    <div className="flex min-h-full flex-col">
       <main className="portal-main max-w-6xl space-y-6">
         
         {/* Header Section */}

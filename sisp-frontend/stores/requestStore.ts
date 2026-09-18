@@ -11,7 +11,12 @@ interface RequestState {
 
   // Actions
   fetchRequests: () => Promise<void>;
-  submitRequest: (items: CreateRequestLineItem[], remarks?: string) => Promise<any>;
+  submitRequest: (
+    items: CreateRequestLineItem[],
+    remarks?: string,
+    isThirdParty?: boolean,
+    authorizationNotes?: string,
+  ) => Promise<any>;
   confirmPayment: (requestId: string) => Promise<void>;
   clearRequests: () => void;
 }
@@ -48,10 +53,20 @@ export const useRequestStore = create<RequestState>()((set) => ({
     }
   },
 
-  submitRequest: async (items: CreateRequestLineItem[], remarks?: string) => {
+  submitRequest: async (
+    items: CreateRequestLineItem[],
+    remarks?: string,
+    isThirdParty?: boolean,
+    authorizationNotes?: string,
+  ) => {
     set({ isSubmitting: true, error: null });
     try {
-      const newRequest = await requestsApi.createRequest(items, remarks);
+      const newRequest = await requestsApi.createRequest(
+        items,
+        remarks,
+        isThirdParty,
+        authorizationNotes,
+      );
       const normalizedRequest: DocumentRequest = {
         ...newRequest,
         remarks: newRequest.remarks ?? null,

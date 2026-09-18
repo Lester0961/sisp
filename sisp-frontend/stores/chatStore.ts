@@ -209,13 +209,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             : m
         ),
         isTyping: false,
-        isLiveChatMode: res.escalated,
+        isLiveChatMode: false,
         activeSessionId: res.sessionId || null,
         quota: res.quota ?? state.quota,
       }));
     } catch (error: any) {
-      console.error('Failed to send message:', error);
-      
       set((state) => ({
         messages: state.messages.map((m) =>
           m.id === assistantMsgId

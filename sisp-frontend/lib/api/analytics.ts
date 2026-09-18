@@ -40,9 +40,38 @@ export interface ChatbotAnalyticsResponse {
   }[];
 }
 
+export interface MonthlyReportResponse {
+  reportingOfficer: string;
+  reportPeriod: string;
+  generatedAt: string;
+  summary: {
+    totalStudentInquiries: number;
+    totalEnrolledStudents: number;
+    totalDocumentRequests: number;
+    escalationsResolved: number;
+    pendingEscalations: number;
+    inquiryResolutionRate: number;
+  };
+  topStudentConcerns?: {
+    category: string;
+    count: number;
+  }[];
+  departmentWorkload: {
+    department: string;
+    primaryTasks: string;
+    status: string;
+  }[];
+  operationalHighlights: string[];
+}
+
 export const analyticsApi = {
   getEnrollmentStats: async (): Promise<EnrollmentStatsResponse> => {
     const response = await apiClient.get('/analytics/enrollment');
+    return response.data;
+  },
+
+  getMonthlyReport: async (): Promise<MonthlyReportResponse> => {
+    const response = await apiClient.get('/analytics/monthly-report');
     return response.data;
   },
 

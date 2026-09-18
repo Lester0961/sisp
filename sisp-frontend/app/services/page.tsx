@@ -39,7 +39,7 @@ export default function ServicesPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] text-[#0A439B] font-sans flex flex-col overflow-x-hidden selection:bg-[#0A439B] selection:text-white">
+    <div className="public-site public-interior min-h-screen bg-[#F4F6F9] text-[#0A439B] font-sans flex flex-col overflow-x-hidden selection:bg-[#0A439B] selection:text-white">
       <PublicNavbar />
 
       <main className="flex-1 flex flex-col">
@@ -53,7 +53,7 @@ export default function ServicesPage() {
         </section>
 
         <section className="px-4 sm:px-6 lg:px-8 py-10 max-w-7xl mx-auto w-full">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {services.map((service, index) => (
               <div
                 key={index}

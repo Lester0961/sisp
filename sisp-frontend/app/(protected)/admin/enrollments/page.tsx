@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, BookOpen, CheckCircle2, RefreshCw, UserRound } from 'lucide-react';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { adminApi, UserProfile } from '@/lib/api/admin';
@@ -70,8 +69,7 @@ export default function EnrollmentAssignmentsPage() {
   };
 
   return (
-    <div className="portal-page">
-      <Navbar />
+    <div className="flex min-h-full flex-col">
       <main className="portal-main max-w-7xl space-y-5">
         <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

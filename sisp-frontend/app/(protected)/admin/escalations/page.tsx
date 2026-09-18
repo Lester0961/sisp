@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { chatApi, EscalationRecord } from '@/lib/api/chat';
-import { Navbar } from '@/components/shared/Navbar';
 import { PageFooter } from '@/components/shared/PageFooter';
 import { 
   ShieldAlert, 
@@ -112,9 +111,7 @@ export default function EscalationsPage() {
   });
 
   return (
-    <div className="portal-page">
-      <Navbar />
-
+    <div className="flex min-h-full flex-col">
       <main className="portal-main max-w-7xl space-y-6">
       {/* Page Header */}
       <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

@@ -6,11 +6,11 @@ import { BookOpenCheck, Download, FileText, GraduationCap, Users } from 'lucide-
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminStore } from '@/stores/adminStore';
 import { Button } from '@/components/ui/button';
-import { Navbar } from '@/components/shared/Navbar';
 import { PageFooter } from '@/components/shared/PageFooter';
 import { EnrollmentWidget } from '@/components/admin/dashboard/EnrollmentWidget';
 import { ChatbotAnalyticsWidget } from '@/components/admin/dashboard/ChatbotAnalyticsWidget';
 import { GpaDistributionWidget } from '@/components/admin/dashboard/GpaDistributionWidget';
+import { MonthlyExecutiveReport } from '@/components/admin/dashboard/MonthlyExecutiveReport';
 
 const dashboardCopy = {
   admin_staff: {
@@ -83,8 +83,7 @@ export default function AdminDashboardPage() {
   ];
 
   return (
-    <div className="portal-page flex min-h-[100dvh] flex-col">
-      <Navbar />
+    <div className="flex min-h-full flex-col">
       <main className="portal-main flex-1">
         <div className="portal-page-header">
           <div>
@@ -119,10 +118,13 @@ export default function AdminDashboardPage() {
 
         <div className="space-y-5">
           {canViewProgramData && (
-            <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-              <EnrollmentWidget data={enrollmentStats?.data ?? []} />
-              <ChatbotAnalyticsWidget intentDistribution={chatbotAnalytics?.intentDistribution ?? []} />
-            </section>
+            <>
+              <MonthlyExecutiveReport />
+              <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+                <EnrollmentWidget data={enrollmentStats?.data ?? []} />
+                <ChatbotAnalyticsWidget intentDistribution={chatbotAnalytics?.intentDistribution ?? []} />
+              </section>
+            </>
           )}
           <GpaDistributionWidget gpaChartData={gpaChartData} passFailData={passFailData} />
         </div>

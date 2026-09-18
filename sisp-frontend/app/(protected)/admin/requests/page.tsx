@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { requestsApi, DocumentRequestItem } from '@/lib/api/requests';
 import { Button } from '@/components/ui/button';
-import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
 import {
   Table,
@@ -64,15 +63,14 @@ export default function AdminRequestsPage() {
     const studentName = `${r.student?.user?.firstName || ''} ${r.student?.user?.lastName || ''}`.toLowerCase();
     const typeLabel = (r.typeLabel || '').toLowerCase();
     const ref = (r.paymentReference || '').toLowerCase();
+    const proof = (r.paymentProofReference || '').toLowerCase();
     const q = search.toLowerCase();
-    return studentName.includes(q) || typeLabel.includes(q) || ref.includes(q);
+    return studentName.includes(q) || typeLabel.includes(q) || ref.includes(q) || proof.includes(q);
   });
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-
-      <main className="max-w-7xl mx-auto p-6 md:p-8 space-y-6">
+    <div className="flex min-h-full flex-col">
+      <main className="portal-main max-w-7xl space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-extrabold text-slate-900">Payment Confirmations</h1>
@@ -109,6 +107,7 @@ export default function AdminRequestsPage() {
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500">Document</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Fee</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Reference</TableHead>
+                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Proof of Payment</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">QR Code</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-right">Actions</TableHead>
                 </TableRow>
@@ -116,7 +115,7 @@ export default function AdminRequestsPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-xs text-slate-400">
+                    <TableCell colSpan={7} className="text-center py-10 text-xs text-slate-400">
                       Loading payment confirmations...
                     </TableCell>
                   </TableRow>
@@ -148,6 +147,25 @@ export default function AdminRequestsPage() {
                         </code>
                       </TableCell>
                       <TableCell className="text-center">
+                        {r.paymentProofReference ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">
+                              {r.paymentProofChannel === 'gcash' ? 'GCash' : 'PNB'}
+                            </span>
+                            <code className="bg-slate-100 px-2 py-1 rounded text-[10px] font-mono text-slate-700">
+                              {r.paymentProofReference}
+                            </code>
+                            {r.paymentProofSubmittedAt ? (
+                              <span className="text-[9px] text-slate-400">
+                                {new Date(r.paymentProofSubmittedAt).toLocaleString('en-PH')}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">No proof yet</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
                         {r.qrCodeUrl ? (
                           <img
                             src={r.qrCodeUrl}
@@ -172,7 +190,7 @@ export default function AdminRequestsPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <AlertCircle className="mx-auto mb-2 h-8 w-8 text-slate-300" />
                       <p className="text-xs text-slate-500">No payments awaiting confirmation.</p>
                     </TableCell>

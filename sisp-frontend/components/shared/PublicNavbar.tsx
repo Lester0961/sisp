@@ -10,13 +10,15 @@ const navLinks = [
   { href: '/#why-rmc', label: 'Why RMC' },
   { href: '/#programs', label: 'Programs' },
   { href: '/#aria', label: 'ARIA Advisor' },
-  { href: '/#about', label: 'About' },
+  { href: '/about', label: 'About' },
+  { href: '/services', label: 'Services' },
+  { href: '/support', label: 'Support' },
 ];
 
 export function PublicNavbar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const isHome = pathname === '/';
+  const isHome = false;
 
   return (
     <header
@@ -93,14 +95,14 @@ export function PublicNavbar() {
       </div>
 
       {isMobileMenuOpen && (
-        <div className="border-t border-white/10 bg-[#0e2a41] px-4 py-4 text-white lg:hidden">
+        <div className="border-t border-[#dce5ed] bg-white px-4 py-4 text-[#102f49] lg:hidden">
           <nav className="mx-auto grid max-w-[1440px] gap-1" aria-label="Mobile navigation">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-xl px-4 py-3 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white"
+                className="rounded-xl px-4 py-3 text-sm font-medium text-[#49697f] hover:bg-[#eef6fc] hover:text-[#102f49]"
               >
                 {link.label}
               </Link>

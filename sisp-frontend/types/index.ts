@@ -118,6 +118,9 @@ export interface DocumentRequest {
   fee?: number;
   paymentStatus?: string;
   paymentReference?: string | null;
+  paymentProofChannel?: string | null;
+  paymentProofReference?: string | null;
+  paymentProofSubmittedAt?: string | null;
   qrCodeUrl?: string | null;
   createdAt: string;
   updatedAt: string;

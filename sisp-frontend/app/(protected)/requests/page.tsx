@@ -22,65 +22,192 @@ import {
   ChevronDown,
   ChevronUp,
   Wallet,
-  CheckCircle2,
+  Copy,
   AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { requestsApi, DocumentCatalogItem, PaymentChannels } from '@/lib/api/requests';
 
 const DOCUMENT_TYPES = [
-  { value: 'transcript_of_records', label: 'Transcript of Records', fee: 200 },
-  { value: 'certificate_of_enrollment', label: 'Certificate of Enrollment', fee: 150 },
-  { value: 'certificate_of_good_moral', label: 'Certificate of Good Moral Character', fee: 100 },
-  { value: 'diploma', label: 'Diploma', fee: 500 },
-  { value: 'course_description', label: 'Course Description', fee: 50 },
-  { value: 'authentication', label: 'Document Authentication', fee: 300 },
-  { value: 'other', label: 'Other Document', fee: 100 },
+  {
+    value: 'transcript_of_records_undergrad',
+    label: 'TOR (Undergraduate - Employment Purposes Only)',
+    fee: 500,
+    feeNote: 'per page',
+    tat: '3-4 weeks',
+    staff: 'Miss Rose',
+    undergradOnly: true,
+  },
+  {
+    value: 'transcript_of_records',
+    label: 'Official TOR (Graduates / Alumni)',
+    fee: 500,
+    feeNote: 'per page',
+    tat: '3-4 weeks',
+    staff: 'Miss Rose',
+    graduateOnly: true,
+  },
+  {
+    value: 'certificate_of_enrollment',
+    label: 'Certificate of Enrollment (COE)',
+    fee: 300,
+    tat: '2-3 days',
+    staff: 'Sir Christian',
+  },
+  {
+    value: 'certified_true_copy_cor',
+    label: 'Certified True Copy – COR',
+    fee: 300,
+    tat: '2-3 days',
+    staff: 'Sir Christian',
+  },
+  {
+    value: 'certificate_of_good_moral',
+    label: 'Certificate of Good Moral Character',
+    fee: 500,
+    tat: '2-3 days',
+    staff: 'Records Staff',
+  },
+  {
+    value: 'copy_of_grades',
+    label: '2nd Copy of Copy of Grades',
+    fee: 150,
+    tat: '2-3 days',
+    staff: 'Miss Rose',
+  },
+  {
+    value: 'certified_true_copy_grades',
+    label: 'Certified True Copy – Copy of Grades',
+    fee: 300,
+    tat: '3-5 days',
+    staff: 'Miss Rose',
+  },
 ];
 
 export default function RequestsPage() {
-  const { requests, isLoading, isSubmitting, fetchRequests, submitRequest, confirmPayment } =
+  const { requests, isLoading, isSubmitting, fetchRequests, submitRequest } =
     useRequestStore();
   const [showForm, setShowForm] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
   const [requestRemarks, setRequestRemarks] = useState('');
+  const [isThirdParty, setIsThirdParty] = useState(false);
+  const [authorizationNotes, setAuthorizationNotes] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [paymentRequestId, setPaymentRequestId] = useState<string | null>(null);
+  const [paymentChannels, setPaymentChannels] = useState<PaymentChannels | null>(null);
+  const [proofChannel, setProofChannel] = useState<'gcash' | 'pnb'>('gcash');
+  const [proofReference, setProofReference] = useState('');
+  const [submittingProofId, setSubmittingProofId] = useState<string | null>(null);
+  const [catalogItems, setCatalogItems] = useState<
+    Array<{
+      value: string;
+      label: string;
+      fee: number;
+      feeNote?: string;
+      tat?: string;
+      staff?: string;
+      undergradOnly?: boolean;
+      graduateOnly?: boolean;
+    }>
+  >(DOCUMENT_TYPES);
 
   useEffect(() => {
     if (requests.length === 0) void fetchRequests();
+    void (async () => {
+      try {
+        const fees = await requestsApi.getFees();
+        if (Array.isArray(fees) && fees.length > 0) {
+          const mapped = fees.map((item: any) => ({
+            value: item.code || item.type,
+            label: item.label,
+            fee: Number(item.fee),
+            feeNote: item.feeNote || 'copy',
+            tat: item.tat || '2-3 days',
+            staff: item.assignedTo || 'Records Staff',
+            undergradOnly: (item.code || item.type) === 'transcript_of_records_undergrad',
+            graduateOnly: (item.code || item.type) === 'transcript_of_records',
+          }));
+          setCatalogItems(mapped);
+        }
+      } catch (e) {
+        console.warn('Using default document catalog fallback:', e);
+      }
+    })();
   }, [requests.length, fetchRequests]);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        setPaymentChannels(await requestsApi.getPaymentChannels());
+      } catch {
+        console.warn('Using built-in payment channels fallback');
+      }
+    })();
+  }, []);
+
+  const copyText = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error('Copy failed. Please copy it manually.');
+    }
+  };
+
   const handleSubmit = async () => {
-    const items = DOCUMENT_TYPES.filter((type) => (selectedItems[type.value] ?? 0) > 0).map((type) => ({
-      type: type.value,
-      quantity: selectedItems[type.value],
-    }));
+    const items = catalogItems
+      .filter((type) => (selectedItems[type.value] ?? 0) > 0)
+      .map((type) => ({
+        type: type.value,
+        quantity: selectedItems[type.value],
+      }));
     if (items.length === 0) {
       toast.error('Please select at least one document');
       return;
     }
     try {
-      const newRequest = await submitRequest(items, requestRemarks.trim() || undefined);
+      const newRequest = await submitRequest(
+        items,
+        requestRemarks.trim() || undefined,
+        isThirdParty,
+        authorizationNotes.trim() || undefined,
+      );
       toast.success('Document request submitted. Please complete payment to proceed.');
       setShowForm(false);
       setSelectedItems({});
       setRequestRemarks('');
-      // Show payment modal for the new request
+      setIsThirdParty(false);
+      setAuthorizationNotes('');
       if (newRequest?.id) {
         setPaymentRequestId(newRequest.id);
         setExpandedId(newRequest.id);
       }
-    } catch {
-      toast.error('Failed to submit request');
+    } catch (e: any) {
+      const backendMessage =
+        e?.response?.data?.message ??
+        (Array.isArray(e?.response?.data?.message)
+          ? e.response.data.message.join(', ')
+          : null) ??
+        'Failed to submit request';
+      toast.error(backendMessage);
     }
   };
 
-  const handleMarkPaid = async (requestId: string) => {
+  const handleSubmitProof = async (requestId: string) => {
+    if (!proofReference.trim()) {
+      toast.error('Please enter your GCash reference number or PNB slip number');
+      return;
+    }
+    setSubmittingProofId(requestId);
     try {
-      await confirmPayment(requestId);
-      toast.success('Payment marked as complete! Your request is now pending review.');
-    } catch {
-      toast.error('Failed to update payment status.');
+      await requestsApi.submitProof(requestId, proofChannel, proofReference.trim());
+      toast.success('Proof submitted! Treasury will verify it before confirming your payment.');
+      setProofReference('');
+      await fetchRequests();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? 'Failed to submit proof of payment.');
+    } finally {
+      setSubmittingProofId(null);
     }
   };
 
@@ -90,7 +217,7 @@ export default function RequestsPage() {
   const awaitingPaymentCount = requests.filter((r) => r.status === 'awaiting_payment').length;
 
   const selectedCount = Object.values(selectedItems).filter((quantity) => quantity > 0).length;
-  const estimatedTotal = DOCUMENT_TYPES.reduce(
+  const estimatedTotal = catalogItems.reduce(
     (sum, type) => sum + type.fee * (selectedItems[type.value] ?? 0),
     0,
   );
@@ -127,7 +254,7 @@ export default function RequestsPage() {
                 <legend className="text-sm font-semibold text-[#102f49]">Choose documents</legend>
                 <p className="text-xs text-[#587387]">Select one or more document types, then set the quantity for each.</p>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {DOCUMENT_TYPES.map((type) => {
+                  {catalogItems.map((type) => {
                     const quantity = selectedItems[type.value] ?? 0;
                     const selected = quantity > 0;
                     return (
@@ -147,7 +274,11 @@ export default function RequestsPage() {
                         />
                         <label htmlFor={`document-${type.value}`} className="min-w-0 flex-1 cursor-pointer">
                           <span className="block text-sm font-medium text-[#102f49]">{type.label}</span>
-                          <span className="text-xs text-[#587387]">₱{type.fee.toFixed(2)} per copy</span>
+                          <span className="flex items-center gap-2 text-xs text-[#587387]">
+                            <span>₱{type.fee.toFixed(2)} / {('feeNote' in type && type.feeNote) || 'copy'}</span>
+                            <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">TAT: {type.tat}</span>
+                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">In-Charge: {type.staff}</span>
+                          </span>
                         </label>
                         <input
                           aria-label={`${type.label} quantity`}
@@ -170,6 +301,34 @@ export default function RequestsPage() {
                 </div>
               </fieldset>
 
+              {/* Third Party Authorization Checklist (Regis Marie College Records Rule) */}
+              <div className="rounded-xl border border-[#dce7ef] bg-slate-50/70 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="third-party-toggle"
+                    checked={isThirdParty}
+                    onCheckedChange={(checked) => setIsThirdParty(!!checked)}
+                  />
+                  <label htmlFor="third-party-toggle" className="cursor-pointer text-sm font-medium text-[#102f49]">
+                    I am requesting this document on behalf of someone else (Third-Party Representative)
+                  </label>
+                </div>
+                {isThirdParty && (
+                  <div className="pl-6 space-y-2 pt-1 text-xs text-[#587387]">
+                    <p className="font-medium text-amber-800 bg-amber-50 p-2 rounded border border-amber-200">
+                      ⚠️ Note: Registar records require an Authorization Letter and Valid ID upon pickup.
+                    </p>
+                    <input
+                      type="text"
+                      value={authorizationNotes}
+                      onChange={(e) => setAuthorizationNotes(e.target.value)}
+                      placeholder="Name of authorized representative / relationship to student"
+                      className="w-full rounded-lg border border-[#cbdde9] bg-white px-3 py-1.5 text-sm text-[#102f49] focus:outline-none focus:ring-2 focus:ring-[#0a439b]"
+                    />
+                  </div>
+                )}
+              </div>
+
               <label className="block space-y-1" htmlFor="request-remarks">
                 <span className="text-sm font-medium text-[#102f49]">Notes (optional)</span>
                 <textarea
@@ -178,10 +337,11 @@ export default function RequestsPage() {
                   onChange={(event) => setRequestRemarks(event.target.value)}
                   maxLength={500}
                   rows={2}
-                  placeholder="Add a note for the administration office"
+                  placeholder="Add a note for the administration office (e.g. purpose of request)"
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-3 py-2 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"
                 />
               </label>
+
 
               {selectedCount > 0 && (
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
@@ -347,41 +507,128 @@ export default function RequestsPage() {
                           <Wallet className="h-4 w-4 text-amber-600" />
                           <h3 className="text-sm font-bold text-amber-800">Payment Required</h3>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <p className="text-xs text-amber-700">
-                              <span className="font-semibold">Fee:</span> ₱{(request.fee ?? 0).toFixed(2)}
+                        <p className="text-xs text-amber-700">
+                          <span className="font-semibold">Fee:</span> ₱{(request.fee ?? 0).toFixed(2)}
+                          {' '}<span className="font-semibold">· SISP Reference:</span>{' '}
+                          <code className="bg-white px-1.5 py-0.5 rounded border border-amber-200 text-amber-800 font-mono">
+                            {request.paymentReference}
+                          </code>
+                        </p>
+
+                        {/* Official Treasury online channels */}
+                        <div className="rounded-lg border border-amber-200 bg-white p-3 space-y-2">
+                          <p className="text-xs font-bold text-amber-800">
+                            Pay via GCash or PNB, then submit your proof below
+                          </p>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-lg bg-slate-50 p-2.5 text-xs">
+                              <p className="font-bold text-[#102f49]">
+                                {paymentChannels?.gcash.label ?? 'GCash'}
+                              </p>
+                              <p className="mt-1 flex items-center gap-1.5 font-mono font-semibold text-[#102f49]">
+                                {paymentChannels?.gcash.number ?? '0919 911 8050'}
+                                <button
+                                  type="button"
+                                  onClick={() => void copyText(paymentChannels?.gcash.number ?? '0919 911 8050', 'GCash number')}
+                                  className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                  aria-label="Copy GCash number"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                {paymentChannels?.gcash.accountName ?? 'Richard H.'}
+                              </p>
+                              {paymentChannels?.gcash.note ? (
+                                <p className="mt-1 text-[10px] leading-relaxed text-amber-700">
+                                  {paymentChannels.gcash.note}
+                                </p>
+                              ) : null}
+                            </div>
+                            <div className="rounded-lg bg-slate-50 p-2.5 text-xs">
+                              <p className="font-bold text-[#102f49]">
+                                {paymentChannels?.pnb.label ?? 'PNB Bank Transfer / Deposit'}
+                              </p>
+                              <p className="mt-1 text-[11px] text-slate-600">
+                                {paymentChannels?.pnb.accountName ?? 'REGIS MARIE COLLEGE INC.'}
+                              </p>
+                              <p className="flex items-center gap-1.5 font-mono font-semibold text-[#102f49]">
+                                {paymentChannels?.pnb.accountNumber ?? '149110075280'}
+                                <button
+                                  type="button"
+                                  onClick={() => void copyText(paymentChannels?.pnb.accountNumber ?? '149110075280', 'PNB account number')}
+                                  className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                  aria-label="Copy PNB account number"
+                                >
+                                  <Copy className="h-3.5 w-3.5" />
+                                </button>
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-[10px] leading-relaxed text-amber-700">
+                            {paymentChannels?.proofRecipient.instruction ??
+                              'Always send your proof of payment to Ms. Arlyne Punzalan of the Treasury Office after completing your transaction.'}
+                          </p>
+                        </div>
+
+                        {request.paymentProofReference ? (
+                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs">
+                            <p className="font-bold text-emerald-800">
+                              Proof submitted — awaiting Treasury verification
                             </p>
-                            <p className="text-xs text-amber-700">
-                              <span className="font-semibold">Reference:</span>{' '}
-                              <code className="bg-white px-1.5 py-0.5 rounded border border-amber-200 text-amber-800 font-mono">
-                                {request.paymentReference}
+                            <p className="mt-1 text-emerald-700">
+                              {request.paymentProofChannel === 'gcash' ? 'GCash' : 'PNB'} ·{' '}
+                              <code className="bg-white px-1.5 py-0.5 rounded border border-emerald-200 font-mono">
+                                {request.paymentProofReference}
                               </code>
                             </p>
-                            <p className="text-[10px] text-amber-600 leading-relaxed">
-                              Please pay via InstaPay or bank transfer using the reference number above.
-                              After payment, click &quot;I Have Paid&quot; below.
-                            </p>
-                            <Button
-                              onClick={() => handleMarkPaid(request.id)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-4 rounded-lg"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                              I Have Paid
-                            </Button>
+                            {request.paymentProofSubmittedAt ? (
+                              <p className="mt-1 text-[10px] text-emerald-600">
+                                Submitted{' '}
+                                {new Date(request.paymentProofSubmittedAt).toLocaleString('en-PH')}
+                              </p>
+                            ) : null}
                           </div>
-                          {request.qrCodeUrl && (
-                            <div className="flex flex-col items-center gap-2">
-                              <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Scan to Pay</p>
-                              <img
-                                src={request.qrCodeUrl}
-                                alt="Payment QR Code"
-                                className="w-32 h-32 rounded-lg border border-amber-200 bg-white"
+                        ) : (
+                          <div className="rounded-lg border border-[#cbdde9] bg-white p-3 space-y-2">
+                            <p className="text-xs font-bold text-[#102f49]">Submit proof of payment</p>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <select
+                                value={proofChannel}
+                                onChange={(event) =>
+                                  setProofChannel(event.target.value as 'gcash' | 'pnb')
+                                }
+                                className="rounded-lg border border-[#cbdde9] bg-white px-3 py-2 text-sm text-[#102f49] focus:outline-none focus:ring-2 focus:ring-[#0a439b]"
+                                aria-label="Payment channel"
+                              >
+                                <option value="gcash">GCash</option>
+                                <option value="pnb">PNB transfer / deposit</option>
+                              </select>
+                              <input
+                                type="text"
+                                value={proofReference}
+                                onChange={(event) => setProofReference(event.target.value)}
+                                maxLength={64}
+                                placeholder="GCash ref no. / PNB slip no."
+                                className="flex-1 rounded-lg border border-[#cbdde9] bg-white px-3 py-2 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:outline-none focus:ring-2 focus:ring-[#0a439b]"
                               />
-                              <p className="text-[9px] text-amber-500 text-center">Mock InstaPay QR</p>
+                              <Button
+                                size="sm"
+                                disabled={submittingProofId === request.id || !proofReference.trim()}
+                                onClick={() => void handleSubmitProof(request.id)}
+                              >
+                                {submittingProofId === request.id ? (
+                                  <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Sending...
+                                  </>
+                                ) : (
+                                  'Submit Proof'
+                                )}
+                              </Button>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )}
 

@@ -33,14 +33,14 @@ export function HeroZoom({ children }: { children: ReactNode }) {
     target,
     offset: ['start start', 'end start'],
   });
-  const scale = useTransform(scrollYProgress, [0, 1], [1.08, 0.98]);
-  const opacity = useTransform(scrollYProgress, [0, 1], [1, 0.72]);
+  const scale = useTransform(scrollYProgress, [0, 1], [1.12, 1.18]);
+  const y = useTransform(scrollYProgress, [0, 1], ['-2%', '8%']);
 
   return (
     <div ref={target} className="absolute inset-0 overflow-hidden">
       <motion.div
         className="absolute inset-0"
-        style={reduceMotion ? undefined : { scale, opacity }}
+        style={reduceMotion ? undefined : { scale, y }}
       >
         {children}
       </motion.div>

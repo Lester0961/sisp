@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { adminApi } from '@/lib/api/admin';
-import { Navbar } from '@/components/shared/Navbar';
 import { PageFooter } from '@/components/shared/PageFooter';
 import { Button } from '@/components/ui/button';
 import {
@@ -74,9 +73,7 @@ export default function AuditLogsPage() {
   const RESOURCE_OPTIONS = ['', 'auth', 'users', 'grades', 'documents', 'chat', 'enrollment'];
 
   return (
-    <div className="portal-page">
-      <Navbar />
-
+    <div className="flex min-h-full flex-col">
       <main className="portal-main max-w-6xl space-y-6">
         {/* Header */}
         <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

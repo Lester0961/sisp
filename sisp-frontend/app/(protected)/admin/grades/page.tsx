@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { gradesApi, GradeItem } from '@/lib/api/grades';
 import { academicTermsApi, AcademicTerm } from '@/lib/api/academicTerms';
 import { Button } from '@/components/ui/button';
-import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
 import {
   Table,
@@ -19,8 +18,6 @@ import {
   RefreshCw,
   Search,
   FileCheck,
-  XCircle,
-  Send,
   Clock,
   AlertCircle,
 } from 'lucide-react';
@@ -82,9 +79,7 @@ export default function RegistrarGradesPage() {
   });
 
   return (
-    <div className="portal-page">
-      <Navbar />
-
+    <div className="flex min-h-full flex-col">
       <main className="portal-main max-w-7xl space-y-6">
         <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

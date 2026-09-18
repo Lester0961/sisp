@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, BookOpen, FileText, Sparkles } from 'lucide-react';
+import { Bell, BookOpen, FileText, Sparkles, AlertCircle, CheckCircle2, ShieldAlert, Info } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudentStore } from '@/stores/studentStore';
 import { Navbar } from '@/components/shared/Navbar';
@@ -116,6 +116,63 @@ export default function DashboardPage() {
                   <p className="text-xs font-medium text-blue-100">Outstanding balance</p>
                   <p className="mt-1 text-2xl font-semibold">{formatPeso(profile?.accountBalance?.balance)}</p>
                   <p className="mt-1 text-xs text-blue-100">Contact Accounting for official payment instructions.</p>
+                </div>
+              </div>
+            </section>
+
+            {/* Treasury Clearance & Enrollment Workflow Advisory (Regis Marie College Policy) */}
+            <section className="portal-surface p-4 sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#e7eef3] pb-4">
+                <div className="flex items-center gap-3">
+                  {Number.parseFloat(profile?.accountBalance?.balance ?? '0') > 0 ? (
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                      <AlertCircle className="size-5" />
+                    </div>
+                  ) : (
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800">
+                      <CheckCircle2 className="size-5" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-sm font-semibold text-[#102f49]">Treasury Clearance Status</h2>
+                      {Number.parseFloat(profile?.accountBalance?.balance ?? '0') > 0 ? (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900 border border-amber-300">
+                          Hold: Balance Due
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900 border border-emerald-300">
+                          Cleared for Enrollment
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-[#587387]">
+                      {Number.parseFloat(profile?.accountBalance?.balance ?? '0') > 0
+                        ? 'Step 1: Students must settle prior balance with the Treasury Office before proceeding to Admission & Registration.'
+                        : 'Your student account is financially cleared. You may proceed with subject registration and down payment.'}
+                    </p>
+                  </div>
+                </div>
+                {Number.parseFloat(profile?.accountBalance?.balance ?? '0') > 0 && (
+                  <Button asChild size="sm" variant="outline" className="shrink-0 border-amber-300 bg-amber-50/50 hover:bg-amber-100 text-amber-900">
+                    <Link href="/support">Treasury Helpdesk</Link>
+                  </Button>
+                )}
+              </div>
+
+              {/* Enrollment Procedures Quick Guide */}
+              <div className="mt-4 grid gap-3 sm:grid-cols-3 text-xs">
+                <div className="rounded-xl border border-[#dce7ef] bg-[#f8fbfe] p-3">
+                  <span className="font-semibold text-[#0a439b] block mb-1">1. Returning / Old Students</span>
+                  <p className="text-[#587387]">Clear Treasury balance → Proceed to Admission for subject advising → Settle Down Payment → Enrolled.</p>
+                </div>
+                <div className="rounded-xl border border-[#dce7ef] bg-[#f8fbfe] p-3">
+                  <span className="font-semibold text-[#0a439b] block mb-1">2. Transferee Requirements</span>
+                  <p className="text-[#587387]">Required: Official TOR / Copy of Grades, Certificate of Good Moral Character, and Honorable Dismissal.</p>
+                </div>
+                <div className="rounded-xl border border-[#dce7ef] bg-[#f8fbfe] p-3">
+                  <span className="font-semibold text-[#0a439b] block mb-1">3. Late / Irregular Policy</span>
+                  <p className="text-[#587387]">Registrar permits late registration subject to the &quot;Student Will Take the Risk&quot; waiver acknowledgment.</p>
                 </div>
               </div>
             </section>

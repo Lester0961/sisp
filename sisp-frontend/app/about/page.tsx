@@ -7,7 +7,7 @@ import { PublicFooter } from '@/components/shared/PublicFooter';
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#F4F6F9] text-[#0A439B] font-sans flex flex-col overflow-x-hidden selection:bg-[#0A439B] selection:text-white">
+    <div className="public-site public-interior min-h-screen bg-[#F4F6F9] text-[#0A439B] font-sans flex flex-col overflow-x-hidden selection:bg-[#0A439B] selection:text-white">
 
       <PublicNavbar />
 

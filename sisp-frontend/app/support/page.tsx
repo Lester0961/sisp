@@ -68,7 +68,7 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col overflow-x-hidden relative selection:bg-teal-500 selection:text-white">
+    <div className="public-site public-interior min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col overflow-x-hidden relative selection:bg-teal-500 selection:text-white">
       
       {/* Background Mesh Gradients */}
       <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-blue-100/40 rounded-full blur-[150px] pointer-events-none -z-10" />

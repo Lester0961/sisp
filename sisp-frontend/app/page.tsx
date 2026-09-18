@@ -96,7 +96,7 @@ function getPreviewResponse(question: string) {
   }
 
   if (text.includes('adviser') || text.includes('human') || text.includes('exception')) {
-    return 'ARIA refers exceptional, sensitive, or approval-based concerns to an academic adviser or the appropriate school office. It supports human advising, not replaces it.';
+    return 'ARIA refers exceptional, sensitive, or approval-based concerns to an academic adviser or the appropriate school office. It supports the work of human advisers.';
   }
 
   if (text.includes('enroll') || text.includes('admission')) {
@@ -144,7 +144,7 @@ function AdvisorPreview() {
   };
 
   return (
-    <div className="glass-panel-light overflow-hidden rounded-[1.75rem]">
+    <div className="public-panel overflow-hidden rounded-[1.75rem]">
       <div className="flex items-center justify-between border-b border-[#1a4a6e]/10 bg-[#f3f8fc] px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl bg-[#1a4a6e] text-white">
@@ -229,77 +229,24 @@ function AdvisorPreview() {
 
 export default function LandingPage() {
   return (
-    <div className="min-h-[100dvh] overflow-x-hidden bg-[#f4f8fb] text-[#102f49]">
+    <div className="public-site public-landing min-h-[100dvh] overflow-x-hidden bg-white text-[#102f49]">
       <PublicNavbar />
 
       <main>
-        <section className="relative isolate flex min-h-[82svh] items-end overflow-hidden bg-[#0e2a41] pt-24">
-          <HeroZoom>
-            <Image
-              src="/rmc/commencement.jpg"
-              alt="Regis Marie College commencement ceremony"
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover object-center"
-            />
-          </HeroZoom>
-          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,32,51,0.93)_0%,rgba(8,32,51,0.72)_42%,rgba(8,32,51,0.30)_75%,rgba(8,32,51,0.62)_100%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(8,32,51,0.85)_0%,transparent_48%)]" />
-
-          <div className="relative mx-auto w-full max-w-[1440px] px-4 pb-28 sm:px-6 sm:pb-32 lg:px-8 2xl:px-10">
-            <Reveal className="max-w-3xl" amount={0.05}>
-              <p className="mb-5 inline-flex rounded-full border border-white/25 bg-white/10 px-4 py-2 text-xs font-semibold tracking-[0.16em] text-white backdrop-blur-md">
-                HOME OF EDUCATORS
-              </p>
-              <h1 className="font-display text-5xl font-semibold leading-[0.98] tracking-[-0.035em] text-white sm:text-6xl lg:text-7xl">
-                Your RMC journey, guided.
-              </h1>
-              <p className="mt-6 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
-                Discover RMC programs and meet ARIA, your AI companion for clearer academic decisions.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a
-                  href="#aria"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-7 font-semibold text-[#1a4a6e] transition hover:-translate-y-0.5 hover:bg-[#eef6fc] active:translate-y-0"
-                >
-                  Meet ARIA
-                  <Sparkles className="size-4" aria-hidden="true" />
-                </a>
-                <a
-                  href="#programs"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/40 bg-white/10 px-7 font-semibold text-white backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/20 active:translate-y-0"
-                >
-                  Browse programs
-                </a>
-              </div>
-            </Reveal>
-          </div>
-
-          <div className="absolute inset-x-0 bottom-0">
-            <div className="glass-rail mx-auto grid max-w-[1440px] grid-cols-1 overflow-hidden rounded-t-2xl text-[#f7fbfd] sm:grid-cols-3 lg:grid-cols-4">
-              <div className="hidden border-r border-[#1a4a6e]/10 px-6 py-5 lg:block">
-                <p className="text-xs font-semibold tracking-[0.14em] text-[#b8d6e8]">SINCE 1992</p>
-                <p className="mt-1 text-sm font-medium text-[#f7fbfd]">Educational excellence</p>
-              </div>
-              <div className="border-r border-[#1a4a6e]/10 px-5 py-4 sm:px-6 sm:py-5">
-                <p className="text-xs font-semibold tracking-[0.14em] text-[#b8d6e8]">PATHWAYS</p>
-                <p className="mt-1 text-sm font-medium text-[#f7fbfd]">College and Senior High</p>
-              </div>
-              <div className="hidden border-r border-[#1a4a6e]/10 px-6 py-5 sm:block">
-                <p className="text-xs font-semibold tracking-[0.14em] text-[#b8d6e8]">ADVISORY</p>
-                <p className="mt-1 text-sm font-medium text-[#f7fbfd]">AI support with human escalation</p>
-              </div>
-              <div className="hidden items-center justify-between gap-4 px-6 py-5 sm:flex">
-                <div>
-                  <p className="text-sm font-semibold text-[#f7fbfd]">Already a student?</p>
-                  <p className="mt-1 text-xs text-[#d5e8f2]">Open your secure portal</p>
-                </div>
-                <Link href="/login" className="shrink-0 rounded-full bg-[#1a4a6e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#123a58]">
-                  Log in
-                </Link>
-              </div>
+        <section className="public-hero">
+          <div className="public-hero-copy">
+            <p className="public-eyebrow">Regis Marie College</p>
+            <h1>Your next chapter.<br /><span>Starts at RMC.</span></h1>
+            <p className="public-hero-description">Explore our programs, find academic guidance, and keep your student services in one place.</p>
+            <div className="public-hero-actions">
+              <Link href="/login" className="public-primary">Open student portal <ArrowRight className="size-4" /></Link>
+              <a href="#programs" className="public-secondary">Explore programs <ArrowRight className="size-4" /></a>
             </div>
+          </div>
+          <div className="public-hero-photo">
+            <HeroZoom>
+              <Image src="/rmc/commencement.jpg" alt="Regis Marie College graduates at their commencement ceremony" fill priority sizes="(min-width: 1024px) 55vw, 100vw" className="object-cover object-center" />
+            </HeroZoom>
           </div>
         </section>
 
@@ -339,7 +286,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="why-rmc" className="scroll-mt-20 bg-[#eaf3f9] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+        <section id="why-rmc" className="scroll-mt-20 bg-[#f7f9fc] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
           <div className="mx-auto max-w-[1440px]">
             <Reveal className="max-w-3xl">
               <h2 className="font-display text-4xl font-semibold tracking-[-0.025em] text-[#102f49] sm:text-5xl">
@@ -366,7 +313,7 @@ export default function LandingPage() {
                   const Icon = item.icon;
                   return (
                     <Reveal key={item.title} delay={index * 0.06}>
-                      <article className="glass-panel-light rounded-2xl p-5 sm:p-6">
+                      <article className="public-panel rounded-2xl p-5 sm:p-6">
                         <div className="flex items-start gap-4">
                           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf3f9] text-[#1a4a6e]">
                             <Icon className="size-5" aria-hidden="true" />
@@ -411,7 +358,7 @@ export default function LandingPage() {
               <div className="grid content-start gap-4 sm:grid-cols-2">
                 {programGroups.map((group, index) => (
                   <Reveal key={group.title} delay={index * 0.07}>
-                    <article className="glass-panel-light h-full rounded-2xl p-5 sm:p-6">
+                    <article className="public-panel h-full rounded-2xl p-5 sm:p-6">
                       <p className="text-[11px] font-bold tracking-[0.16em] text-[#6a879a] uppercase">
                         {group.eyebrow}
                       </p>
@@ -441,7 +388,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="senior-high" className="bg-[#eaf3f9] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+        <section id="senior-high" className="bg-[#f7f9fc] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
           <div className="mx-auto grid max-w-[1440px] items-center gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16">
             <PosterReveal className="poster-frame overflow-hidden rounded-[1.75rem] p-2 sm:p-3">
               <Image
@@ -461,11 +408,11 @@ export default function LandingPage() {
                 Build a focused foundation through RMC Senior High School pathways.
               </p>
               <div className="mt-8 space-y-4">
-                <div className="glass-panel-light rounded-2xl p-6 transition-transform hover:-translate-y-1">
+                <div className="public-panel rounded-2xl p-6 transition-transform hover:-translate-y-1">
                   <h3 className="text-xl font-semibold text-[#102f49]">ABM</h3>
                   <p className="mt-2 text-sm leading-relaxed text-[#587387]">Accountancy, Business, and Management</p>
                 </div>
-                <div className="glass-panel-light rounded-2xl p-6 transition-transform hover:-translate-y-1">
+                <div className="public-panel rounded-2xl p-6 transition-transform hover:-translate-y-1">
                   <h3 className="text-xl font-semibold text-[#102f49]">HUMSS</h3>
                   <p className="mt-2 text-sm leading-relaxed text-[#587387]">Humanities and Social Sciences</p>
                 </div>
@@ -499,7 +446,7 @@ export default function LandingPage() {
               </div>
             </Reveal>
 
-            <Reveal className="glass-panel-dark mt-12 flex flex-col items-start justify-between gap-6 rounded-[1.75rem] px-6 py-8 text-[#f7fbfd] sm:px-8 lg:flex-row lg:items-center lg:px-10">
+            <Reveal className="public-closing mt-12 flex flex-col items-start justify-between gap-6 rounded-[1.75rem] px-6 py-8 text-[#f7fbfd] sm:px-8 lg:flex-row lg:items-center lg:px-10">
               <div>
                 <h2 className="font-display text-3xl font-semibold">Ready to continue your RMC journey?</h2>
                 <p className="mt-2 text-sm text-[#d5e8f2]">Open the student portal or contact the school for admissions assistance.</p>

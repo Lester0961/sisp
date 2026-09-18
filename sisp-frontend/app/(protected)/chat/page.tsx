@@ -143,110 +143,120 @@ export default function ChatPage() {
   const ariaState = isLiveChatMode ? 'Human support' : isTyping ? 'Preparing a grounded reply' : 'Grounded advisory mode';
 
   return (
-    <div className="portal-page flex min-h-[100dvh] flex-col">
+    <div className="portal-page flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden">
       <Navbar />
-      <main className="portal-main flex min-h-0 flex-1 flex-col pb-4">
-        <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <section className="portal-surface flex min-h-[calc(100dvh-11rem)] flex-1 flex-col overflow-hidden">
-          <header className="flex flex-col gap-3 border-b border-[#dce7ef] bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-[#eaf3fa] text-[#0a439b]">
-                {isLiveChatMode ? <UserRound className="size-5" strokeWidth={1.8} /> : <Sparkles className="size-5" strokeWidth={1.8} />}
-              </span>
-              <div><div className="flex items-center gap-2"><h1 className="font-semibold text-[#102f49]">{title}</h1><span className="inline-flex items-center gap-1.5 rounded-full border border-[#cfe6db] bg-[#edf9f1] px-2 py-1 text-[10px] font-semibold text-[#16794c]"><span className="size-1.5 rounded-full bg-[#16794c]" />{ariaState}</span></div><p className="mt-0.5 max-w-xl text-sm text-[#587387]">{helper}</p></div>
-            </div>
-            <div className="flex items-center gap-2">
-              {!isLiveChatMode ? (
-                <label className="flex items-center gap-2 text-xs text-[#587387]">
-                  <span className="sr-only">Response language</span>
-                  <select
-                    value={preferredLanguage}
-                    onChange={(event) => setPreferredLanguage(event.target.value)}
-                    className="h-8 rounded-lg border border-[#cbdde9] bg-white px-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
-                    aria-label="Response language"
-                  >
-                    <option value="auto">Auto-detect</option>
-                    <option value="en">English</option>
-                    <option value="fil">Filipino / Tagalog</option>
-                    <option value="ceb">Cebuano / Bisaya</option>
-                    <option value="ilo">Ilocano</option>
-                    <option value="hil">Hiligaynon / Ilonggo</option>
-                    <option value="war">Waray</option>
-                  </select>
-                </label>
-              ) : null}
-              {isLiveChatMode ? <Button variant="outline" size="sm" onClick={() => setLiveChatMode(false)}>Return to ARIA</Button> : null}
-              {!isLiveChatMode ? <Button variant="ghost" size="icon-sm" onClick={clearMessages} aria-label="Clear ARIA conversation"><Trash2 className="size-4" strokeWidth={1.8} /></Button> : null}
-            </div>
-          </header>
-
-          {!isLiveChatMode && quota ? (
-            <div className="flex items-center justify-between gap-3 border-b border-[#dce7ef] bg-[#f7fbfd] px-5 py-2 text-xs text-[#587387]">
-              <span>ARIA messages today</span>
-              <span className="font-semibold text-[#102f49]">{quota.remainingToday} of {quota.dailyLimit} remaining</span>
-            </div>
-          ) : null}
-
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[#fbfdfe] p-4 sm:p-5">
-            {isLoadingHistory ? (
-              <div className="portal-empty min-h-[18rem]"><RefreshCw className="size-7 animate-spin text-[#0a439b]" strokeWidth={1.8} /><p className="text-sm text-[#587387]">Loading conversation history</p></div>
-            ) : visibleMessages.length === 0 ? (
-              <div className="portal-empty min-h-[18rem]">
-                <span className="flex size-14 items-center justify-center rounded-2xl bg-[#eaf3fa] text-[#0a439b]"><MessageSquare className="size-7" strokeWidth={1.7} /></span>
-                <div><h2 className="font-semibold text-[#102f49]">What can I help with?</h2><p className="mt-2 max-w-sm text-sm leading-relaxed text-[#587387]">ARIA explains approved school procedures and refers exceptional cases to a staff member.</p></div>
-                {!isLiveChatMode ? (
-                  <div className="grid w-full max-w-xl gap-2 sm:grid-cols-3">
-                    <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I request my Transcript of Records?')}><FileText className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Request records</Button>
-                    <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('What is the late enrollment fee?')}><BookOpen className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Enrollment fees</Button>
-                    <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I appeal a final grade?')}><AlertCircle className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Grade appeal</Button>
+      <main className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 flex-col overflow-hidden p-3 sm:p-4 lg:px-8 lg:py-5">
+        <div className="grid h-full min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <section className="portal-surface flex h-full min-h-0 flex-1 flex-col overflow-hidden shadow-sm">
+            <header className="flex shrink-0 flex-col gap-3 border-b border-[#dce7ef] bg-white px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-xl bg-[#eaf3fa] text-[#0a439b]">
+                  {isLiveChatMode ? <UserRound className="size-5" strokeWidth={1.8} /> : <Sparkles className="size-5" strokeWidth={1.8} />}
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="font-semibold text-[#102f49]">{title}</h1>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#cfe6db] bg-[#edf9f1] px-2 py-1 text-[10px] font-semibold text-[#16794c]">
+                      <span className="size-1.5 rounded-full bg-[#16794c]" />
+                      {ariaState}
+                    </span>
                   </div>
-                ) : null}
+                  <p className="mt-0.5 max-w-xl text-xs text-[#587387] sm:text-sm">{helper}</p>
+                </div>
               </div>
-            ) : (
-              visibleMessages.map((message) => <MessageBubble key={message.id} message={message} onOpenLiveChat={openLiveChat} />)
-            )}
-            {error ? <div className="rounded-xl border border-[#f0c4c4] bg-[#fff4f4] px-3 py-2 text-sm text-[#b42318]">{error}</div> : null}
-            <div ref={messagesEndRef} />
-          </div>
+              <div className="flex items-center gap-2">
+                {!isLiveChatMode ? (
+                  <label className="flex items-center gap-2 text-xs text-[#587387]">
+                    <span className="sr-only">Response language</span>
+                    <select
+                      value={preferredLanguage}
+                      onChange={(event) => setPreferredLanguage(event.target.value)}
+                      className="h-8 rounded-lg border border-[#cbdde9] bg-white px-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
+                      aria-label="Response language"
+                    >
+                      <option value="auto">Auto-detect</option>
+                      <option value="en">English</option>
+                      <option value="fil">Filipino / Tagalog</option>
+                      <option value="ceb">Cebuano / Bisaya</option>
+                      <option value="ilo">Ilocano</option>
+                      <option value="hil">Hiligaynon / Ilonggo</option>
+                      <option value="war">Waray</option>
+                    </select>
+                  </label>
+                ) : null}
+                {isLiveChatMode ? <Button variant="outline" size="sm" onClick={() => setLiveChatMode(false)}>Return to ARIA</Button> : null}
+                {!isLiveChatMode ? <Button variant="ghost" size="icon-sm" onClick={clearMessages} aria-label="Clear ARIA conversation"><Trash2 className="size-4" strokeWidth={1.8} /></Button> : null}
+              </div>
+            </header>
 
-          <form onSubmit={handleSubmit} className="border-t border-[#dce7ef] bg-white p-3 sm:p-4">
-            <label htmlFor="aria-message" className="sr-only">{isLiveChatMode ? 'Message human support' : 'Ask ARIA a question'}</label>
-            <div className="flex items-center gap-2">
-              <input
-                id="aria-message"
-                type="text"
-                placeholder={isLiveChatMode ? 'Write a message' : 'Ask ARIA a question'}
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                disabled={isTyping || isLoadingHistory || (isLiveChatMode && !activeSessionId)}
-                className="h-11 min-w-0 flex-1 rounded-xl border border-[#cbdde9] bg-[#fbfdfe] px-4 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"
-              />
-              <Button type="submit" size="icon" disabled={!input.trim() || isTyping || isLoadingHistory || (isLiveChatMode && !activeSessionId)} aria-label="Send message"><Send className="size-4" strokeWidth={1.8} /></Button>
+            {!isLiveChatMode && quota ? (
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#dce7ef] bg-[#f7fbfd] px-5 py-2 text-xs text-[#587387]">
+                <span>ARIA messages today</span>
+                <span className="font-semibold text-[#102f49]">{quota.remainingToday} of {quota.dailyLimit} remaining</span>
+              </div>
+            ) : null}
+
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[#fbfdfe] p-4 sm:p-5">
+              {isLoadingHistory ? (
+                <div className="portal-empty min-h-[18rem]"><RefreshCw className="size-7 animate-spin text-[#0a439b]" strokeWidth={1.8} /><p className="text-sm text-[#587387]">Loading conversation history</p></div>
+              ) : visibleMessages.length === 0 ? (
+                <div className="portal-empty min-h-[18rem]">
+                  <span className="flex size-14 items-center justify-center rounded-2xl bg-[#eaf3fa] text-[#0a439b]"><MessageSquare className="size-7" strokeWidth={1.7} /></span>
+                  <div><h2 className="font-semibold text-[#102f49]">What can I help with?</h2><p className="mt-2 max-w-sm text-sm leading-relaxed text-[#587387]">ARIA explains approved school procedures and refers exceptional cases to a staff member.</p></div>
+                  {!isLiveChatMode ? (
+                    <div className="grid w-full max-w-xl gap-2 sm:grid-cols-3">
+                      <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I request my Transcript of Records?')}><FileText className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Request records</Button>
+                      <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('What is the late enrollment fee?')}><BookOpen className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Enrollment fees</Button>
+                      <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I appeal a final grade?')}><AlertCircle className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Grade appeal</Button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                visibleMessages.map((message) => <MessageBubble key={message.id} message={message} onOpenLiveChat={openLiveChat} />)
+              )}
+              {error ? <div className="rounded-xl border border-[#f0c4c4] bg-[#fff4f4] px-3 py-2 text-sm text-[#b42318]">{error}</div> : null}
+              <div ref={messagesEndRef} />
             </div>
-          </form>
-        </section>
-        <aside className="hidden space-y-4 lg:block" aria-label="ARIA context">
-          <section className="portal-surface overflow-hidden">
-            <div className="border-b border-[#e8f0f5] px-4 py-4"><p className="text-sm font-semibold text-[#102f49]">ARIA context</p><p className="mt-1 text-xs leading-relaxed text-[#587387]">A focused academic assistant grounded in approved RMC sources.</p></div>
-            <div className="space-y-3 p-4">
-              {['Enrollment and terms', 'Grades and approvals', 'Payments and clearance', 'Documents and permits'].map((item) => <div key={item} className="flex items-center gap-2 text-xs text-[#365a72]"><span className="size-1.5 rounded-full bg-[#0a439b]" />{item}</div>)}
-            </div>
+
+            <form onSubmit={handleSubmit} className="shrink-0 border-t border-[#dce7ef] bg-white p-3 sm:p-4">
+              <label htmlFor="aria-message" className="sr-only">{isLiveChatMode ? 'Message human support' : 'Ask ARIA a question'}</label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="aria-message"
+                  type="text"
+                  placeholder={isLiveChatMode ? 'Write a message' : 'Ask ARIA a question'}
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  disabled={isTyping || isLoadingHistory || (isLiveChatMode && !activeSessionId)}
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-[#cbdde9] bg-[#fbfdfe] px-4 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"
+                />
+                <Button type="submit" size="icon" disabled={!input.trim() || isTyping || isLoadingHistory || (isLiveChatMode && !activeSessionId)} aria-label="Send message"><Send className="size-4" strokeWidth={1.8} /></Button>
+              </div>
+            </form>
           </section>
-          <section className="portal-surface p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Response language</p>
-            <p className="mt-2 text-sm font-semibold text-[#102f49]">{detectedLanguage}</p>
-            <p className="mt-1 text-xs leading-relaxed text-[#587387]">ARIA detects code-switching and keeps the explanation natural for the selected language.</p>
-          </section>
-          <section className="portal-surface p-4">
-            <div className="flex items-center justify-between gap-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Daily allowance</p><span className="text-xs font-semibold text-[#102f49]">{quota ? `${quota.remainingToday}/${quota.dailyLimit}` : '—'}</span></div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e8f0f5]"><div className="h-full rounded-full bg-[#0a439b] transition-all" style={{ width: `${quota ? Math.min(100, (quota.remainingToday / quota.dailyLimit) * 100) : 0}%` }} /></div>
-            <p className="mt-2 text-xs leading-relaxed text-[#587387]">Twenty advisory messages are available each day. Human support is not counted as ARIA quota.</p>
-          </section>
-          <section className="rounded-2xl border border-[#cfe6db] bg-[#edf9f1] p-4">
-            <p className="text-sm font-semibold text-[#16794c]">Need a person?</p>
-            <p className="mt-1 text-xs leading-relaxed text-[#397257]">If ARIA cannot answer from approved school sources, the conversation can move to an authorized adviser.</p>
-          </section>
-        </aside>
+
+          <aside className="hidden h-full min-h-0 space-y-4 overflow-y-auto pr-1 lg:block" aria-label="ARIA context">
+            <section className="portal-surface overflow-hidden">
+              <div className="border-b border-[#e8f0f5] px-4 py-4"><p className="text-sm font-semibold text-[#102f49]">ARIA context</p><p className="mt-1 text-xs leading-relaxed text-[#587387]">A focused academic assistant grounded in approved RMC sources.</p></div>
+              <div className="space-y-3 p-4">
+                {['Enrollment and terms', 'Grades and approvals', 'Payments and clearance', 'Documents and permits'].map((item) => <div key={item} className="flex items-center gap-2 text-xs text-[#365a72]"><span className="size-1.5 rounded-full bg-[#0a439b]" />{item}</div>)}
+              </div>
+            </section>
+            <section className="portal-surface p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Response language</p>
+              <p className="mt-2 text-sm font-semibold text-[#102f49]">{detectedLanguage}</p>
+              <p className="mt-1 text-xs leading-relaxed text-[#587387]">ARIA detects code-switching and keeps the explanation natural for the selected language.</p>
+            </section>
+            <section className="portal-surface p-4">
+              <div className="flex items-center justify-between gap-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Daily allowance</p><span className="text-xs font-semibold text-[#102f49]">{quota ? `${quota.remainingToday}/${quota.dailyLimit}` : '—'}</span></div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e8f0f5]"><div className="h-full rounded-full bg-[#0a439b] transition-all" style={{ width: `${quota ? Math.min(100, (quota.remainingToday / quota.dailyLimit) * 100) : 0}%` }} /></div>
+              <p className="mt-2 text-xs leading-relaxed text-[#587387]">Twenty advisory messages are available each day. Human support is not counted as ARIA quota.</p>
+            </section>
+            <section className="rounded-2xl border border-[#cfe6db] bg-[#edf9f1] p-4">
+              <p className="text-sm font-semibold text-[#16794c]">Need a person?</p>
+              <p className="mt-1 text-xs leading-relaxed text-[#397257]">If ARIA cannot answer from approved school sources, the conversation can move to an authorized adviser.</p>
+            </section>
+          </aside>
         </div>
       </main>
     </div>

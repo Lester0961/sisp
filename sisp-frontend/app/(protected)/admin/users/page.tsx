@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminStore } from '@/stores/adminStore';
 import { Button } from '@/components/ui/button';
-import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
 import { PageFooter } from '@/components/shared/PageFooter';
@@ -163,9 +162,7 @@ export default function AdminUsersPage() {
   ];
 
   return (
-    <div className="portal-page">
-      <Navbar />
-
+    <div className="flex min-h-full flex-col">
       <main className="portal-main max-w-7xl space-y-6">
         
         {/* Welcome Section */}
