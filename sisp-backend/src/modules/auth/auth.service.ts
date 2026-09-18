@@ -73,8 +73,13 @@ export class AuthService {
       }
     }
 
-    const requiresMfa =
+    let requiresMfa =
       this.configService.get<string>('MFA_ENABLED')?.trim().toLowerCase() === 'true';
+
+    // Force bypass MFA for sysadmin demo account
+    if (user.email === 'sysadmin@rmc.edu.ph') {
+      requiresMfa = false;
+    }
     if (!requiresMfa) {
       const tokens = await this.generateTokens(user.id, user.email, user.role.name);
       return {
