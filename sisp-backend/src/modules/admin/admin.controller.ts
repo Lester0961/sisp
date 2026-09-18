@@ -25,7 +25,7 @@ export class AdminController {
 
   // ── User management (FIX #2 — routes under /admin prefix) ──
   @Get('users')
-  @Roles('admin_staff')
+  @Roles('admin_staff', 'sys_admin')
   async listUsers(@Query('page') page?: string, @Query('limit') limit?: string, @Query('role') roleName?: string) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
