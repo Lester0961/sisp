@@ -86,4 +86,16 @@ export class AdminController {
   async wipeDemoUsers() {
     return this.adminService.wipeDemoUsers();
   }
+
+  @Public()
+  @Post('seed-curricula-debug')
+  async seedCurriculaDebug() {
+    const { execSync } = require('child_process');
+    try {
+      const out = execSync('node prisma/seed-curricula.js --apply', { encoding: 'utf8' });
+      return { success: true, output: out };
+    } catch (error: any) {
+      return { success: false, error: error.message, stdout: error.stdout, stderr: error.stderr };
+    }
+  }
 }
