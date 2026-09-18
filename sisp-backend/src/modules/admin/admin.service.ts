@@ -159,7 +159,7 @@ export class AdminService {
         lastName: dto.lastName,
         roleId: role.id,
         isActive: true,
-        mustChangePassword: true,
+        mustChangePassword: false, // Disabled for demo since no UI exists yet
       },
       include: {
         role: true,
