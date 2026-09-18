@@ -36,7 +36,9 @@ export class KnowledgeBaseController {
 
   constructor(private readonly config: ConfigService) {
     this.mlServiceUrl = this.config.get<string>('ML_SERVICE_URL') || 'http://localhost:8000';
-    this.mlSecret = this.config.get<string>('ML_SECRET_TOKEN') || 'default-ml-secret';
+    // Fallback matches the ML service default (ml_secret_token) so a missing
+    // env fails identically on both sides instead of half-working.
+    this.mlSecret = this.config.get<string>('ML_SECRET_TOKEN') || 'local-ml-service-only';
   }
 
   private async proxyToMl(method: string, path: string, body?: any): Promise<any> {

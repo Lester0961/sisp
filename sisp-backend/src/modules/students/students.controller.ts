@@ -6,9 +6,18 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
+import { Public } from '../../common/decorators/public.decorator';
+
 @Controller('students')
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
+
+  // Flow B: Public lookup / claim existing unactivated student record
+  @Public()
+  @Post('activate')
+  async activateAccount(@Body() body: { studentNumber: string; dob: string; email: string }) {
+    return this.studentsService.activateAccount(body.studentNumber, body.dob, body.email);
+  }
 
   // Student views their own profile
   @Get('me')

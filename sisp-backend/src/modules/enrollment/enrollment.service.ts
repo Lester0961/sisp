@@ -34,7 +34,23 @@ export class EnrollmentService {
       throw new NotFoundException(`Academic term ${dto.termId} not found`);
     }
 
-    // Check if already enrolled in this course
+    // 1. Treasury Clearance Rule: Check if student has an existing outstanding balance before enrolling
+    const accountBalance = await this.prisma.accountBalance.findUnique({
+      where: { studentId: profile.id },
+    });
+    if (accountBalance && Number(accountBalance.balance) > 0) {
+      throw new BadRequestException(
+        `Enrollment blocked: You have an outstanding balance of ₱${Number(accountBalance.balance).toLocaleString('en-PH', { minimumFractionDigits: 2 })}. Please clear your balance with the Treasury before enrolling.`,
+      );
+    }
+
+    // 2. Late Enrollment Policy Rule: If term is already active, student must accept the late enrollment risk waiver
+    if (term?.status === 'active' && !dto.riskAcknowledged) {
+      throw new BadRequestException(
+        'Classes for this term are already ongoing. Per Regis Marie College Registrar policy, late enrollees must accept the academic risk waiver ("Student Will Take the Risk") before enrolling.',
+      );
+    }
+
     const existing = await this.prisma.enrollment.findFirst({
       where: {
         studentId: profile.id,
@@ -47,9 +63,9 @@ export class EnrollmentService {
       throw new ConflictException(`You are already enrolled in ${course.code} - ${course.title}`);
     }
 
-    // Prerequisite check (VERIFIED curricula): block unless each required
-    // course is completed. Self-references and unresolved codes (verification
-    // notes 10 anomalies) never block - they are recorded as warnings.
+    // 3. Prerequisite check (VERIFIED curricula): block unless each required
+    // course is completed. Self-references and unresolved codes (§10 anomalies)
+    // never block — they are recorded as warnings.
     const prereqs = await this.prisma.coursePrerequisite.findMany({
       where: { courseId: dto.courseId, isSelfReference: false, isUnresolved: false },
       select: { requiresCode: true, requiresId: true },
@@ -367,7 +383,7 @@ export class EnrollmentService {
 
   async getAvailableCourses(userId?: string, termId?: string) {
     // Program-aware listing: when a student calls, return only their
-    // curriculum's courses for the current (or requested) term.
+    // curriculum's courses for the current (or requested) term, newest first.
     // Admin/faculty calls without userId keep the legacy full listing.
     if (userId) {
       const profile = await requireStudentProfile(this.prisma, userId);

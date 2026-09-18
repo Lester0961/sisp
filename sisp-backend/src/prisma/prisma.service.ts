@@ -40,6 +40,36 @@ function supabasePoolerUrl(directUrl: string | undefined): string | undefined {
   }
 }
 
+const CREDENTIAL_FIELDS = new Set(['passwordHash', 'mfaSecret']);
+
+/**
+ * Pure credential sanitizer for mock-resolved payloads: returns an object
+ * graph with credential fields removed WITHOUT mutating the shared store.
+ * (An earlier in-place version corrupted live login hashes; this function
+ * only ever builds fresh objects along credential-bearing paths.)
+ */
+function stripCredentials(value: any, seen = new Map(), depth = 0, keepRootHash = false): any {
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value)) return seen.get(value);
+  if (value instanceof Date) return value;
+  if (Array.isArray(value)) {
+    const out: any[] = [];
+    seen.set(value, out);
+    for (const entry of value) out.push(stripCredentials(entry, seen, depth + 1, false));
+    return out;
+  }
+  const out: any = {};
+  seen.set(value, out);
+  for (const [key, entry] of Object.entries(value)) {
+    // Top-level user reads (e.g. login's include:{role} for bcrypt) keep
+    // their hash — exactly like production Prisma. Everything nested is
+    // response payload and must never carry credentials.
+    if (CREDENTIAL_FIELDS.has(key) && !(depth === 0 && keepRootHash)) continue;
+    out[key] = stripCredentials(entry, seen, depth + 1, false);
+  }
+  return out;
+}
+
 function prismaClientOptions() {
   const databaseUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
   const directUrl = normalizeDatabaseUrl(process.env.DIRECT_URL);
@@ -56,6 +86,8 @@ function prismaClientOptions() {
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   public isOffline = false;
   private mockDb: any = {};
+  private mockFlushTimer?: NodeJS.Timeout;
+  private flushMockDb: () => void = () => {};
 
   constructor() {
     super(prismaClientOptions());
@@ -96,6 +128,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$connect();
       console.log('[Prisma] Database connected successfully.');
     } catch (error) {
+      // Opt-in fail-fast for production: STRICT_DB=true refuses to boot into
+      // mock mode (mock data lives in RAM/ephemeral disk and would silently
+      // lose writes on restart). Default off preserves local-dev behavior.
+      if (process.env.STRICT_DB === 'true') {
+        console.error('[Prisma] STRICT_DB=true and database unreachable. Refusing to start.');
+        throw error;
+      }
       console.warn('[Prisma] Could not connect to the database.', error);
       this.isOffline = true;
       console.log('[Prisma Mock] Active — using in-memory mock database.');
@@ -103,6 +142,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleDestroy(): Promise<void> {
+    try {
+      this.flushMockDb();
+    } catch {}
+    if (this.mockFlushTimer) clearInterval(this.mockFlushTimer);
     await this.$disconnect().catch(() => {});
   }
 
@@ -456,14 +499,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
     ];
 
+
+
+
     const documentRequests = [
       {
         id: 'mock-request-1',
         studentId: 'mock-student-profile-id',
-        type: 'Certificate of Enrollment',
+        type: 'certificate_of_enrollment',
         status: 'released',
         remarks: 'Cleared by accounting',
-        fee: 150.0,
+        fee: 300.0,
         paymentStatus: 'paid',
         paymentReference: 'REF-COE-001',
         qrCodeUrl: 'https://placehold.co/200x200?text=InstaPay+QR+REF-COE-001',
@@ -476,10 +522,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       {
         id: 'mock-request-2',
         studentId: 'mock-student-profile-id',
-        type: 'Transcript of Records',
+        type: 'transcript_of_records',
         status: 'awaiting_payment',
         remarks: 'Awaiting payment confirmation',
-        fee: 200.0,
+        fee: 500.0,
         paymentStatus: 'unpaid',
         paymentReference: 'REF-TOR-002',
         qrCodeUrl: 'https://placehold.co/200x200?text=InstaPay+QR+REF-TOR-002',
@@ -491,12 +537,142 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
     ];
 
-    const documentCatalogItems = DOCUMENT_CATALOG.map((item) => ({
-      ...item,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
+    const documentCatalogItems = [
+      {
+        id: '10000000-0000-4000-8000-000000000001',
+        code: 'transcript_of_records',
+        label: 'Transcript of Records (Graduates / Employment)',
+        fee: 500,
+        sortOrder: 10,
+        tat: '3-4 weeks',
+        assignedTo: 'Miss Rose',
+        feeNote: 'per page',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000011',
+        code: 'transcript_of_records_undergrad',
+        label: 'TOR (Undergraduate - For Employment Purposes Only)',
+        fee: 500,
+        sortOrder: 15,
+        tat: '3-4 weeks',
+        assignedTo: 'Miss Rose',
+        feeNote: 'per page',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000002',
+        code: 'certificate_of_enrollment',
+        label: 'Certificate of Enrollment (COE)',
+        fee: 300,
+        sortOrder: 20,
+        tat: '2-3 business days',
+        assignedTo: 'Sir Christian',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000012',
+        code: 'certified_true_copy_cor',
+        label: 'Certified True Copy – COR',
+        fee: 300,
+        sortOrder: 22,
+        tat: '2-3 business days',
+        assignedTo: 'Sir Christian',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000003',
+        code: 'certificate_of_good_moral',
+        label: 'Certificate of Good Moral Character',
+        fee: 500,
+        sortOrder: 30,
+        tat: '2-3 business days',
+        assignedTo: 'Records Staff',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000013',
+        code: 'copy_of_grades',
+        label: '2nd Copy of Copy of Grades',
+        fee: 150,
+        sortOrder: 32,
+        tat: '2-3 business days',
+        assignedTo: 'Miss Rose',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000014',
+        code: 'certified_true_copy_grades',
+        label: 'Certified True Copy – Copy of Grades',
+        fee: 300,
+        sortOrder: 34,
+        tat: '3-5 business days',
+        assignedTo: 'Miss Rose',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000004',
+        code: 'diploma',
+        label: 'Diploma (Copy / Certification)',
+        fee: 500,
+        sortOrder: 40,
+        tat: '3-4 weeks',
+        assignedTo: 'Sir Christian',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000005',
+        code: 'course_description',
+        label: 'Course Description',
+        fee: 50,
+        sortOrder: 50,
+        tat: '3-5 business days',
+        assignedTo: 'Records Staff',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000006',
+        code: 'authentication',
+        label: 'Document Authentication / CHED CAV Endorsement',
+        fee: 300,
+        sortOrder: 60,
+        tat: '2-3 weeks',
+        assignedTo: 'Sir Christian',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: '10000000-0000-4000-8000-000000000007',
+        code: 'other',
+        label: 'Other Document Request',
+        fee: 100,
+        sortOrder: 70,
+        tat: '3-5 business days',
+        assignedTo: 'Records Staff',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
 
     const documentRequestItems = documentRequests.map((request, index) => {
       const catalogItem =
@@ -600,6 +776,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
     ];
 
+    const admissionApplications: any[] = [];
+    const admissionRequirementDefinitions: any[] = [
+      { id: 'req-def-1', code: 'FORM_137', title: 'High School Report Card (Form 138 / SF9)', applicantType: 'freshman', isRequired: true, sortOrder: 10, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+      { id: 'req-def-2', code: 'GOOD_MORAL', title: 'Certificate of Good Moral Character', applicantType: null, isRequired: true, sortOrder: 20, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+      { id: 'req-def-3', code: 'PSA_BIRTH', title: 'PSA Birth Certificate', applicantType: null, isRequired: true, sortOrder: 30, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+      { id: 'req-def-4', code: 'ID_PHOTO', title: '2x2 Recent Colored Photo', applicantType: null, isRequired: true, sortOrder: 40, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+      { id: 'req-def-5', code: 'HONORABLE_DISMISSAL', title: 'Honorable Dismissal / Transfer Credential', applicantType: 'transferee', isRequired: true, sortOrder: 50, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    ];
+    const admissionRequirementSubmissions: any[] = [];
+
     const store: Record<string, any[]> = {
       role: roles,
       user: users,
@@ -620,6 +806,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       chatSession: chatSessions,
       chatMessage: chatMessages,
       auditLog: auditLogs,
+      admissionApplication: admissionApplications,
+      admissionRequirementDefinition: admissionRequirementDefinitions,
+      admissionRequirementSubmission: admissionRequirementSubmissions,
     };
 
     const dbFilePath = path.join(__dirname, '..', '..', 'mock-db.json');
@@ -680,22 +869,56 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       }
     }
 
-    const saveDb = () => {
+    // Debounced persistence: under concurrent load (e.g. dozens of students
+    // chatting at once), stringifying + rewriting the whole file on every
+    // mutation is O(n^2) event-loop blocking. Reads always see live memory;
+    // the file is flushed at most every 2s and once more on shutdown.
+    // NOTE: local mock mode only — production uses Supabase, unaffected.
+    let mockDirty = false;
+    const flushNow = () => {
+      if (!mockDirty) return;
+      mockDirty = false;
       try {
         fs.writeFileSync(dbFilePath, JSON.stringify(store, null, 2), 'utf8');
       } catch (err) {
         console.error('[Prisma Mock] Failed to write mock-db.json:', err);
       }
     };
+    this.flushMockDb = flushNow;
+    if (this.mockFlushTimer) clearInterval(this.mockFlushTimer);
+    this.mockFlushTimer = setInterval(flushNow, 2000);
+    if (typeof (this.mockFlushTimer as any)?.unref === 'function') {
+      (this.mockFlushTimer as any).unref();
+    }
+    const saveDb = () => {
+      mockDirty = true;
+    };
 
     // Recursive mock relation populate helper
     const resolveIncludes = (item: any, include: any, modelKey: string): any => {
       if (!item || !include) return item;
+      // Honor Prisma `select` projections (e.g. user selects that exclude
+      // passwordHash). Without this, mock mode leaks full rows to clients.
+      if (typeof include === 'object' && include !== null && !Array.isArray(include)) {
+        const select = (include as any).select;
+        if (select && typeof select === 'object' && !(include as any).include) {
+          const picked: any = {};
+          for (const [field, want] of Object.entries(select)) {
+            if (want) picked[field] = item[field];
+          }
+          return picked;
+        }
+      }
       const cloned = { ...item };
       for (const [key, val] of Object.entries(include)) {
         if (!val) continue;
+        // Preserve `select` projections when there is no nested `include`
+        // (e.g. { select: { id, email } }). Dropping them here returned full
+        // rows — including passwordHash — to API clients in mock mode.
         const subInclude =
-          typeof val === 'object' && val !== null ? (val as any).include : undefined;
+          typeof val === 'object' && val !== null
+            ? ((val as any).include ?? val)
+            : undefined;
 
         if (modelKey === 'escalationQueue') {
           if (key === 'chat') {
@@ -742,12 +965,24 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             const sessions = store.chatSession.filter((s) => s.agentId === cloned.id);
             cloned.assignedChatSessions = sessions.map((s) => resolveIncludes(s, subInclude, 'chatSession'));
           }
+          if (key === 'studentProfile') {
+            const profileItem = store.studentProfile.find((sp) => sp.userId === cloned.id);
+            if (profileItem) {
+              cloned.studentProfile = resolveIncludes(profileItem, subInclude, 'studentProfile');
+            }
+          }
         }
         if (modelKey === 'studentProfile') {
           if (key === 'user') {
             const userItem = store.user.find((u) => u.id === cloned.userId);
             if (userItem) {
-              cloned.user = resolveIncludes(userItem, subInclude || { role: true }, 'user');
+              // Preserve `select` projections (e.g. safe user fields); only
+              // fall back to role expansion when no select was requested.
+              const userSpec =
+                val && typeof val === 'object' && (val as any).select
+                  ? val
+                  : subInclude || { role: true };
+              cloned.user = resolveIncludes(userItem, userSpec, 'user');
             }
           }
           if (key === 'program') {
@@ -894,7 +1129,31 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           }
         }
       }
-      return cloned;
+      // Sanitized COPY: the shared store (including login hashes) is never
+      // mutated. Top-level user reads keep their hash (login bcrypt + prod
+      // parity for include-without-select); all nested user objects are
+      // response payload and are always stripped.
+      const keepRootHash =
+        modelKey === 'user' &&
+        (!include || !(include as any).select || (include as any).select.passwordHash);
+      return stripCredentials(cloned, new Map(), 0, keepRootHash);
+    };
+
+    const matchesWhere = (item: any, where: any): boolean => {
+      return Object.entries(where || {}).every(([k, v]) => {
+        if (typeof v === 'object' && v !== null) {
+          if ('in' in (v as any) && Array.isArray((v as any).in)) {
+            return (v as any).in.includes(item[k]);
+          }
+          // Nested where (e.g. { enrollment: { studentId: '...' } })
+          const itemRelation = item[k];
+          if (itemRelation && typeof itemRelation === 'object') {
+            return Object.entries(v).every(([rk, rv]) => itemRelation[rk] === rv);
+          }
+          return true;
+        }
+        return item[k] === v;
+      });
     };
 
     // Build mock model actions
@@ -903,16 +1162,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         findUnique: async (args: any) => {
           const list = store[modelKey];
           const where = args?.where || {};
-          const found =
-            list.find((item) => {
-              return Object.entries(where).every(([k, v]) => {
-                if (typeof v === 'object' && v !== null) {
-                  // Nested match
-                  return true;
-                }
-                return item[k] === v;
-              });
-            }) || null;
+          const found = list.find((item) => matchesWhere(item, where)) || null;
           return found ? resolveIncludes(found, args?.include, modelKey) : null;
         },
         findUniqueOrThrow: async (args: any) => {
@@ -926,19 +1176,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         findMany: async (args: any) => {
           const list = store[modelKey];
           const where = args?.where || {};
-          const filtered = list.filter((item) => {
-            return Object.entries(where).every(([k, v]) => {
-              if (typeof v === 'object' && v !== null) {
-                // Nested where (e.g. { enrollment: { studentId: '...' } })
-                const itemRelation = item[k];
-                if (itemRelation) {
-                  return Object.entries(v).every(([rk, rv]) => itemRelation[rk] === rv);
-                }
-                return true;
-              }
-              return item[k] === v;
-            });
-          });
+          const filtered = list.filter((item) => matchesWhere(item, where));
           return filtered.map((item) => resolveIncludes(item, args?.include, modelKey));
         },
         create: async (args: any) => {
@@ -1044,12 +1282,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           const data = args?.data || {};
           let count = 0;
           for (const item of list) {
-            const matches = Object.entries(where).every(([k, v]) => {
-              if (typeof v === 'object' && v !== null) {
-                return true;
-              }
-              return item[k] === v;
-            });
+            const matches = matchesWhere(item, where);
             if (matches) {
               Object.assign(item, data);
               item.updatedAt = new Date();

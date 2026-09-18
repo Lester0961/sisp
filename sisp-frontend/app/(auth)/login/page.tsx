@@ -280,8 +280,26 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* Portal Entry Options: Flow A (Admission) & Flow B (Activation) */}
+        <div className="pt-4 border-t border-slate-200/80 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              href="/admission"
+              className="flex flex-col items-center justify-center rounded-xl border border-blue-200 bg-blue-50/60 p-3 text-center transition hover:bg-blue-100/70 hover:border-blue-300 group"
+            >
+              <span className="text-xs font-bold text-[#0a439b]">New Applicant?</span>
+              <span className="text-[11px] font-medium text-slate-600 mt-0.5">Apply for Admission</span>
+            </Link>
 
-
+            <Link
+              href="/activate"
+              className="flex flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center transition hover:bg-emerald-100/70 hover:border-emerald-300 group"
+            >
+              <span className="text-xs font-bold text-emerald-800">Existing Student?</span>
+              <span className="text-[11px] font-medium text-slate-600 mt-0.5">Activate Portal Account</span>
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

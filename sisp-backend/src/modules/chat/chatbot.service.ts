@@ -10,6 +10,7 @@ import { SendMessageDto } from './dto/send-message.dto';
 export class ChatbotService {
   private readonly logger = new Logger(ChatbotService.name);
   private readonly mlServiceUrl: string;
+  private readonly mlSecret: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -18,11 +19,25 @@ export class ChatbotService {
     private readonly chatQuotaService: ChatQuotaService,
   ) {
     this.mlServiceUrl = this.config.get<string>('ML_SERVICE_URL') || 'http://localhost:8000';
+    // Same shared secret already used for the ML knowledge-base proxy.
+    // Authenticates this backend to the ML service; never exposed to clients.
+    this.mlSecret = this.config.get<string>('ML_SECRET_TOKEN') || 'local-ml-service-only';
+  }
+
+  /** Server-derived student identity. Never taken from client input. */
+  private async resolveStudentId(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { studentProfile: true },
+    });
+    return user?.studentProfile?.id ?? null;
   }
 
   async sendMessage(userId: string, sendMessageDto: SendMessageDto) {
     const { message, history, preferredLanguage } = sendMessageDto;
     let quota = await this.chatQuotaService.consume(userId);
+    // Non-throwing: students without a profile can still use policy answers.
+    const studentId = await this.resolveStudentId(userId);
     let mlResponse: any;
     // Keep the synchronous proxy comfortably below Render's request window.
     // A sleeping/unavailable ML service should become a persisted live-agent
@@ -43,11 +58,18 @@ export class ChatbotService {
       try {
         response = await fetch(`${this.mlServiceUrl}/chat`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            // Internal service authentication. student_id below is derived
+            // server-side via resolveStudentId — never from client input
+            // (the global ValidationPipe rejects unknown body properties).
+            'X-ML-Secret': this.mlSecret,
+          },
           body: JSON.stringify({
             query: message,
             history: history || [],
             preferred_language: preferredLanguage,
+            ...(studentId ? { student_id: studentId } : {}),
           }),
           signal: controller.signal,
         });
@@ -82,12 +104,58 @@ export class ChatbotService {
       };
     }
 
+    const responseLang = mlResponse.language?.code || preferredLanguage || 'en';
     if (mlResponse.route === 'database' && mlResponse.action) {
-      mlResponse.response = await this.resolveDatabaseResponse(
-        userId,
-        mlResponse.action,
-        mlResponse.language?.code || preferredLanguage || 'en',
-      );
+      // ML-resolved student data (Supabase reachable) is used as-is;
+      // otherwise fall back to the legacy backend-side resolution, which
+      // also covers local mock mode where ML has no database.
+      const mlData = mlResponse.data || {};
+      if (mlData.resolvedBy !== 'ml-student-context') {
+        mlResponse.response = await this.resolveDatabaseResponse(
+          userId,
+          mlResponse.action,
+          responseLang,
+        );
+      }
+    }
+    // Multi-intent parts the ML service flagged for backend resolution.
+    // A resolution failure must never 500 the whole request: the part keeps
+    // its hint text, is marked errored, and forces a human escalation.
+    let failedParts = false;
+    if (Array.isArray(mlResponse.parts)) {
+      let patched = false;
+      for (const part of mlResponse.parts) {
+        if (part?.data?.needs_backend_resolution && part?.action) {
+          try {
+            const resolved = await this.resolveDatabasePart(
+              userId,
+              part.action,
+              responseLang,
+              part?.data?.dayFilter,
+            );
+            part.text =
+              resolved.text + (part?.data?.timetableNote ? `\n\n${part.data.timetableNote}` : '');
+            part.data = {
+              ...(part.data || {}),
+              ...resolved.data,
+              resolvedBy: 'backend',
+              needs_backend_resolution: false,
+            };
+            part.error = null;
+            part.escalated = false;
+            patched = true;
+          } catch (error: any) {
+            this.logger.error(
+              `Backend resolution failed for part action '${part.action}': ${error?.message || error}`,
+            );
+            part.error = error?.message || 'backend_resolution_failed';
+            failedParts = true;
+          }
+        }
+      }
+      if (patched) {
+        mlResponse.response = mlResponse.parts.map((p: any) => p.text).join('\n\n---\n\n');
+      }
     }
     if (mlResponse.systemUnavailable) quota = await this.chatQuotaService.refund(userId);
 
@@ -103,7 +171,10 @@ export class ChatbotService {
 
     let escalation: any = null;
     let chatSession: any = null;
-    if (mlResponse.escalate) {
+    if (mlResponse.escalate || failedParts) {
+      if (failedParts) {
+        this.logger.log('One or more parts failed backend resolution; escalating for human review.');
+      }
       this.logger.log(`Escalating ChatLog ID: ${chatLog.id} to the academic advisor queue.`);
       escalation = await this.prisma.escalationQueue.create({
         data: { chatId: chatLog.id, status: 'pending' },
@@ -129,6 +200,10 @@ export class ChatbotService {
       route: mlResponse.route,
       language: mlResponse.language,
       moderationCategories: mlResponse.moderationCategories || [],
+      // Additive: single-intent responses carry a 1-element parts array;
+      // existing consumers ignore unknown fields.
+      parts: Array.isArray(mlResponse.parts) ? mlResponse.parts : [],
+      data: mlResponse.data ?? null,
       quota,
       createdAt: chatLog.createdAt,
     };
@@ -198,6 +273,72 @@ export class ChatbotService {
     }
 
     return updatedEscalation;
+  }
+
+  /**
+   * Rich structured variant of resolveDatabaseResponse for multi-intent
+   * parts. The human-readable text is produced by the existing method
+   * (guaranteeing identical wording); this wrapper only attaches the
+   * structured rows the parts[] contract requires.
+   */
+  private async resolveDatabasePart(
+    userId: string,
+    action: string,
+    language: string,
+    dayFilter?: string | null,
+  ): Promise<{ text: string; data: any }> {
+    const text = await this.resolveDatabaseResponse(userId, action, language);
+    const data: any = { action, resolvedBy: 'backend' };
+    try {
+      const profile = await requireStudentProfile(this.prisma, userId);
+      if (action === 'grades') {
+        const grades = await this.prisma.grade.findMany({
+          where: { isVisible: true, enrollment: { studentId: profile.id } },
+          include: { enrollment: { include: { course: true } } },
+        });
+        data.items = grades.map((grade: any) => ({
+          courseCode: grade.enrollment.course.code,
+          courseTitle: grade.enrollment.course.title,
+          finalGrade: grade.finalGrade,
+        }));
+        data.total = data.items.length;
+      } else if (action === 'schedule' || action === 'enrollment_status') {
+        const enrollments = await this.prisma.enrollment.findMany({
+          where: { studentId: profile.id, status: 'enrolled' },
+          include: { course: true, term: true },
+        });
+        data.items = enrollments.map((enrollment: any) => ({
+          courseCode: enrollment.course.code,
+          courseTitle: enrollment.course.title,
+          units: enrollment.course.units,
+          section: enrollment.section,
+          status: enrollment.status,
+          term: enrollment.term?.label || enrollment.term?.code || null,
+        }));
+        data.total = data.items.length;
+      } else if (action === 'balance') {
+        const student = await this.prisma.studentProfile.findUnique({
+          where: { id: profile.id },
+          include: { accountBalance: true },
+        });
+        data.balance = Number(student?.accountBalance?.balance ?? 0);
+      } else if (action === 'document_request_status') {
+        const requests = await this.prisma.documentRequest.findMany({
+          where: { studentId: profile.id },
+          include: { items: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        const latest: any = requests[0];
+        data.latest = latest
+          ? { id: latest.id, status: latest.status, paymentStatus: latest.paymentStatus }
+          : null;
+        data.total = requests.length;
+      }
+    } catch {
+      // Text already rendered above; data stays minimal on failure.
+    }
+    if (dayFilter) data.appliedFilters = { day: dayFilter };
+    return { text, data };
   }
 
   private async resolveDatabaseResponse(userId: string, action: string, language: string): Promise<string> {

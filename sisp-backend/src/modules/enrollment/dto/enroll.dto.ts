@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
 
 export class EnrollDto {
   @IsString()
@@ -12,4 +12,12 @@ export class EnrollDto {
   @IsString()
   @IsOptional()
   termId?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  riskAcknowledged?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  isTransferee?: boolean;
 }

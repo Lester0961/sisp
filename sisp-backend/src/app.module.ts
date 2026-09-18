@@ -19,6 +19,7 @@ import { StudentSemesterModule } from './modules/student-semester/student-semest
 
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CurriculumModule } from './modules/curriculum/curriculum.module';
+import { AdmissionModule } from './modules/admission/admission.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
@@ -54,6 +55,7 @@ const rateLimitConfig = getRateLimitConfig();
 
     AnalyticsModule,
     CurriculumModule,
+    AdmissionModule,
   ],
   controllers: [AppController],
   providers: [

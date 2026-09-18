@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateStudentProfileDto } from './dto/create-student-profile.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class StudentsService {
@@ -305,6 +306,60 @@ export class StudentsService {
     return {
       data: profiles,
       total: profiles.length,
+    };
+  }
+
+  async activateAccount(studentNumber: string, dobStr: string, email: string) {
+    // Locate student by studentNumber
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { studentNumber },
+      include: {
+        user: true,
+        admissionApplication: true,
+      },
+    });
+
+    if (!profile) {
+      throw new NotFoundException(
+        'Student record not found. Please verify your student number or contact the Registrar.',
+      );
+    }
+
+    // Verify date of birth matching admission record or user
+    if (profile.admissionApplication) {
+      const appDob = new Date(profile.admissionApplication.dob).toISOString().slice(0, 10);
+      const reqDob = new Date(dobStr).toISOString().slice(0, 10);
+      if (appDob !== reqDob) {
+        throw new BadRequestException('Identity verification failed. Date of birth does not match institutional records.');
+      }
+    }
+
+    // Check if account already claimed/activated
+    if (profile.user && !profile.user.mustChangePassword && profile.user.isActive) {
+      throw new ConflictException('This student account has already been claimed and activated. Please log in directly.');
+    }
+
+    // Generate activation password
+    const temporaryPassword = process.env.LOCAL_DEMO_PASSWORD || 'RmcActivate2026!';
+    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+
+    // Link or update user email
+    await this.prisma.user.update({
+      where: { id: profile.userId },
+      data: {
+        email,
+        passwordHash,
+        mustChangePassword: true,
+        isActive: true,
+      },
+    });
+
+    return {
+      message: 'Student account successfully verified and activated!',
+      studentNumber: profile.studentNumber,
+      email,
+      temporaryPassword,
+      instructions: 'Log in with your email and temporary password. You will be required to update your password immediately.',
     };
   }
 }

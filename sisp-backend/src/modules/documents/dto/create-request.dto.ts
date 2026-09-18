@@ -18,9 +18,6 @@ import { DOCUMENT_TYPE_CODES } from '../../../common/constants/document-catalog'
 export class CreateRequestItemDto {
   @IsString()
   @IsNotEmpty()
-  @IsIn(DOCUMENT_TYPE_CODES, {
-    message: 'Document type must be one of the active catalog types',
-  })
   type: string;
 
   @Type(() => Number)
@@ -38,7 +35,7 @@ export class CreateRequestItemDto {
 export class CreateRequestDto {
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(7)
+  @ArrayMaxSize(8)
   @ValidateNested({ each: true })
   @Type(() => CreateRequestItemDto)
   items: CreateRequestItemDto[];
@@ -47,4 +44,13 @@ export class CreateRequestDto {
   @MaxLength(500)
   @IsOptional()
   remarks?: string;
+
+  @IsOptional()
+  isThirdParty?: boolean;
+
+  @IsString()
+  @MaxLength(500)
+  @IsOptional()
+  authorizationNotes?: string;
 }
+

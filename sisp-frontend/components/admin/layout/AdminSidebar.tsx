@@ -52,6 +52,14 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     roles: ['admin_staff', 'sys_admin', 'live_agent'],
   },
   {
+    href: '/admin/admission',
+    label: 'Admission Review',
+    shortLabel: 'Admissions',
+    icon: UserCheck,
+    group: 'operations',
+    roles: ['admin_staff', 'sys_admin', 'dean'],
+  },
+  {
     href: '/admin/requests',
     label: 'Payment Approvals',
     shortLabel: 'Payments',

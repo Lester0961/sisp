@@ -113,8 +113,9 @@ model Program {
   code      String   @unique
   createdAt DateTime @default(now()) @map("created_at")
 
-  curricula       Curriculum[]
-  studentProfiles StudentProfile[]
+  curricula             Curriculum[]
+  studentProfiles       StudentProfile[]
+  admissionApplications AdmissionApplication[]
 
   @@map("programs")
 }
@@ -134,12 +135,16 @@ model StudentProfile {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
+  curriculumId  String?  @map("curriculum_id")
+  curriculum    Curriculum? @relation(fields: [curriculumId], references: [id])
+
   enrollments       Enrollment[]
   enrollmentHistory EnrollmentHistory[]
   accountBalance    AccountBalance?
   documentRequests  DocumentRequest[]
   studentSemesters  StudentSemester[]
   chatSessions      ChatSession[]
+  admissionApplication AdmissionApplication?
 
   @@map("student_profiles")
 }
@@ -207,7 +212,7 @@ model Course {
   labUnits    Int      @default(0) @map("lab_units")
   subjectArea String?  @map("subject_area")
   catNo       String?  @map("cat_no")
-  // Raw prerequisite text from source doc (e.g. "MMA101", "ITE 6200A, CS 6201A").
+  // Raw prerequisite text from source doc (e.g. "MMA101", "ITE 6200A, CS 6201A", "—"/"-").
   // Never silently corrected; see CoursePrerequisite for resolved links.
   prereqText  String?  @map("prereq_text")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -224,7 +229,7 @@ model Course {
 
 // Resolved prerequisite links. requiresId is null when the code is not
 // resolvable within the same curriculum (cross-program ref, typo preserved
-// from source, or self-reference anomaly from verification notes 10).
+// from source, or self-reference anomaly from verification notes §10).
 model CoursePrerequisite {
   id              String  @id @default(uuid())
   courseId        String  @map("course_id")
@@ -252,9 +257,110 @@ model Curriculum {
   createdAt     DateTime @default(now()) @map("created_at")
 
   curriculumCourses CurriculumCourse[]
+  studentProfiles   StudentProfile[]
 
   @@unique([programId, effectiveYear])
   @@map("curricula")
+}
+
+// ============================================================
+// ADMISSION MODULE — Applications & Requirements
+// ============================================================
+
+model AdmissionApplication {
+  id              String   @id @default(uuid())
+  applicationNo   String   @unique @map("application_no")
+  applicantType   String   @map("applicant_type") // freshman | transferee | bridging | cross_enrollee
+  status          String   @default("draft") // draft | submitted | under_review | needs_revision | approved | rejected | withdrawn
+  
+  // Personal Info
+  firstName       String   @map("first_name")
+  middleName      String?  @map("middle_name")
+  lastName        String   @map("last_name")
+  suffix          String?
+  dob             DateTime @db.Date
+  sex             String?
+  nationality     String?  @default("Filipino")
+  
+  // Contact Info
+  email           String
+  mobile          String
+  addressLine     String   @map("address_line")
+  city            String
+  province        String
+  postalCode      String?  @map("postal_code")
+  
+  // Guardian Info
+  guardianName    String   @map("guardian_name")
+  guardianRelation String  @map("guardian_relation")
+  guardianContact String   @map("guardian_contact")
+  
+  // Emergency Contact
+  emergencyName   String   @map("emergency_name")
+  emergencyRelation String @map("emergency_relation")
+  emergencyContact String  @map("emergency_contact")
+  
+  // Education Background
+  lastSchoolName  String   @map("last_school_name")
+  lastSchoolType  String?  @map("last_school_type") // jhs | shs | college
+  yearGraduated   Int?     @map("year_graduated")
+  previousProgram String?  @map("previous_program")
+  strandTrack     String?  @map("strand_track")
+  
+  // Program Choice & Converted Student Link
+  programId       String   @map("program_id")
+  program         Program  @relation(fields: [programId], references: [id])
+  createdStudentId String? @unique @map("created_student_id")
+  createdStudent   StudentProfile? @relation(fields: [createdStudentId], references: [id])
+  
+  reviewNotes     String?  @map("review_notes")
+  reviewedById    String?  @map("reviewed_by_id")
+  reviewedAt      DateTime? @map("reviewed_at")
+  
+  requirements    AdmissionRequirementSubmission[]
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("admission_applications")
+}
+
+model AdmissionRequirementDefinition {
+  id            String   @id @default(uuid())
+  code          String   @unique // e.g. FORM_137, GOOD_MORAL, PSA_BIRTH, ID_PHOTO, TRANSCRIPT
+  title         String
+  description   String?
+  applicantType String?  @map("applicant_type") // null = all, or freshman/transferee/etc
+  isRequired    Boolean  @default(true) @map("is_required")
+  sortOrder     Int      @default(0) @map("sort_order")
+  isActive      Boolean  @default(true) @map("is_active")
+
+  submissions   AdmissionRequirementSubmission[]
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("admission_requirement_definitions")
+}
+
+model AdmissionRequirementSubmission {
+  id            String   @id @default(uuid())
+  applicationId String   @map("application_id")
+  application   AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  definitionId  String   @map("definition_id")
+  definition    AdmissionRequirementDefinition @relation(fields: [definitionId], references: [id])
+  fileUrl       String   @map("file_url")
+  fileName      String   @map("file_name")
+  fileSize      Int?     @map("file_size")
+  mimeType      String?  @map("mime_type")
+  status        String   @default("submitted") // submitted | verified | rejected | resubmission_required
+  reviewNotes   String?  @map("review_notes")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([applicationId, definitionId])
+  @@map("admission_requirement_submissions")
 }
 
 model CurriculumCourse {
@@ -375,13 +481,17 @@ model DocumentRequest {
   remarks   String?
 
   // Payment fields
-  fee                  Decimal   @default(0.00) @db.Decimal(10, 2)
-  paymentStatus        String    @default("unpaid") @map("payment_status") // unpaid | paid
-  paymentReference     String?   @map("payment_reference")
-  qrCodeUrl            String?   @map("qr_code_url")
-  paymentConfirmedById String?   @map("payment_confirmed_by_id")
-  paymentConfirmedBy   User?     @relation("PaymentConfirmedBy", fields: [paymentConfirmedById], references: [id])
-  paymentConfirmedAt   DateTime? @map("payment_confirmed_at")
+  fee                     Decimal   @default(0.00) @db.Decimal(10, 2)
+  paymentStatus           String    @default("unpaid") @map("payment_status") // unpaid | paid
+  paymentReference        String?   @map("payment_reference")
+  // Student-submitted online payment proof (GCash/PNB), verified by Treasury
+  paymentProofChannel     String?   @map("payment_proof_channel") // gcash | pnb
+  paymentProofReference   String?   @map("payment_proof_reference") // GCash ref no. / PNB slip no.
+  paymentProofSubmittedAt DateTime? @map("payment_proof_submitted_at")
+  qrCodeUrl               String?   @map("qr_code_url")
+  paymentConfirmedById    String?   @map("payment_confirmed_by_id")
+  paymentConfirmedBy      User?     @relation("PaymentConfirmedBy", fields: [paymentConfirmedById], references: [id])
+  paymentConfirmedAt      DateTime? @map("payment_confirmed_at")
 
   items DocumentRequestItem[]
 
@@ -392,14 +502,17 @@ model DocumentRequest {
 }
 
 model DocumentCatalogItem {
-  id        String   @id @default(uuid())
-  code      String   @unique
-  label     String
-  fee       Decimal  @db.Decimal(10, 2)
-  sortOrder Int      @map("sort_order")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(uuid())
+  code       String   @unique
+  label      String
+  fee        Decimal  @db.Decimal(10, 2)
+  feeNote    String?  @map("fee_note")
+  tat        String?
+  assignedTo String?  @map("assigned_to")
+  sortOrder  Int      @default(0) @map("sort_order")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   items DocumentRequestItem[]
 

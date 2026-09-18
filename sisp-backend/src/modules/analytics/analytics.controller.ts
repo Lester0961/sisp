@@ -36,6 +36,13 @@ export class AnalyticsController {
     return this.analyticsService.getChatbotAnalytics();
   }
 
+  @Get('monthly-report')
+  @Roles('admin_staff', 'dean', 'sys_admin')
+  async getMonthlyExecutiveReport() {
+    return this.analyticsService.getMonthlyExecutiveReport();
+  }
+
+
   @Get('export/enrollment')
   @Roles('admin_staff')
   async exportEnrollmentExcel(@Res() res: Response) {
