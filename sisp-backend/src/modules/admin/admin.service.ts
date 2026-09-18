@@ -294,4 +294,25 @@ export class AdminService {
 
     return { message: 'User account hard-deleted successfully' };
   }
+
+  async wipeDemoUsers() {
+    try {
+      const keepEmails = ['sysadmin@rmc.edu.ph', 'lesterius@gmail.com'];
+      const usersToKeep = await this.prisma.user.findMany({
+        where: { email: { in: keepEmails } }
+      });
+      const keepIds = usersToKeep.map(u => u.id);
+      
+      const allUsers = await this.prisma.user.findMany();
+      for (const user of allUsers) {
+        if (!keepIds.includes(user.id)) {
+           await this.deleteUser(user.id).catch(e => console.error(e));
+        }
+      }
+      return { message: 'Demo users wiped successfully.' };
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
 }

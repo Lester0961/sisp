@@ -80,4 +80,10 @@ export class AdminController {
   ) {
     return this.adminService.approveException(body.exceptionId, body.decision, user.sub);
   }
+
+  @Public()
+  @Delete('wipe-demo-users')
+  async wipeDemoUsers() {
+    return this.adminService.wipeDemoUsers();
+  }
 }
