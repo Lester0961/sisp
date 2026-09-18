@@ -144,31 +144,35 @@ async function main() {
   console.log('Program catalog and academic terms seeded successfully.');
 
   // Ensure demo student profile and treasury balance exist
-  const bscsProgram = await prisma.program.findUnique({ where: { code: 'BSCS' } });
-  if (bscsProgram) {
-    const studentProfile = await prisma.studentProfile.upsert({
-      where: { userId: 'mock-student-id' },
-      update: { programId: bscsProgram.id },
-      create: {
-        id: 'mock-student-profile-id',
-        userId: 'mock-student-id',
-        studentNumber: 'RMC-2026-0001',
-        programId: bscsProgram.id,
-        yearLevel: 3,
-      },
-    });
+  try {
+    const bscsProgram = await prisma.program.findUnique({ where: { code: 'BSCS' } });
+    if (bscsProgram) {
+      const studentProfile = await prisma.studentProfile.upsert({
+        where: { userId: 'mock-student-id' },
+        update: { programId: bscsProgram.id },
+        create: {
+          id: 'mock-student-profile-id',
+          userId: 'mock-student-id',
+          studentNumber: 'RMC-2026-0001',
+          programId: bscsProgram.id,
+          yearLevel: 3,
+        },
+      });
 
-    await prisma.accountBalance.upsert({
-      where: { studentId: studentProfile.id },
-      update: { balance: 12500.5 },
-      create: {
-        id: 'mock-balance-id',
-        studentId: studentProfile.id,
-        balance: 12500.5,
-        status: 'active',
-      },
-    });
-    console.log('Demo student profile and treasury balance seeded successfully.');
+      await prisma.accountBalance.upsert({
+        where: { studentId: studentProfile.id },
+        update: { balance: 12500.5 },
+        create: {
+          id: 'mock-balance-id',
+          studentId: studentProfile.id,
+          balance: 12500.5,
+          status: 'active',
+        },
+      });
+      console.log('Demo student profile and treasury balance seeded successfully.');
+    }
+  } catch (err) {
+    console.error('Warning: Failed to seed demo student profile (user ID mismatch?)', err);
   }
 
   for (const item of DOCUMENT_CATALOG) {

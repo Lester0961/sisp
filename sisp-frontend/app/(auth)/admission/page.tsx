@@ -55,8 +55,9 @@ export default function AdmissionPage() {
 
         const defs = await admissionApi.getRequirementDefinitions('freshman');
         setReqDefs(defs);
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to load programs/requirements', err);
+        toast.error(err.message || 'Failed to load initial data');
       }
     }
     loadInitial();

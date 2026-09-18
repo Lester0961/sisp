@@ -36,7 +36,9 @@ async function bootstrap() {
 
   const allowedOrigins = isProd
     ? [
-        ...configuredOrigins.filter((origin) => !origin.startsWith('http://localhost')),
+        ...configuredOrigins,
+        'http://localhost:3000',
+        'http://localhost:3001',
         'https://sisp-rmc.vercel.app', // Hardcoded fallback for production Vercel deployment
       ]
     : [
