@@ -37,6 +37,7 @@ export class AuthController {
       ttl: rateLimitConfig.loginTtlMs,
       limit: rateLimitConfig.loginLimit,
     },
+  })
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
