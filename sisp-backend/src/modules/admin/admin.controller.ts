@@ -6,6 +6,7 @@ import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 @Controller('admin')
