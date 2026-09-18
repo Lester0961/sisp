@@ -35,7 +35,10 @@ async function bootstrap() {
   const isProd = process.env.NODE_ENV === 'production';
 
   const allowedOrigins = isProd
-    ? configuredOrigins.filter((origin) => !origin.startsWith('http://localhost'))
+    ? [
+        ...configuredOrigins.filter((origin) => !origin.startsWith('http://localhost')),
+        'https://sisp-rmc.vercel.app', // Hardcoded fallback for production Vercel deployment
+      ]
     : [
         ...configuredOrigins,
         'http://localhost:3000',
@@ -43,6 +46,7 @@ async function bootstrap() {
         'http://localhost:3002',
         'http://localhost:3014',
         'https://sisp-theta.vercel.app',
+        'https://sisp-rmc.vercel.app',
       ];
 
   app.enableCors({

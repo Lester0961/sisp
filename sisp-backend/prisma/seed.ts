@@ -63,6 +63,22 @@ async function main() {
       lastName: 'Agent',
       roleId: 'role-id-live_agent',
     },
+    {
+      id: 'mock-student-id',
+      email: 'student@rmc.edu.ph',
+      passwordHash: mockPasswordHash,
+      firstName: 'John',
+      lastName: 'Doe',
+      roleId: 'role-id-student',
+    },
+    {
+      id: 'mock-faculty-id',
+      email: 'faculty@rmc.edu.ph',
+      passwordHash: mockPasswordHash,
+      firstName: 'Regis',
+      lastName: 'Faculty',
+      roleId: 'role-id-faculty',
+    },
   ];
 
   for (const user of usersData) {
@@ -126,6 +142,34 @@ async function main() {
     });
   }
   console.log('Program catalog and academic terms seeded successfully.');
+
+  // Ensure demo student profile and treasury balance exist
+  const bscsProgram = await prisma.program.findUnique({ where: { code: 'BSCS' } });
+  if (bscsProgram) {
+    const studentProfile = await prisma.studentProfile.upsert({
+      where: { userId: 'mock-student-id' },
+      update: { programId: bscsProgram.id },
+      create: {
+        id: 'mock-student-profile-id',
+        userId: 'mock-student-id',
+        studentNumber: 'RMC-2026-0001',
+        programId: bscsProgram.id,
+        yearLevel: 3,
+      },
+    });
+
+    await prisma.accountBalance.upsert({
+      where: { studentId: studentProfile.id },
+      update: { balance: 12500.5 },
+      create: {
+        id: 'mock-balance-id',
+        studentId: studentProfile.id,
+        balance: 12500.5,
+        status: 'active',
+      },
+    });
+    console.log('Demo student profile and treasury balance seeded successfully.');
+  }
 
   for (const item of DOCUMENT_CATALOG) {
     await prisma.documentCatalogItem.upsert({

@@ -1,0 +1,59 @@
+Records  
+  
+1. Responsibility - keep documents and records of students and other documents.  
+2. Common Services - Depends on month COR, COE, GOOD MORAL graduate students TOR. undergrad can't have the TOR only for employment.  
+3. People in Registar - Record staff Miss Rose and Sir Christian.  
+4. Other Department needs in Records - Treasury Finance like enrollments  
+5. Most Busy time - enrollment period  
+6. responsibilities - sir christian pass document to ched for serial numbers miss rose responsibility is TOR, Miss Che. Common student question inquiry answer all student question.  
+7. Task take the most time - TOR   
+  
+Enrollment and Registration  
+  
+1. step by step treasury -> clear previous balance -> go to admission. (old student)  
+2. document need for TRANSFEREE -> TOR, Good moral, Honoral Dismissal.  
+3. document for returning student - cleared to treasury ex. like student step out in school while still have balance then evaluation to check subjects already taken then admission for enrollment.  
+4. How do you verify documents - admission validate the information and documents making sure it is legit and then pass it to admission for enrollment  
+5. how student will be already enrolled - once student proceed with Down Payment.  
+6. How registar handle the changes in curriculum - registar have enough time since 10 years before it change  
+7. How registar handle adding and dropping -   
+8. how late enrollment process handle - student will take the risk if they will still get the subject if it is already ongoing registar will approved it. BUT STUDENT WILL TAKE THE RISK.  
+9. How student handle if they have remaining balance. if the student cannot settle their balance before finals they will have a special exam and then if still not their will be INC and deduction.  
+10. how do you handle updates - direct communication with the records.  
+  
+student records and document management.  
+  
+1. Record of student - name, address, DOB, Guardian, Phone number.  
+2. how do you handle student information update? right now records have portal to update it and also have hard copy of it if needs to be change  
+3. How register find the student documents like TOR etc. - TOR 3-4 weeks, Grades if no back subject they will get it if the grade already give by the teacher.  
+4. how do you handle duplicate docs - erase the duplicate document and retain the original copy.  
+5. How do you check student information like grades - double checking by the records before it will be posted. if theres is wrong student will be advise to redo it.  
+6. how registar handle drop, graduate student or alumni information - records have soft copy as well ched.  
+7. if the student will not the one request the info - records need authorization to the student directly.  
+8. how records handle lost damage document like accident - document make sure a have soft copy but need the document the hard copy and studn  
+  
+Inquiries  
+1. common question - what are the program offered, how much tuition fee, hows the schedule, do you have scholarship, is this working student friendly?  
+2. do you save or track student inquiries - yes, they include it in their daily and monthly report.  
+3. how do you handle multiple concern to a multiple student - making sure one at a time to follow the process.  
+4. how do handle request with missing information - they give 2-3 weeks TAT to check those information and advise student if there is.  
+5. what usually report do you send - confidential, whats the marketing plan, what the sales plan, what the future process, downside of propose plans.  
+6. how frequent you send and receive reports - every month.  
+7. who review reports - Doc Chad  
+8. Registar and admins staff authorirez person to see student records  
+9. how do you prevent unauthorized access example student - all document only handle by record and registar keeping it safe.  
+10. what are the biggest problem you encountered enrollment or process records - accounting side lile accuracy, records if he is irregular like missing doc like TOR take time for evaluation.  
+11. human error when processing data and info common error - list of subjects.  
+12. what task still performed mannualy and it can be automated - grades.  
+13. what feautures do you suggest to help enrollment process - schedule program, like monday for BSBS and the for Payment like ONLINE PROCESS  
+14. step to find the record of the student - they already have portalnto filtered the student data.  
+15. what notification do you need to hear in the system - payment reminders for student.  
+16. what student information should be visible in the records - status of enrolled student, balance, student regular or irregular.  
+17. feature that dan help student to help student to submit document and track document - dashbboard in the portal where student can submit and view pending documents.  
+18. approval control - Admission, Treasury, Records.  
+19. per department for the use of the portal.  
+20. best function for the records, visible student information.  
+  
+add and dropping go for the admission go to treasury get a form go to record the form.  
+  
+150 per subject.

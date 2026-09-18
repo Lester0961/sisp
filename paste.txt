@@ -1,0 +1,292 @@
+Inspect the existing project first before modifying any code.
+
+The project is SISP–ARIA, a hybrid NLP + semantic retrieval academic advisory chatbot using:
+
+* Next.js frontend
+* NestJS backend
+* FastAPI Python ML/chatbot service
+* Supabase PostgreSQL
+* scikit-learn TF-IDF + LogisticRegression intent classifier
+* pgvector / local retrieval fallback
+* Groq LLM generation
+
+The current chatbot is single-intent. I want to implement:
+
+1. Multi-question / multi-intent support
+2. Secure authenticated student-context retrieval
+3. Student-specific schedule retrieval as the first database-backed feature
+
+Before implementing anything, inspect and understand all files affected by these features.
+
+Specifically inspect:
+
+* Current NestJS authentication/JWT implementation
+* Chat controller and chat service
+* Current `/api/chat` flow
+* FastAPI `/chat` route
+* Existing request/response schemas
+* `classifier_service.py`
+* `retrieval_service.py`
+* `scope_service.py`
+* Current chatbot orchestration/pipeline
+* Database/Supabase configuration
+* Student model/table
+* Enrollment-related models/tables
+* Subject/course models
+* Schedule/class schedule models/tables
+* Any existing service that already retrieves student data
+* Environment/configuration files relevant to NestJS ↔ FastAPI communication
+
+Do not assume table names, DTOs, fields, relationships, JWT payload structure, or authentication behavior. Determine these from the actual project.
+
+After inspection, briefly report:
+
+* Files that need modification
+* Files that can be reused without modification
+* Existing database tables/relationships that can provide student schedules
+* Current authenticated user/student identifier and where it comes from
+* Current NestJS → FastAPI communication flow
+* Any architectural conflicts with the proposed implementation
+
+Then implement the feature using the existing architecture and coding conventions.
+
+## Required architecture
+
+### A. Secure student identity
+
+The frontend must NOT provide a trusted `studentId`.
+
+The flow should be:
+
+```text
+Next.js
+→ authenticated request
+→ NestJS verifies existing user JWT/session
+→ NestJS obtains authenticated student/user ID
+→ NestJS securely sends the identity to FastAPI
+→ FastAPI verifies that internal request
+→ student-specific data is fetched
+```
+
+Prefer using the project's existing authentication infrastructure.
+
+If appropriate for the existing codebase, NestJS may generate a short-lived internal JWT for FastAPI containing:
+
+```text
+sub = authenticated student/user ID
+purpose = aria-chat
+short expiration
+issuer = SISP backend
+audience = SISP ML service
+```
+
+Do not introduce this mechanism if the project already has a secure internal authentication mechanism that is better suited.
+
+Never trust a student ID supplied directly in the chat request body.
+
+### B. Multi-question handling
+
+Support questions such as:
+
+```text
+"When is enrollment, how much is my balance, and what is my schedule tomorrow?"
+```
+
+Add a multi-intent orchestration layer.
+
+Target flow:
+
+```text
+Language Detection
+→ Moderation
+→ Scope Gate
+→ Authentication / Student Context
+→ Question Segmentation
+→ Intent Classification per segment
+→ Route every detected intent
+→ Retrieve required information
+→ Aggregate results
+→ Generate one final response
+→ Existing escalation/confidence handling
+```
+
+Do not destroy the current single-intent classifier.
+
+Initially, reuse the current classifier by classifying each detected sub-question individually unless inspection shows that another approach fits the codebase better.
+
+Example:
+
+```text
+"How much is my balance and what is my schedule tomorrow?"
+
+→ student_balance
+→ student_schedule
+```
+
+Each result must maintain its own:
+
+* intent
+* confidence
+* source/type
+* retrieved data
+* errors or escalation status
+
+### C. Data-source routing
+
+Separate institutional knowledge from student-specific information.
+
+Use RAG/knowledge-base retrieval for questions such as:
+
+```text
+"What are the enrollment requirements?"
+"What is the payment policy?"
+"When does enrollment start?"
+```
+
+Use authenticated PostgreSQL/Supabase data for questions such as:
+
+```text
+"What is my schedule?"
+"What subjects am I enrolled in?"
+"What is my enrollment status?"
+"What is my balance?"
+```
+
+Implement a student-context service or equivalent reusable layer.
+
+Start with:
+
+```text
+get_student_schedule(authenticated_student_id, date/day filters)
+```
+
+Design it so these can be added later:
+
+```text
+get_student_balance()
+get_enrollment_status()
+get_enrolled_subjects()
+get_grades()
+get_student_profile()
+```
+
+### D. Student schedule
+
+Determine the real schedule schema from the existing database.
+
+Do not create duplicate schedule tables if the required data already exists.
+
+The chatbot should support at minimum:
+
+```text
+"What is my schedule?"
+"What is my schedule today?"
+"What is my schedule tomorrow?"
+"What classes do I have on Monday?"
+"What is my next class?"
+```
+
+Use the authenticated student's actual enrollment/section/schedule relationships.
+
+Return structured schedule data before generating natural-language output.
+
+Example internal representation:
+
+```json
+{
+  "intent": "student_schedule",
+  "data_source": "student_database",
+  "items": [
+    {
+      "subject_code": "...",
+      "subject_name": "...",
+      "day": "...",
+      "start_time": "...",
+      "end_time": "...",
+      "room": "..."
+    }
+  ]
+}
+```
+
+Adapt this structure to the project's actual schema.
+
+### E. Combined response
+
+For mixed questions:
+
+```text
+"When is enrollment and what is my schedule tomorrow?"
+```
+
+ARIA should independently resolve:
+
+```text
+enrollment
+→ knowledge base / RAG
+
+student_schedule
+→ authenticated student database
+```
+
+Then aggregate both results and provide one organized response.
+
+Do not let failure of one sub-question automatically discard successful results from the other sub-questions.
+
+### F. Security requirements
+
+* Never trust `studentId` from the frontend.
+* Use authenticated identity from the existing backend authentication layer.
+* Validate NestJS → FastAPI internal requests.
+* Use parameterized ORM/database queries.
+* Verify that the authenticated account is allowed to access the requested student information.
+* Do not expose database credentials or internal secrets.
+* Do not expose unnecessary student information to the LLM.
+* Only send the minimum retrieved context needed to answer the question.
+* Preserve the existing moderation, scope, confidence, escalation, caching, and sanitizer behavior unless modification is required.
+* Student-specific responses must not be stored in the existing shared policy-answer cache unless the cache is safely scoped per authenticated student.
+
+### G. Compatibility
+
+Preserve existing behavior for:
+
+* Single-intent questions
+* Existing five intents
+* Existing `/chat` response consumers
+* Language detection
+* Moderation
+* Scope gate
+* Repeat guard
+* Confidence threshold
+* RAG retrieval
+* Groq generation
+* Deterministic fallback
+* Human escalation
+* Chat logging
+
+Avoid large rewrites unless inspection proves they are necessary.
+
+## Implementation process
+
+Work in this order:
+
+```text
+1. Inspect affected project files.
+2. Map the existing request/auth/database/chatbot flow.
+3. Identify exact files and schema relationships involved.
+4. Explain the minimum implementation changes.
+5. Implement secure authenticated student identity propagation.
+6. Implement student schedule retrieval.
+7. Implement question segmentation and multi-intent orchestration.
+8. Integrate database + RAG result aggregation.
+9. Update response schemas only where required.
+10. Add/update tests.
+11. Run existing tests and relevant new tests.
+12. Report exactly what changed.
+```
+
+Do not invent missing project structures.
+
+If names or architecture differ from this prompt, follow the actual codebase while preserving the intended behavior.
+
+Before editing, inspect first. After inspection, proceed with the smallest safe implementation that integrates cleanly with the existing SISP–ARIA architecture.
