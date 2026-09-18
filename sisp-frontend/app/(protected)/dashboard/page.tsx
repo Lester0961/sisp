@@ -216,7 +216,8 @@ export default function DashboardPage() {
               </section>
             </div>
 
-            <section className="grid gap-3 sm:grid-cols-3">
+            <section className="grid gap-3 sm:grid-cols-4">
+              <Button asChild variant="outline" className="justify-start"><Link href="/enrollment"><BookOpen className="size-4 text-[#0a439b]" strokeWidth={1.8} />Enroll in courses</Link></Button>
               <Button asChild variant="outline" className="justify-start"><Link href="/grades"><BookOpen className="size-4 text-[#0a439b]" strokeWidth={1.8} />View grades</Link></Button>
               <Button asChild variant="outline" className="justify-start"><Link href="/requests"><FileText className="size-4 text-[#0a439b]" strokeWidth={1.8} />Request document</Link></Button>
               <Button asChild variant="outline" className="justify-start"><Link href="/settings">Review account settings</Link></Button>

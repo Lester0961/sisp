@@ -32,6 +32,12 @@ export interface MyCurriculum {
   courses: CurriculumCourse[];
 }
 
+export interface Program {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export const curriculaApi = {
   getMyCurriculum: async (): Promise<CurriculumCourse[]> => {
     const res = await apiClient.get<CurriculumCourse[] | MyCurriculum>('/curricula/me');
@@ -48,6 +54,10 @@ export const curriculaApi = {
   },
   getCompletedCourseIds: async (): Promise<string[]> => {
     const res = await apiClient.get<string[]>('/enrollments/completed-ids');
+    return res.data;
+  },
+  getPrograms: async (): Promise<Program[]> => {
+    const res = await apiClient.get<Program[]>('/curricula/programs');
     return res.data;
   },
 };

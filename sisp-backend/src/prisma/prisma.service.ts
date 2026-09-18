@@ -776,6 +776,26 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
     ];
 
+    // Treasury clearance — default mock student has an outstanding balance
+    const accountBalances = [
+      {
+        id: 'mock-balance-1',
+        studentId: 'mock-student-profile-id',
+        balance: 12500.50,
+        status: 'active',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ];
+
+    // Enrollment history (initially empty — populated when admin creates records)
+    const enrollmentHistories: any[] = [];
+
+    // Curriculum stores — empty by default; populated by seed-curricula.ts via mock-db.json
+    const curricula: any[] = [];
+    const curriculumCourses: any[] = [];
+    const coursePrerequisites: any[] = [];
+
     const admissionApplications: any[] = [];
     const admissionRequirementDefinitions: any[] = [
       { id: 'req-def-1', code: 'FORM_137', title: 'High School Report Card (Form 138 / SF9)', applicantType: 'freshman', isRequired: true, sortOrder: 10, isActive: true, createdAt: new Date(), updatedAt: new Date() },
@@ -806,6 +826,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       chatSession: chatSessions,
       chatMessage: chatMessages,
       auditLog: auditLogs,
+      accountBalance: accountBalances,
+      enrollmentHistory: enrollmentHistories,
+      curriculum: curricula,
+      curriculumCourse: curriculumCourses,
+      coursePrerequisite: coursePrerequisites,
       admissionApplication: admissionApplications,
       admissionRequirementDefinition: admissionRequirementDefinitions,
       admissionRequirementSubmission: admissionRequirementSubmissions,

@@ -28,6 +28,7 @@ type NavItem = {
 const roleNavs: Record<string, NavItem[]> = {
   student: [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/enrollment', label: 'Enrollment', icon: BookOpen },
     { href: '/grades', label: 'Grades', icon: BookOpen },
     { href: '/chat', label: 'ARIA', icon: Sparkles },
     { href: '/requests', label: 'Documents', icon: FileText },

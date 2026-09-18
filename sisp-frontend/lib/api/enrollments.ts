@@ -1,5 +1,13 @@
 import apiClient from './client';
 
+export interface EnrollPayload {
+  courseId: string;
+  section?: string;
+  termId?: string;
+  riskAcknowledged?: boolean;
+  isTransferee?: boolean;
+}
+
 export const enrollmentsApi = {
   getAllEnrollments: async (params?: { termId?: string; instructorId?: string }) => {
     const response = await apiClient.get('/enrollments', { params });
@@ -16,16 +24,13 @@ export const enrollmentsApi = {
     return response.data;
   },
 
-  getAvailableCourses: async () => {
-    const response = await apiClient.get('/enrollments/courses');
+  getAvailableCourses: async (termId?: string) => {
+    const response = await apiClient.get('/enrollments/courses', { params: termId ? { termId } : undefined });
     return response.data;
   },
 
-  enroll: async (courseId: string, section?: string) => {
-    const response = await apiClient.post('/enrollments', {
-      courseId,
-      section,
-    });
+  enroll: async (data: EnrollPayload) => {
+    const response = await apiClient.post('/enrollments', data);
     return response.data;
   },
 
@@ -38,6 +43,11 @@ export const enrollmentsApi = {
 
   getMyHistory: async () => {
     const response = await apiClient.get('/enrollments/history');
+    return response.data;
+  },
+
+  getCompletedCourseIds: async (): Promise<string[]> => {
+    const response = await apiClient.get('/enrollments/completed-ids');
     return response.data;
   },
 };
