@@ -1,0 +1,78 @@
+Bachelor of Science in Computer Science (BSCS) — Effective 2024–2025 | CMO NO.17 Series 17 | Source: BSCS (2).docx
+Total courses: 56
+
+First Year — First Trimester:
+- GE 6100 — Understanding the Self | LEC 3 LAB 0 Units 3
+- GE 6103 — Living in IT Era | LEC 3 LAB 0 Units 3
+- GE 6106 — Purposive Communication 1 | LEC 3 LAB 0 Units 3
+- GE 6114 — Mathematics in the Modern World | LEC 3 LAB 0 Units 3
+- GE 6107 — Ethics | LEC 3 LAB 0 Units 3
+- PHYED 3101 — Physical Fitness | LEC 2 LAB 0 Units 2
+
+First Year — Second Trimester:
+- GE 6102 — The Contemporary World | LEC 3 LAB 0 Units 3
+- GE 6105 — Art Appreciation | LEC 3 LAB 0 Units 3
+- GE 6116 — Science, Technology & Society | LEC 3 LAB 0 Units 3
+- ITE 6100 — Gender and Society | LEC 3 LAB 0 Units 3
+- GE 6101 — Readings in Philippine History | LEC 3 LAB 0 Units 3
+- PHYED 6102 — Rhythmic Activities | LEC 2 LAB 0 Units 2 | Prereq: PHYED 6101
+
+First Year — Third Trimester:
+- GE 6108 — Philippine Popular Culture | LEC 3 LAB 0 Units 3
+- ITE 6100w — Introduction to Computing | LEC 3 LAB 0 Units 3
+- GE 6300 — Life and Work of Rizal | LEC 3 LAB 0 Units 3
+- MATH 6100 — Calculus 1 | LEC 3 LAB 0 Units 3
+- GE 6301 — Introduksyon sa Pananaliksik – Wika at Panitikan | LEC 3 LAB 0 Units 3
+- PHYED 6103 — Individual/Dual Sports | LEC 2 LAB 0 Units 2 | Prereq: PHYED 6102
+
+Second Year — First Trimester:
+- CS 6200A — Operating System | LEC 2 LAB 1 Units 3 | Prereq: ITE 6100
+- CS 6201A — Architecture and Organization | LEC 2 LAB 1 Units 3 | Prereq: ITE 6100
+- ITE 6200A — Computer Programming 1 | LEC 2 LAB 0 Units 3 | Prereq: ITE 6100, ITE 6101A
+- ITE 6203A — Social Issue and Professional Practice | LEC 3 LAB 0 Units 3
+- NSTP 6200 — National Service Training Program 1 | LEC 3 LAB 0 Units 3
+- PHYED 6200 — Team Sports | LEC 2 LAB 0 Units 2 | Prereq: PHYED 6102
+
+Second Year — Second Trimester:
+- CS 6202A — Discrete Structure 1 | LEC 3 LAB 0 Units 3 | Prereq: ITE 6200A
+- CS 6203C — Object-Oriented Programming2 | LEC 3 LAB 0 Units 3 | Prereq: ITE 6200A
+- ITE 6201D — Computer Programming 2 | LEC 3 LAB 0 Units 3 | Prereq: ITE 6200A
+- IT 6200A — Data Communication and Networking 1 | LEC 3 LAB 0 Units 3 | Prereq: ITE 6200A, CS 6201A
+- IT 6202A — Database Management System 1 | LEC 3 LAB 0 Units 3 | Prereq: ITE 6200A, CS 6201A
+- NSTP 6202 — National Service Training Program 2 | LEC 3 LAB 0 Units 3 | Prereq: NSTP 6101
+
+Second Year — Third Trimester:
+- CS 6100 — Discrete Structure 2 | LEC 1 LAB 2 Units 3 | Prereq: CS6202A
+- ITE 6103 — Data Structures and Algorithms | LEC 1 LAB 2 Units 3 | Prereq: ITE 6201D
+- IT 6106 — Data Communication and Networking 2 | LEC 1 LAB 2 Units 3 | Prereq: IT 6200A
+- IT 6114 — Database Management System 2 | LEC 1 LAB 2 Units 3 | Prereq: IT6202A
+- IS 6107 — System Analysis, Design & Development | LEC 1 LAB 2 Units 3 | Prereq: CS6203C
+- IT 6109 — Web Development & Programming | LEC 1 LAB 2 Units 3
+
+Third Year — First Trimester:
+- CS 6300 — The Contemporary World | LEC 3 LAB 0 Units 3 | Prereq: CS 6204B
+- CS 6301A — Art Appreciation | LEC 3 LAB 0 Units 3 | Prereq: IT 6203C
+- ITE 6300A — Science, Technology & Society | LEC 3 LAB 0 Units 3 | Prereq: ITE 6200B
+- IT 6300A — Gender and Society | LEC 3 LAB 0 Units 3 | Prereq: ITE 6201B
+- (no code) — Visual Computing (Major Elective 1) | LEC 3 LAB 0 Units 3
+- GE 6302 — Kontekswalisasyon sa Komunikasyon sa Filipino | LEC 3 LAB 0 Units 3
+
+Third Year — Second Trimester:
+- CS 6302A — Algorithms and Complexity | LEC 3 LAB 0 Units 3 | Prereq: CS 6303A
+- CS 6303A — Software Engineering 1 | LEC 2 LAB 1 Units 3 | Prereq: CS 6301A
+- ITE 6301A — Application Development and Emerging Technologies | LEC 2 LAB 1 Units 3 | Prereq: ITE 6300A
+- IT 6301B — Human Computer Interaction | LEC 2 LAB 1 Units 3 | Prereq: ITE 6300A
+- (no code) — 3D Computer Graphics (Major Elective 2) | LEC 2 LAB 1 Units 3
+- GE 6303 — Major Elective 2 | LEC 2 LAB 0 Units 3
+
+Third Year — Third Trimester:
+- CS 6304A — Software Engineering 2 | LEC 2 LAB 1 Units 3 | Prereq: Cs 6303A
+- CS 6305A — Automata Theory and Formal Language | LEC 3 LAB 0 Units 3 | Prereq: CS6302A
+- CS 6306A — CS Thesis Writing 1 | LEC 3 LAB 0 Units 3 | Prereq: 3rd Year Standing
+- (no code) — Computer Animation (Major Elective 3) | LEC 2 LAB 1 Units 3
+- GE 6304 — Introduction to Linguistics | LEC 3 LAB 0 Units 3
+
+Fourth Year — First Trimester:
+- CS 6400A — CS Thesis Writing 2 | LEC 0 LAB 3 Units 3 | Prereq: CS 6306A
+- CS 6401A — CS Practicum (162 Hours) | LEC 0 LAB 3 Units 3 | Prereq: 4TH Year Standing
+- GE 6305 — Structure in English Language | LEC 3 LAB 0 Units 3

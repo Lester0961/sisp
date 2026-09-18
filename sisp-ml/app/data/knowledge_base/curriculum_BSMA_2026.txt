@@ -1,0 +1,72 @@
+Bachelor of Science in Multimedia Arts (BSMA) — Effective 2026–2027 | CMO No. 5, S. 2015 | Source: Curriculum Map - Bachelor of Multimedia Arts_v1-Final (3).pdf
+Total courses: 52
+
+First Year — First Term:
+- PATH-FIT 1 — Movement Competency Training | LEC 2 LAB 0 Units 2
+- GED011 — Living in the ICT Era | LEC 3 LAB 0 Units 3
+- GED002 — Purposive Communication | LEC 3 LAB 0 Units 3
+- GED004 — Mathematics in the Modern World | LEC 3 LAB 0 Units 3
+- MMA101 — Introduction to Multimedia Arts | LEC 3 LAB 0 Units 3
+- ART101 — Drawing & Design Fundamentals | LEC 3 LAB 2 Units 5
+
+First Year — Second Term:
+- PATH-FIT 2 — Exercise-based Fitness Activities | LEC 2 LAB 0 Units 2 | Prereq: PATH-FIT 1
+- NSTP1 — National Service Training Program 1 | LEC 3 LAB 0 Units 3
+- ELEC101 — Creative Writing for Media (Elective 1) | LEC 3 LAB 0 Units 3
+- BUS301 — Entrepreneurship in the Arts | LEC 3 LAB 0 Units 3
+- MMA102 — Computer Graphics 1 (Photoshop) | LEC 3 LAB 2 Units 5 | Prereq: MMA101
+- MMA103 — Color Theory and Typography | LEC 3 LAB 2 Units 5 | Prereq: ART101
+
+First Year — Third Term:
+- PATH-FIT 3 — Sports and Dance | LEC 2 LAB 0 Units 2 | Prereq: PATH-FIT 2
+- NSTP2 — National Service Training Program 2 | LEC 3 LAB 0 Units 3 | Prereq: NSTP1
+- ELEC102 — Entrepreneurship for Creative Industries (Elective 2) | LEC 3 LAB 0 Units 3
+- MMA104 — Computer Graphics 2 (Illustrator) | LEC 3 LAB 2 Units 5 | Prereq: MMA102
+- MMA105 — 2D Animation Basics | LEC 3 LAB 2 Units 5 | Prereq: MMA101
+- MMA106 — Digital Photography | LEC 3 LAB 2 Units 5 | Prereq: MMA101
+
+Second Year — First Term:
+- PATH-FIT 4 — Recreational and Lifetime Physical Activities | LEC 2 LAB 0 Units 2 | Prereq: PATH-FIT 3
+- GED010 — Science, Technology, and Society | LEC 3 LAB 0 Units 3
+- GED001 — Understanding the Self | LEC 3 LAB 0 Units 3
+- MMA202 — 3D Modeling & Design | LEC 3 LAB 2 Units 5 | Prereq: MMA103
+- MMA203 — Interactive Media Design 1 (Web Design) | LEC 3 LAB 2 Units 5 | Prereq: MMA104
+- MMA107 — Multimedia Publishing (Print & Digital Layout) | LEC 3 LAB 0 Units 3 | Prereq: MMA106
+
+Second Year — Second Term:
+- GED009 — Philippine Popular Culture | LEC 3 LAB 0 Units 3
+- GED008 — Reading in Philippine History | LEC 3 LAB 0 Units 3
+- MMA205 — Audio Production & Editing | LEC 3 LAB 2 Units 5 | Prereq: MMA106
+- MMA206 — Visual Storytelling & Film Language | LEC 3 LAB 2 Units 5 | Prereq: MMA105
+- MMA207 — 3D Animation | LEC 3 LAB 2 Units 5 | Prereq: MMA202
+- MMA201 — Writing for New Media | LEC 3 LAB 0 Units 3 | Prereq: GED102
+
+Second Year — Third Term:
+- GED007 — Art Appreciation | LEC 3 LAB 0 Units 3
+- MMA301 — Advanced Multimedia Design | LEC 3 LAB 2 Units 5 | Prereq: MMA207
+- MMA208 — Film Production | LEC 3 LAB 2 Units 5 | Prereq: MMA206
+- MMA303 — Digital Marketing & Multimedia | LEC 3 LAB 0 Units 3 | Prereq: MMA201
+- MMA302 — Game Development Fundamentals | LEC 3 LAB 2 Units 5 | Prereq: MMA207
+- RES301 — Research in Multimedia Arts | LEC 3 LAB 0 Units 3
+
+Third Year — First Term:
+- GED003 — Gender & Society | LEC 3 LAB 0 Units 3
+- ELEC103 — Introduction to Animation (Elective 3) | LEC 3 LAB 0 Units 3
+- MMA306 — Media Law & Ethics | LEC 3 LAB 0 Units 3 | Prereq: PHILO101
+- MMA304 — Motion Graphics & Visual Effects | LEC 3 LAB 2 Units 5 | Prereq: MMA207
+- MMA209 — Interactive Media Design 2 (UX/UI) | LEC 3 LAB 2 Units 5 | Prereq: MMA203
+- MMA 401 — Capstone Project / Thesis 1 | LEC 3 LAB 0 Units 3
+
+Third Year — Second Term:
+- RIZ101 — Life and Works of Rizal | LEC 3 LAB 0 Units 3
+- GED006 — Ethics | LEC 3 LAB 0 Units 3
+- MMA305 — Web Development for Multimedia | LEC 3 LAB 2 Units 5 | Prereq: MMA209
+- MMA307 — 3D Special Effects / Rendering | LEC 3 LAB 2 Units 5 | Prereq: MMA304
+- MMA 402 — Capstone Project / Thesis 2 | LEC 3 LAB 0 Units 3
+
+Third Year — Third Term:
+- GED005 — The Contemporary World | LEC 3 LAB 0 Units 3
+- SOC301 — Social Science (Psych/Socio) | LEC 3 LAB 0 Units 3
+- ELEC104 — Film Appreciation and Criticism (Elective 4) | LEC 3 LAB 0 Units 3
+- MMA308 — Multimedia Project Management | LEC 3 LAB 0 Units 3 | Prereq: MMA301
+- OJT101 — Multimedia Internship / Practicum | LEC 0 LAB 6 Units 6 | Prereq: 3rd Year Standing

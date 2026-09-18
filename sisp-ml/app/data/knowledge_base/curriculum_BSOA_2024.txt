@@ -1,0 +1,72 @@
+Bachelor of Science in Office Administration (BSOA) — Effective  |  | Source:
+Total courses: 50
+
+First Year — First Trimester:
+- GE 6100 — Understanding the Self | LEC 3 LAB 0 Units 3
+- GE 6103 — Living in IT Era (GE Elective 1) | LEC 3 LAB 0 Units 3
+- GE 6106 — Purposive Communication 1 | LEC 3 LAB 0 Units 3
+- GE 6114 — Mathematics in the Modern World | LEC 3 LAB 0 Units 3
+- GE 6107 — Ethics | LEC 3 LAB 0 Units 3
+- GE 6111 — Personal and Professional Development | LEC 3 LAB 0 Units 3
+
+First Year — Second Trimester:
+- GE 6102 — Contemporary World | LEC 3 LAB 0 Units 3
+- GE 6115 — Art Appreciation | LEC 3 LAB 0 Units 3
+- GE 6116 — Science, Technology, and Society | LEC 3 LAB 0 Units 3
+- GE 6104 — Gender and Society (GE Elective 2) | LEC 3 LAB 0 Units 3
+- GE 6101 — Readings in Philippine History | LEC 3 LAB 0 Units 3
+
+First Year — Third Trimester:
+- GE 6100 — Philippine Popular Culture (GE Elective 3) | LEC 3 LAB 0 Units 3
+- GE 6103 — Life and Works of Rizal | LEC 3 LAB 0 Units 3
+- OFAD 6106 — Administrative Office Procedure and Management | LEC 3 LAB 0 Units 3
+- MGT 6114 — Operation Management TQM | LEC 3 LAB 0 Units 3
+- OFAD 6107 — Foundation of Shorthand | LEC 3 LAB 0 Units 3
+- PHYED 6101 — Physical Fitness | LEC 2 LAB 0 Units 2
+
+Second Year — First Trimester:
+- OFAD 6204 — Business Report Writing | LEC 3 LAB 0 Units 3
+- OFAD 6202 — Advanced Shorthand | LEC 3 LAB 0 Units 3 | Prereq: OFAD 6101
+- OFAD 6201 — Keyboarding and Documents Processing | LEC 3 LAB 0 Units 3
+- OFAD 6203 — Personal and Professional Development | LEC 3 LAB 0 Units 3 | Prereq: OFAD 6102
+- NSTP 6101 — National Service Training Program1 | LEC 3 LAB 0 Units 3
+- PHYED 6102 — Rhythmic Activities | LEC 2 LAB 0 Units 2 | Prereq: PHYED 6101
+
+Second Year — Second Trimester:
+- OFAD 6205 — Customer Relation | LEC 3 LAB 0 Units 3 | Prereq: OFAD 6102
+- OFAD 6302 — Machine Shorthand I | LEC 1 LAB 0 Units 3 | Prereq: OFAD 6101
+- OFAD 6307 — Taxation | LEC 3 LAB 0 Units 3
+- NSTP 6102 — National Service Training Program 2 | LEC 3 LAB 0 Units 3 | Prereq: NSTP 6102
+- PHYED 6103 — Individual/ Dual Sports | LEC 2 LAB 0 Units 2 | Prereq: PHYED 6101
+- MKG01 6005 — Principles of Marketing | LEC 3 LAB 0 Units 3
+
+Second Year — Third Trimester:
+- OFAD 6001 — Legal Office Procedures (Elective 1) | LEC 3 LAB 0 Units 3 | Prereq: OFAD 6102
+- OFAD 6301 — Internet Research for Business | LEC 1 LAB 2 Units 3 | Prereq: OFAD 6101
+- OFAD 6305 — Entrepreneurial Behavior and Competencies | LEC 3 LAB 0 Units 3
+- OFAD 6303 — Events Management | LEC 3 LAB 0 Units 3 | Prereq: NSTP 6101
+- PHYED 6200 — Team Sports | LEC 2 LAB 0 Units 2 | Prereq: PHYED 6102
+
+Third Year — First Trimester:
+- OFAD 6304 — Integrated Software Applications | LEC 3 LAB 0 Units 3 | Prereq: OFAD 6201
+- OFAD 6003 — Web Design (Elective 3) | LEC 3 LAB 0 Units 3
+- OFAD 6306 — Business Law | LEC 3 LAB 0 Units 3
+- OFAD 6004 — Medical Office Procedures (Elective 4) | LEC 3 LAB 0 Units 3 | Prereq: OFAD 6202, OFAD 6000
+- OFAD 6370 — Strategic Management | LEC 3 LAB 0 Units 3
+
+Third Year — Second Trimester:
+- OFAD 6400 — Medical Office Internship (300hrs) | LEC 3 LAB 0 Units 3
+- OFAD 6005 — Basic Accounting (Elective 5) | LEC 3 LAB 0 Units 3
+- MNGT 6006 — Principles of Management | LEC 3 LAB 0 Units 3
+- ACTNG 6007 — Financial Accounting and Reporting | LEC 3 LAB 0 Units 3
+- PMCB 6008 — Principles of Money Credit and Banking | LEC 3 LAB 0 Units 3
+
+Third Year — Third Trimester:
+- OFAD 6300 — Legal Office Internship (300hrs) | LEC 1 LAB 2 Units 3 | Prereq: OFAD 6201; OFAD 6000
+- MNGA 6009 — Managerial Accounting | LEC 3 LAB 0 Units 3
+- OBCT 6010 — Obligation and Contract | LEC 3 LAB 0 Units 3
+- HRMT 6012 — Human Resource Management | LEC 3 LAB 0 Units 3
+
+Fourth Year — First Trimester:
+- OFAD 6300 — Office Administration Internship (300hrs) | LEC 3 LAB 0 Units 3 | Prereq: OFAD 6102
+- RSOA 6011 — Research in Office Administration | LEC 3 LAB 0 Units 3

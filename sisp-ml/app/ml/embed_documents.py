@@ -59,7 +59,13 @@ def embed_and_index():
         "grading_policy.txt": "grading_policy",
         "official_advice.txt": "official_advice",
         "program_catalog.txt": "programs_curriculum",
+        "registrar_operations.txt": "registrar_operations",
     }
+    # VERIFIED curricula: per-program files generated from canonical JSON.
+    # Auto-include so future programs don't need code changes.
+    for _fname in sorted(os.listdir(kb_dir)):
+        if _fname.startswith("curriculum_") and _fname.endswith(".txt"):
+            policy_files.setdefault(_fname, "programs_curriculum")
     
     all_chunks = []
     for file_name, category in policy_files.items():
