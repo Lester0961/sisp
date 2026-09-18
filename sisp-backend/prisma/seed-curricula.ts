@@ -45,8 +45,7 @@ function splitPrereqs(raw: string | null): string[] {
 }
 
 async function main() {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const payload = JSON.parse(readFileSync(join(here, 'curricula-verified.json'), 'utf8'));
+  const payload = JSON.parse(readFileSync(join(__dirname, 'curricula-verified.json'), 'utf8'));
   const programs: Program[] = payload.programs;
   console.log(`Source: ${payload.sourceDoc} sha=${payload.sourceSha256.slice(0, 12)} programs=${programs.length} rows=${payload.totalRows} mode=${DRY ? 'DRY-RUN' : 'APPLY'}`);
 
