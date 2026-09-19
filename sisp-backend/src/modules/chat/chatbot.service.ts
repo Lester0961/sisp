@@ -5,6 +5,7 @@ import { requireStudentProfile } from '../../common/utils/require-student-profil
 import { ChatSessionService } from './chat-session.service';
 import { ChatQuotaService } from './chat-quota.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ChatbotService {
@@ -17,11 +18,12 @@ export class ChatbotService {
     private readonly config: ConfigService,
     private readonly chatSessionService: ChatSessionService,
     private readonly chatQuotaService: ChatQuotaService,
+    private readonly notificationsService: NotificationsService,
   ) {
     this.mlServiceUrl = this.config.get<string>('ML_SERVICE_URL') || 'http://localhost:8000';
-    // Same shared secret already used for the ML knowledge-base proxy.
     // Authenticates this backend to the ML service; never exposed to clients.
-    this.mlSecret = this.config.get<string>('ML_SECRET_TOKEN') || 'local-ml-service-only';
+    // A missing secret must fail closed instead of reverting to a shared default.
+    this.mlSecret = this.config.get<string>('ML_SECRET_TOKEN') || '';
   }
 
   /** Server-derived student identity. Never taken from client input. */
@@ -51,6 +53,9 @@ export class ChatbotService {
     const ML_TIMEOUT_MS = 60000;
 
     try {
+      if (!this.mlSecret) {
+        throw new Error('ML_SECRET_TOKEN is not configured');
+      }
       this.logger.log(`Forwarding query to ML service: ${this.mlServiceUrl}/chat`);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), ML_TIMEOUT_MS);
@@ -106,21 +111,35 @@ export class ChatbotService {
 
     const responseLang = mlResponse.language?.code || preferredLanguage || 'en';
     if (mlResponse.route === 'database' && mlResponse.action) {
-      // ML-resolved student data (Supabase reachable) is used as-is;
-      // otherwise fall back to the legacy backend-side resolution, which
-      // also covers local mock mode where ML has no database.
-      const mlData = mlResponse.data || {};
-      if (mlData.resolvedBy !== 'ml-student-context') {
-        mlResponse.response = await this.resolveDatabaseResponse(
-          userId,
-          mlResponse.action,
-          responseLang,
-        );
+      try {
+        // Personal records are resolved from this authenticated user's SISP
+        // data. Missing records become an explicit fallback, never a made-up
+        // zero or an LLM-generated value.
+        if (mlResponse.action === 'balance') {
+          const result = await this.resolveBalance(userId, responseLang);
+          mlResponse.response = result.text;
+          if (!result.available) {
+            mlResponse.escalate = true;
+            mlResponse.route = 'live_advisor';
+          }
+        } else {
+          mlResponse.response = await this.resolveDatabaseResponse(
+            userId,
+            mlResponse.action,
+            responseLang,
+          );
+        }
+      } catch (error: any) {
+        this.logger.error(`Student record lookup failed for '${mlResponse.action}': ${error?.message || error}`);
+        mlResponse.response =
+          'SISP could not verify this student record. Please consult an authorized school representative.';
+        mlResponse.escalate = true;
+        mlResponse.route = 'live_advisor';
       }
     }
     // Multi-intent parts the ML service flagged for backend resolution.
-    // A resolution failure must never 500 the whole request: the part keeps
-    // its hint text, is marked errored, and forces a human escalation.
+    // A resolution failure must never 500 the whole request or expose the
+    // ML-provided hint as if it were a verified personal record.
     let failedParts = false;
     if (Array.isArray(mlResponse.parts)) {
       let patched = false;
@@ -141,14 +160,30 @@ export class ChatbotService {
               resolvedBy: 'backend',
               needs_backend_resolution: false,
             };
-            part.error = null;
-            part.escalated = false;
+            if (resolved.data.recordAvailable === false) {
+              part.error = 'student_record_unavailable';
+              part.escalated = true;
+              failedParts = true;
+            } else {
+              part.error = null;
+              part.escalated = false;
+            }
             patched = true;
           } catch (error: any) {
             this.logger.error(
               `Backend resolution failed for part action '${part.action}': ${error?.message || error}`,
             );
-            part.error = error?.message || 'backend_resolution_failed';
+            part.text =
+              'SISP could not verify this student record. Please consult an authorized school representative.';
+            part.data = {
+              ...(part.data || {}),
+              resolvedBy: 'backend',
+              needs_backend_resolution: false,
+              recordAvailable: false,
+            };
+            part.error = 'backend_resolution_failed';
+            part.escalated = true;
+            patched = true;
             failedParts = true;
           }
         }
@@ -187,6 +222,11 @@ export class ChatbotService {
         chatSession = await this.chatSessionService.createSession(chatLog.id, user.studentProfile.id);
         this.logger.log(`Created ChatSession ID: ${chatSession.id} for escalation.`);
       }
+      await this.notificationsService.sendToUser(
+        userId,
+        'ARIA Request Referred',
+        'Your request has been referred for staff follow-up.',
+      );
     }
 
     return {
@@ -239,14 +279,13 @@ export class ChatbotService {
     escalationId: string,
     resolution: string,
     resolverId: string,
-    resolverRole = 'admin_staff',
+    resolverRole = 'registrar',
   ) {
     const escalation = await this.prisma.escalationQueue.findUnique({
       where: { id: escalationId },
       include: { chat: { include: { chatSession: true } } },
     });
     if (!escalation) throw new HttpException('Escalation record not found.', HttpStatus.NOT_FOUND);
-
     const updatedEscalation = await this.prisma.escalationQueue.update({
       where: { id: escalationId },
       data: { status: 'resolved', resolution, assignedTo: resolverId },
@@ -272,6 +311,12 @@ export class ChatbotService {
       });
     }
 
+    await this.notificationsService.sendToUser(
+      escalation.chat.userId,
+      'ARIA Response Available',
+      'A staff response is available in your ARIA conversation.',
+    );
+
     return updatedEscalation;
   }
 
@@ -287,7 +332,8 @@ export class ChatbotService {
     language: string,
     dayFilter?: string | null,
   ): Promise<{ text: string; data: any }> {
-    const text = await this.resolveDatabaseResponse(userId, action, language);
+    const balance = action === 'balance' ? await this.resolveBalance(userId, language) : null;
+    const text = balance?.text ?? await this.resolveDatabaseResponse(userId, action, language);
     const data: any = { action, resolvedBy: 'backend' };
     try {
       const profile = await requireStudentProfile(this.prisma, userId);
@@ -317,11 +363,8 @@ export class ChatbotService {
         }));
         data.total = data.items.length;
       } else if (action === 'balance') {
-        const student = await this.prisma.studentProfile.findUnique({
-          where: { id: profile.id },
-          include: { accountBalance: true },
-        });
-        data.balance = Number(student?.accountBalance?.balance ?? 0);
+        data.balance = balance?.balance ?? null;
+        data.recordAvailable = balance?.available ?? false;
       } else if (action === 'document_request_status') {
         const requests = await this.prisma.documentRequest.findMany({
           where: { studentId: profile.id },
@@ -387,9 +430,7 @@ export class ChatbotService {
         .join('\n')}`;
     }
     if (action === 'balance') {
-      const student = await this.prisma.studentProfile.findUnique({ where: { id: profile.id }, include: { accountBalance: true } });
-      const balance = Number(student?.accountBalance?.balance ?? 0);
-      return `### ${heading}\n\nYour current SISP balance is **₱${balance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**.`;
+      return (await this.resolveBalance(userId, language)).text;
     }
     if (action === 'document_request_status') {
       const requests = await this.prisma.documentRequest.findMany({
@@ -403,5 +444,40 @@ export class ChatbotService {
       return `### ${heading}\n\n- **Documents:** ${names}\n- **Status:** ${latest.status.replaceAll('_', ' ')}\n- **Payment:** ${latest.paymentStatus.replaceAll('_', ' ')}`;
     }
     return 'I could not match that request to an authorized SISP record service.';
+  }
+
+  private async resolveBalance(
+    userId: string,
+    language: string,
+  ): Promise<{ text: string; available: boolean; balance: number | null }> {
+    const headings: Record<string, string> = {
+      en: 'Your account balance',
+      fil: 'Iyong account balance',
+      ceb: 'Imong account balance',
+      ilo: 'Ti account balance-mo',
+      hil: 'Imo account balance',
+      war: 'Imo account balance',
+    };
+    const heading = headings[language] || headings.en;
+    const profile = await requireStudentProfile(this.prisma, userId);
+    const student = await this.prisma.studentProfile.findUnique({
+      where: { id: profile.id },
+      include: { accountBalance: true },
+    });
+    const rawBalance = student?.accountBalance?.balance;
+    if (rawBalance === null || rawBalance === undefined) {
+      return {
+        text: `### ${heading}\n\nSISP could not verify an account balance record for you. Please contact the Treasury Office for assistance.`,
+        available: false,
+        balance: null,
+      };
+    }
+
+    const balance = Number(rawBalance);
+    return {
+      text: `### ${heading}\n\nYour current SISP balance is **₱${balance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**.`,
+      available: true,
+      balance,
+    };
   }
 }

@@ -38,6 +38,48 @@ export interface Program {
   name: string;
 }
 
+export interface ProgressCourse {
+  id: string;
+  code: string;
+  title: string;
+  units: number;
+  lecUnits?: number;
+  labUnits?: number;
+  prereqText?: string | null;
+  yearLevel: number;
+  semester: number;
+  termNumber?: number;
+  termLabel?: string | null;
+  status: 'completed' | 'ongoing' | 'remaining';
+  prerequisites: Array<{ requiresCode: string; satisfied: boolean }>;
+}
+
+export interface CurriculumProgress {
+  curriculum: {
+    program: { code: string; name: string } | null;
+    effectiveYear: number;
+    schoolYear?: string | null;
+  } | null;
+  totals: {
+    requiredSubjects: number;
+    requiredUnits: number;
+    completedSubjects: number;
+    completedUnits: number;
+    ongoingSubjects: number;
+    ongoingUnits: number;
+    remainingSubjects: number;
+    remainingUnits: number;
+    completionPercentage: number;
+  };
+  prerequisitesMet: boolean;
+  unmetPrerequisites: Array<{
+    courseCode: string;
+    courseTitle: string;
+    requiresCode: string;
+  }>;
+  courses: ProgressCourse[];
+}
+
 export const curriculaApi = {
   getMyCurriculum: async (): Promise<CurriculumCourse[]> => {
     const res = await apiClient.get<CurriculumCourse[] | MyCurriculum>('/curricula/me');
@@ -58,6 +100,11 @@ export const curriculaApi = {
   },
   getPrograms: async (): Promise<Program[]> => {
     const res = await apiClient.get<Program[]>('/curricula/programs');
+    return res.data;
+  },
+  // Server-computed progress (P4-06); the page only renders it.
+  getMyProgress: async (): Promise<CurriculumProgress> => {
+    const res = await apiClient.get<CurriculumProgress>('/curricula/me/progress');
     return res.data;
   },
 };

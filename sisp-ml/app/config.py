@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -35,10 +36,12 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_dimension: int = 384
     confidence_threshold: float = 0.7
+    retrieval_similarity_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    require_pgvector: bool = False
     advisory_supported_languages: str = "en,fil,ceb,ilo,hil,war"
 
     # ML Admin Secret
-    ml_secret_token: str = "local-ml-service-only"
+    ml_secret_token: str = ""
 
     # Supabase
     supabase_url: str = ""

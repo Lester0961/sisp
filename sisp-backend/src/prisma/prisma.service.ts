@@ -4,6 +4,7 @@ import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DOCUMENT_CATALOG } from '../common/constants/document-catalog';
+import { PERMISSION_DEFINITIONS, ROLE_PERMISSIONS } from '../common/authz/rbac';
 
 const FALLBACK_DATABASE_URL =
   'postgresql://invalid:invalid@127.0.0.1:1/invalid?connect_timeout=2';
@@ -128,11 +129,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$connect();
       console.log('[Prisma] Database connected successfully.');
     } catch (error) {
-      // Opt-in fail-fast for production: STRICT_DB=true refuses to boot into
-      // mock mode (mock data lives in RAM/ephemeral disk and would silently
-      // lose writes on restart). Default off preserves local-dev behavior.
-      if (process.env.STRICT_DB === 'true') {
-        console.error('[Prisma] STRICT_DB=true and database unreachable. Refusing to start.');
+      // Fail closed in production: mock data lives in RAM/ephemeral disk and
+      // would silently lose writes on restart. Development/test may opt in
+      // to mock mode explicitly, or implicitly when NODE_ENV is not production.
+      const isProduction =
+        (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+      const strictDb = process.env.STRICT_DB === 'true' || isProduction;
+      if (strictDb) {
+        console.error(
+          '[Prisma] Database unreachable and strict mode is active (STRICT_DB=true or NODE_ENV=production). Refusing to start on mock storage.',
+        );
         throw error;
       }
       console.warn('[Prisma] Could not connect to the database.', error);
@@ -154,14 +160,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const mockPasswordHash = bcrypt.hashSync(localDemoPassword, 10);
 
     // Seed mock data stores
+    // The combined admin_staff role is deliberately migrated to registrar
+    // (Phase 2, P2-01) while keeping its id so mock users keep working.
     const roles = [
-      { id: 'role-id-admin_staff', name: 'admin_staff', createdAt: new Date() },
+      { id: 'role-id-admin_staff', name: 'registrar', createdAt: new Date() },
+      { id: 'role-id-treasury', name: 'treasury', createdAt: new Date() },
       { id: 'role-id-dean', name: 'dean', createdAt: new Date() },
       { id: 'role-id-faculty', name: 'faculty', createdAt: new Date() },
       { id: 'role-id-student', name: 'student', createdAt: new Date() },
       { id: 'role-id-sys_admin', name: 'sys_admin', createdAt: new Date() },
       { id: 'role-id-live_agent', name: 'live_agent', createdAt: new Date() },
     ];
+
+    const roleById = (roleId: string) => roles.find((role) => role.id === roleId);
 
     const users = [
       {
@@ -175,7 +186,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        role: roles[0],
+        role: roleById('role-id-admin_staff'),
       },
       {
         id: 'mock-dean-id',
@@ -188,7 +199,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        role: roles[1],
+        role: roleById('role-id-dean'),
       },
       {
         id: 'mock-faculty-id',
@@ -201,7 +212,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        role: roles[2],
+        role: roleById('role-id-faculty'),
       },
       {
         id: 'mock-student-id',
@@ -214,7 +225,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        role: roles[3],
+        role: roleById('role-id-student'),
       },
       {
         id: 'mock-sysadmin-id',
@@ -227,7 +238,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        role: roles[4],
+        role: roleById('role-id-sys_admin'),
       },
       {
         id: 'mock-live-agent-id',
@@ -240,9 +251,53 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         mustChangePassword: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        role: roles[5],
+        role: roleById('role-id-live_agent'),
+      },
+      {
+        id: 'mock-treasury-id',
+        email: 'treasury@rmc.edu.ph',
+        passwordHash: mockPasswordHash,
+        firstName: 'Regis',
+        lastName: 'Treasury',
+        roleId: 'role-id-treasury',
+        isActive: true,
+        mustChangePassword: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        role: roleById('role-id-treasury'),
       },
     ];
+
+    // Permission catalog + role → permission mapping (Phase 2, P2-02),
+    // mirrored from src/common/authz/rbac.ts so mock mode enforces the same
+    // authorization model as the migrated database.
+    const permissions = PERMISSION_DEFINITIONS.map((permission, index) => ({
+      id: `mock-permission-${index + 1}`,
+      action: permission.action,
+      resource: permission.resource,
+      createdAt: new Date(),
+    }));
+    const permissionByKey = new Map(
+      permissions.map((permission) => [
+        `${permission.resource}.${permission.action}`,
+        permission,
+      ]),
+    );
+    const rolePermissions = Object.entries(ROLE_PERMISSIONS).flatMap(
+      ([roleName, permissionKeys]) => {
+        const role = roles.find((candidate) => candidate.name === roleName);
+        if (!role) return [];
+        return permissionKeys
+          .map((key) => permissionByKey.get(key))
+          .filter((permission): permission is (typeof permissions)[number] => Boolean(permission))
+          .map((permission) => ({
+            roleId: role.id,
+            permissionId: permission.id,
+            role,
+            permission,
+          }));
+      },
+    );
 
     const programs = [
       {
@@ -808,6 +863,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     const store: Record<string, any[]> = {
       role: roles,
+      permission: permissions,
+      rolePermission: rolePermissions,
       user: users,
       program: programs,
       course: courses,
@@ -834,6 +891,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       admissionApplication: admissionApplications,
       admissionRequirementDefinition: admissionRequirementDefinitions,
       admissionRequirementSubmission: admissionRequirementSubmissions,
+      // Phase 3 supporting structures (empty until used; handlers are
+      // generated automatically for every store key).
+      classSection: [] as any[],
+      classSchedule: [] as any[],
+      paymentTransaction: [] as any[],
+      adviserAssignment: [] as any[],
+      advisingConcern: [] as any[],
+      knowledgeDocument: [] as any[],
+      knowledgeChunk: [] as any[],
     };
 
     const dbFilePath = path.join(__dirname, '..', '..', 'mock-db.json');
@@ -888,6 +954,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           ...grade,
           enrollment: store.enrollment.find((enrollment) => enrollment.id === grade.enrollmentId),
         }));
+
+        // Phase 2 migration for stale mock snapshots: rename the combined
+        // admin_staff role in place and ensure the permission stores exist.
+        if (!store.role.some((role) => role.name === 'registrar')) {
+          const legacyRole = store.role.find((role) => role.name === 'admin_staff');
+          if (legacyRole) legacyRole.name = 'registrar';
+        }
+        if (!store.role.some((role) => role.name === 'treasury')) {
+          const treasuryRole = roles.find((role) => role.name === 'treasury');
+          if (treasuryRole) store.role.push(treasuryRole);
+        }
+        if (!store.permission?.length) store.permission = permissions;
+        if (!store.rolePermission?.length) store.rolePermission = rolePermissions;
+
         console.log('[Prisma Mock] Loaded database state from mock-db.json');
       } catch (err) {
         console.error('[Prisma Mock] Failed to read mock-db.json:', err);
@@ -1017,9 +1097,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             }
           }
           if (key === 'accountBalance') {
+            // The account_balances store is authoritative; older mock
+            // snapshots embedded a second copy inside the student profile,
+            // which went stale after balance recalculation.
             const balItem =
-              cloned.accountBalance ||
-              store.studentProfile.find((sp) => sp.id === cloned.id)?.accountBalance;
+              store.accountBalance.find((balance: any) => balance.studentId === cloned.id) ||
+              cloned.accountBalance;
             if (balItem) {
               cloned.accountBalance = resolveIncludes(balItem, subInclude, 'accountBalance');
             }
@@ -1151,6 +1234,73 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           if (key === 'instructor') {
             const instructorItem = store.user.find((user) => user.id === cloned.instructorId);
             if (instructorItem) cloned.instructor = resolveIncludes(instructorItem, subInclude, 'user');
+          }
+          // Phase 4 (P4-05): schedule section relation.
+          if (key === 'classSection') {
+            const sectionItem = store.classSection.find(
+              (section: any) => section.id === cloned.classSectionId,
+            );
+            if (sectionItem) {
+              cloned.classSection = resolveIncludes(sectionItem, subInclude, 'classSection');
+            }
+          }
+        }
+        if (modelKey === 'classSection') {
+          if (key === 'schedules') {
+            const slots = store.classSchedule.filter(
+              (slot: any) => slot.classSectionId === cloned.id,
+            );
+            cloned.schedules = slots.map((slot: any) =>
+              resolveIncludes(slot, subInclude, 'classSchedule'),
+            );
+          }
+        }
+        if (modelKey === 'enrollmentHistory') {
+          if (key === 'course') {
+            const courseItem = store.course.find((course) => course.id === cloned.courseId);
+            if (courseItem) cloned.course = resolveIncludes(courseItem, subInclude, 'course');
+          }
+          if (key === 'academicTerm') {
+            const termItem = store.academicTerm.find(
+              (term) => term.id === cloned.academicTermId,
+            );
+            if (termItem) {
+              cloned.academicTerm = resolveIncludes(termItem, subInclude, 'academicTerm');
+            }
+          }
+          if (key === 'changedBy') {
+            const userItem = store.user.find((user) => user.id === cloned.changedById);
+            if (userItem) cloned.changedBy = resolveIncludes(userItem, subInclude, 'user');
+          }
+        }
+        if (modelKey === 'curriculumCourse') {
+          if (key === 'course') {
+            const courseItem = store.course.find((course) => course.id === cloned.courseId);
+            if (courseItem) cloned.course = resolveIncludes(courseItem, subInclude, 'course');
+          }
+        }
+        if (modelKey === 'course') {
+          if (key === 'prerequisites') {
+            const prereqs = store.coursePrerequisite.filter(
+              (prereq: any) => prereq.courseId === cloned.id,
+            );
+            cloned.prerequisites = prereqs.map((prereq: any) =>
+              resolveIncludes(prereq, subInclude, 'coursePrerequisite'),
+            );
+          }
+        }
+        if (modelKey === 'curriculum') {
+          if (key === 'program') {
+            const programItem = store.program.find((program) => program.id === cloned.programId);
+            if (programItem) cloned.program = resolveIncludes(programItem, subInclude, 'program');
+          }
+          if (key === 'curriculumCourses') {
+            const links = store.curriculumCourse.filter(
+              (link: any) => link.curriculumId === cloned.id,
+            );
+            cloned.curriculumCourses = links.map((link: any) =>
+              resolveIncludes(link, subInclude, 'curriculumCourse'),
+            );
           }
         }
       }

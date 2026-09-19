@@ -3,7 +3,7 @@ import { MessageSquareText, Sparkles } from 'lucide-react';
 interface IntentShare {
   intent: string;
   count: number;
-  avgConfidence: number;
+  avgConfidence: number | null;
 }
 
 interface ChatbotAnalyticsWidgetProps {

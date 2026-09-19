@@ -1,4 +1,5 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -41,8 +42,8 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Req() request: Request) {
+    return this.authService.login(dto, request.ip);
   }
 
   // Strict limit on OTP brute-force: 5 attempts / minute
@@ -55,8 +56,8 @@ export class AuthController {
   })
   @Post('verify-mfa')
   @HttpCode(HttpStatus.OK)
-  async verifyMfa(@Body() dto: VerifyMfaDto) {
-    return this.authService.verifyMfa(dto.mfaToken, dto.otpCode);
+  async verifyMfa(@Body() dto: VerifyMfaDto, @Req() request: Request) {
+    return this.authService.verifyMfa(dto.mfaToken, dto.otpCode, request.ip);
   }
 
   // Refresh endpoint — 10/min to limit token brute-force

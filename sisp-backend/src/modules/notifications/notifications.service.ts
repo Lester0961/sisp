@@ -82,6 +82,15 @@ export class NotificationsService {
   }
 
   async sendNotification(dto: SendNotificationDto) {
+    if (dto.targetRole === 'all' && (dto.userId || dto.userIds?.length)) {
+      throw new BadRequestException('The all-users target cannot be combined with named recipients');
+    }
+    if (dto.userIds && new Set(dto.userIds).size !== dto.userIds.length) {
+      throw new BadRequestException('Duplicate notification recipients are not allowed');
+    }
+    if (dto.userId && dto.userIds?.includes(dto.userId)) {
+      throw new BadRequestException('A named notification recipient cannot be specified twice');
+    }
     // Must have at least one target
     if (!dto.userId && !dto.targetRole && !dto.userIds?.length) {
       throw new BadRequestException('Must provide userId, targetRole, or userIds');
@@ -142,11 +151,11 @@ export class NotificationsService {
       }
     }
 
-    // Deduplicate by userId
+    // De-duplicate users returned by an overlapping named and role target.
     type NotifItem = { userId: string; title: string; message: string };
     const uniqueMap = new Map<string, NotifItem>();
     for (const n of notificationsToCreate) {
-      uniqueMap.set(n.userId, n);
+      if (!uniqueMap.has(n.userId)) uniqueMap.set(n.userId, n);
     }
     const unique = Array.from(uniqueMap.values());
 
@@ -157,9 +166,7 @@ export class NotificationsService {
       };
     }
 
-    await this.prisma.notification.createMany({
-      data: unique,
-    });
+    await this.createForUsers(unique);
 
     return {
       message: `Notification sent to ${unique.length} user(s)`,
@@ -167,11 +174,20 @@ export class NotificationsService {
     };
   }
 
-  // Internal helper — called by other services to send notifications
+  // Internal helper â€” called by other services to send notifications
   async sendToUser(userId: string, title: string, message: string): Promise<void> {
-    await this.prisma.notification.create({
-      data: { userId, title, message },
-    });
+    await this.createForUsers([{ userId, title, message }]);
+  }
+
+  private async createForUsers(data: { userId: string; title: string; message: string }[]) {
+    if (new Set(data.map((item) => item.userId)).size !== data.length) {
+      throw new BadRequestException('Duplicate notification recipients are not allowed');
+    }
+    if (data.length === 1) {
+      await this.prisma.notification.create({ data: data[0] });
+      return;
+    }
+    if (data.length > 1) await this.prisma.notification.createMany({ data });
   }
 
   async getUnreadCount(userId: string) {

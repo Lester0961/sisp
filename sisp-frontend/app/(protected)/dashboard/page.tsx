@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, BookOpen, FileText, Sparkles, AlertCircle, CheckCircle2, ShieldAlert, Info } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,20 +17,15 @@ function formatPeso(balance?: string) {
   return `₱${Number.isFinite(amount) ? amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00'}`;
 }
 
-function formatNotificationMessage(message: string) {
-  if (message.toLowerCase().includes('glassmorphic')) {
-    return 'Your student information and services portal is ready to use.';
-  }
-  return message;
-}
-
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const { profile, enrollments, isLoadingProfile, fetchProfile, fetchEnrollments } = useStudentStore();
+  const { profile, enrollments, isLoadingProfile, isLoadingEnrollments, profileError, enrollmentsError, fetchProfile, fetchEnrollments } = useStudentStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoadingStudentData, setIsLoadingStudentData] = useState(true);
   const [isLoadingNotifs, setIsLoadingNotifs] = useState(true);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && user.role !== 'student') {
@@ -44,27 +39,43 @@ export default function DashboardPage() {
   }, [user, router]);
 
   useEffect(() => {
-    if (user?.role !== 'student') return;
-    if (!profile) void fetchProfile();
-    if (!enrollments.length) void fetchEnrollments();
-  }, [profile, enrollments.length, fetchProfile, fetchEnrollments, user?.role]);
+    if (user?.role !== 'student') {
+      setIsLoadingStudentData(false);
+      return;
+    }
+    setIsLoadingStudentData(true);
+    let active = true;
+    void (async () => {
+      await Promise.all([
+        profile ? Promise.resolve() : fetchProfile(),
+        enrollments.length ? Promise.resolve() : fetchEnrollments(),
+      ]);
+      if (active) setIsLoadingStudentData(false);
+    })();
+    return () => { active = false; };
+  }, [enrollments.length, fetchEnrollments, fetchProfile, profile, user?.role]);
 
-  useEffect(() => {
+  const loadNotifications = useCallback(async () => {
     if (user?.role !== 'student') {
       setIsLoadingNotifs(false);
       return;
     }
-    const loadNotifications = async () => {
-      try {
-        const data = await notificationsApi.getMyNotifications();
-        setNotifications(data.data ?? []);
-        setUnreadCount(data.unreadCount ?? 0);
-      } finally {
-        setIsLoadingNotifs(false);
-      }
-    };
-    void loadNotifications();
+    setIsLoadingNotifs(true);
+    setNotificationsError(null);
+    try {
+      const data = await notificationsApi.getMyNotifications();
+      setNotifications(data.data ?? []);
+      setUnreadCount(data.unreadCount ?? 0);
+    } catch {
+      setNotificationsError('Notifications could not be loaded.');
+    } finally {
+      setIsLoadingNotifs(false);
+    }
   }, [user?.role]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
 
   const handleMarkAllRead = async () => {
     try {
@@ -79,7 +90,8 @@ export default function DashboardPage() {
 
   const activeEnrollments = enrollments.filter((enrollment) => enrollment.status === 'enrolled');
   const totalUnits = activeEnrollments.reduce((total, enrollment) => total + (enrollment.course?.units ?? 0), 0);
-  const isLoading = isLoadingProfile || isLoadingNotifs;
+  const isLoading = isLoadingStudentData || isLoadingProfile || isLoadingEnrollments || isLoadingNotifs;
+  const studentDataError = profileError || enrollmentsError;
   const firstName = profile?.user?.firstName || user?.email.split('@')[0] || 'Student';
 
   if (!user || user.role !== 'student') {
@@ -103,6 +115,12 @@ export default function DashboardPage() {
             <div className="portal-skeleton h-44 w-full" />
             <div className="grid gap-5 lg:grid-cols-[1.35fr_0.85fr]"><div className="portal-skeleton h-64" /><div className="portal-skeleton h-64" /></div>
           </div>
+        ) : studentDataError ? (
+          <section role="alert" className="portal-surface portal-empty">
+            <AlertCircle className="size-8 text-[#b42318]" strokeWidth={1.8} />
+            <div><h2 className="font-semibold text-[#102f49]">Student dashboard unavailable</h2><p className="mt-1 text-sm text-[#587387]">{studentDataError}</p></div>
+            <Button size="sm" variant="outline" onClick={() => void Promise.all([fetchProfile(), fetchEnrollments()])}>Try again</Button>
+          </section>
         ) : (
           <div className="space-y-5">
             <section className="overflow-hidden rounded-2xl bg-[#102f49] p-5 text-white shadow-[0_14px_32px_rgb(15_45_74_/_0.16)] sm:p-6">
@@ -202,11 +220,15 @@ export default function DashboardPage() {
                   <div><h2 className="font-semibold text-[#102f49]">Notifications</h2><p className="mt-1 text-sm text-[#587387]">Important updates from the school.</p></div>
                   {unreadCount > 0 && <Button variant="ghost" size="sm" onClick={() => void handleMarkAllRead()}>Mark read</Button>}
                 </div>
-                {notifications.length ? (
+                {isLoadingNotifs ? (
+                  <div className="portal-skeleton m-4 h-24" role="status">Loading notifications…</div>
+                ) : notificationsError ? (
+                  <div role="alert" className="p-5 text-sm text-[#b42318]">{notificationsError} <Button variant="outline" size="sm" className="ml-2" onClick={() => void loadNotifications()}>Try again</Button></div>
+                ) : notifications.length ? (
                   <div className="divide-y divide-[#e7eef3]">
                     {notifications.slice(0, 4).map((notification) => (
                       <article key={notification.id} className={`px-5 py-4 ${notification.isRead ? '' : 'bg-[#f7fbfe]'}`}>
-                        <div className="flex gap-3"><Bell className="mt-0.5 size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} /><div><h3 className="text-sm font-semibold text-[#102f49]">{notification.title}</h3><p className="mt-1 text-sm leading-relaxed text-[#587387]">{formatNotificationMessage(notification.message)}</p><p className="mt-2 text-xs text-[#6c879a]">{new Date(notification.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</p></div></div>
+                        <div className="flex gap-3"><Bell className="mt-0.5 size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} /><div><h3 className="text-sm font-semibold text-[#102f49]">{notification.title}</h3><p className="mt-1 text-sm leading-relaxed text-[#587387]">{notification.message}</p><p className="mt-2 text-xs text-[#6c879a]">{new Date(notification.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}</p></div></div>
                       </article>
                     ))}
                   </div>

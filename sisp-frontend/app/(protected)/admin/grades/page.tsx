@@ -25,7 +25,10 @@ import {
 export default function RegistrarGradesPage() {
   useAuth();
   const [grades, setGrades] = useState<GradeItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [termsLoading, setTermsLoading] = useState(true);
+  const [termsError, setTermsError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [postingId, setPostingId] = useState<string | null>(null);
   const [terms, setTerms] = useState<AcademicTerm[]>([]);
@@ -33,25 +36,40 @@ export default function RegistrarGradesPage() {
 
   const loadGrades = async (termId = selectedTermId ?? undefined) => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await gradesApi.getAllGrades(undefined, undefined, 'posted', termId);
       const gradesArray = Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data || [];
       setGrades(gradesArray);
     } catch (err) {
       console.error('Failed to load grades:', err);
+      setLoadError('Could not load grades for publication. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void (async () => {
-      const availableTerms = await academicTermsApi.list().catch(() => []);
+  const loadTermsAndGrades = async () => {
+    setTermsLoading(true);
+    setTermsError(null);
+    try {
+      const availableTerms = await academicTermsApi.list();
       setTerms(availableTerms);
       const current = availableTerms.find((term) => term.isCurrent) ?? availableTerms[0];
       setSelectedTermId(current?.id ?? null);
       await loadGrades(current?.id);
-    })();
+    } catch (err) {
+      console.error('Failed to load academic terms:', err);
+      setTerms([]);
+      setTermsError('Could not load academic terms. Please try again.');
+      await loadGrades(undefined);
+    } finally {
+      setTermsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTermsAndGrades();
   }, []);
 
   const handlePost = async (gradeId: string) => {
@@ -89,8 +107,9 @@ export default function RegistrarGradesPage() {
             </p>
           </div>
           <Button
-            onClick={() => void loadGrades()}
+            onClick={() => void loadTermsAndGrades()}
             variant="outline"
+            disabled={loading || termsLoading}
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -101,7 +120,9 @@ export default function RegistrarGradesPage() {
           <div className="border-b border-[#e8f0f5] px-4 py-3 sm:px-5"><p className="text-sm font-semibold text-[#102f49]">Publication term</p><p className="text-xs text-[#587387]">Publish dean-approved grades for the selected academic term.</p></div>
           <div className="flex gap-2 overflow-x-auto p-3 sm:p-4">
             {terms.map((term) => <button key={term.id} type="button" onClick={() => { setSelectedTermId(term.id); void loadGrades(term.id); }} className={`min-w-[8rem] rounded-xl border px-3 py-2.5 text-left text-xs transition ${selectedTermId === term.id ? 'border-[#0a439b] bg-[#f1f6fb] text-[#0a439b]' : 'border-[#dce7ef] text-[#587387] hover:border-[#9bc2df]'}`}><span className="block font-semibold text-[#102f49]">{term.label}</span><span className="mt-1 block">{term.academicYear}</span></button>)}
-            {!terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">Academic terms are not configured yet.</p> : null}
+            {termsLoading ? <p className="px-1 py-2 text-xs text-[#587387]" role="status">Loading academic terms…</p> : null}
+            {!termsLoading && termsError ? <p className="px-1 py-2 text-xs text-rose-700" role="alert">{termsError}</p> : null}
+            {!termsLoading && !termsError && !terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">Academic terms are not configured yet.</p> : null}
           </div>
         </section>
 
@@ -139,6 +160,13 @@ export default function RegistrarGradesPage() {
                       Loading dean-approved grades...
                     </TableCell>
                   </TableRow>
+                ) : loadError ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-8 text-center" role="alert">
+                      <p className="mb-3 text-sm text-rose-700">{loadError}</p>
+                      <Button size="sm" variant="outline" onClick={() => void loadGrades()} disabled={loading}>Try again</Button>
+                    </TableCell>
+                  </TableRow>
                 ) : filteredGrades.length > 0 ? (
                   filteredGrades.map((g) => (
                     <TableRow key={g.id} className="border-b border-[#e8f0f5] hover:bg-[#f8fbfd]">
@@ -160,7 +188,7 @@ export default function RegistrarGradesPage() {
                       <TableCell className="text-center text-xs font-semibold">{g.midterm ?? 'Not recorded'}</TableCell>
                       <TableCell className="text-center text-xs font-semibold">{g.finals ?? 'Not recorded'}</TableCell>
                       <TableCell className="text-center">
-                        <span className={`text-sm font-black ${g.finalGrade && g.finalGrade >= 75 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        <span className="text-sm font-black text-[#102f49]">
                           {g.finalGrade ?? 'Not recorded'}
                         </span>
                       </TableCell>

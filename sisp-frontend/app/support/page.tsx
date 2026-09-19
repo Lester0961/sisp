@@ -1,71 +1,31 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  ChevronDown, Send, MapPin, Phone, Mail, Search,
-  CheckCircle2
-} from 'lucide-react';
+import { ChevronDown, Search } from 'lucide-react';
 import { PublicNavbar } from '@/components/shared/PublicNavbar';
 import { PublicFooter } from '@/components/shared/PublicFooter';
-import { toast } from 'sonner';
+import Link from 'next/link';
 
 export default function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [formSubmitted, setFormSubmitted] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    category: 'Login Issues',
-    message: ''
-  });
   const [searchQuery, setSearchQuery] = useState('');
 
   const faqs = [
     {
-      q: "How fast are requests processed?",
-      a: "Standard requests like transcripts, certifications, and diplomas are processed within 3 to 5 business days. Urgent requests can be expedited through the online tracking system."
+      q: "Where can I check a service request?",
+      a: "Sign in to SISP and open Service Requests to review requests associated with your account."
     },
     {
       q: "Is my data secure?",
-      a: "Absolutely. RMC strictly complies with the Republic Act No. 10173 (Data Privacy Act of 2012). Your records are encrypted at rest and in transit, and access is restricted using modern Role-Based Access Controls (RBAC)."
+      a: "SISP restricts portal records according to account permissions. Refer to Regis Marie College's official privacy notice for the institution's privacy practices."
     },
     {
       q: "How do I reset my portal password?",
-      a: "You can reset your password by clicking the 'Forgot Password' link on the Login page. An email containing password recovery instructions will be sent to your registered academic email address."
-    },
-    {
-      q: "Can I cancel a request after submission?",
-      a: "Yes, you can cancel a request from your student dashboard as long as the status is still marked as 'Pending'. Once the status changes to 'Processing', cancellation is no longer possible."
+      a: "A password reset is not available in SISP. Follow the current support instructions published by Regis Marie College."
     }
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.name || !formData.email || !formData.message) return;
-    
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/feedback/ticket`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      if (!res.ok) throw new Error('Failed to submit ticket');
-      toast.success('Support ticket submitted successfully!');
-    } catch {
-      toast.error('Could not submit ticket. Please try again or contact the registrar directly.');
-    }
-    
-    setFormSubmitted(true);
-    setTimeout(() => {
-      setFormSubmitted(false);
-      setFormData({
-        name: '',
-        email: '',
-        category: 'Login Issues',
-        message: ''
-      });
-    }, 3000);
-  };
+
 
   return (
     <div className="public-site public-interior min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col overflow-x-hidden relative selection:bg-teal-500 selection:text-white">
@@ -84,15 +44,17 @@ export default function SupportPage() {
             How can we help today?
           </h1>
           <p className="text-base sm:text-lg text-slate-500 leading-relaxed font-semibold max-w-2xl mx-auto">
-            Find answers to common questions or reach out to our support team for technical assistance.
+            Find answers to common questions and access SISP student services.
           </p>
           
           {/* Main search bar */}
           <div className="relative max-w-lg mx-auto pt-4">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input 
+            <label className="sr-only" htmlFor="support-faq-search">Search frequently asked questions</label>
+            <input
+              id="support-faq-search"
               type="text" 
-              placeholder="Search knowledge base..." 
+              placeholder="Search frequently asked questions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-4 text-sm shadow-md shadow-slate-100/40 focus:outline-none focus:border-[#0d2c7f] text-slate-900 placeholder-slate-400"
@@ -133,138 +95,19 @@ export default function SupportPage() {
             </div>
           </div>
 
-          {/* Form & Info Column (Right) */}
-          <div className="lg:col-span-5 space-y-8">
-            {/* Ticket Submission Form */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-lg shadow-slate-100/50 space-y-6">
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-900">Technical Support</h3>
-                <p className="text-xs text-slate-400 font-semibold mt-1">Experiencing issues with the portal? Send us a message.</p>
-              </div>
-
-              {formSubmitted ? (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-5 flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-bold text-sm">Ticket Submitted!</h4>
-                    <p className="text-xs mt-1 text-emerald-700 font-medium">Your support ticket has been received. Our team will contact you shortly.</p>
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Name field */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      placeholder="e.g. John Doe"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0d2c7f] transition-colors"
-                    />
-                  </div>
-
-                  {/* Email field */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Student ID / Email</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      placeholder="e.g. student@regismarie.edu"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0d2c7f] transition-colors"
-                    />
-                  </div>
-
-                  {/* Category dropdown */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Issue Category</label>
-                    <select 
-                      value={formData.category}
-                      onChange={(e) => setFormData({...formData, category: e.target.value})}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-[#0d2c7f] transition-colors"
-                    >
-                      <option>Login Issues</option>
-                      <option>Academic Records</option>
-                      <option>Document Request</option>
-                      <option>AI Advisory Error</option>
-                      <option>Other Concerns</option>
-                    </select>
-                  </div>
-
-                  {/* Message field */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Message</label>
-                    <textarea 
-                      required
-                      rows={4}
-                      value={formData.message}
-                      onChange={(e) => setFormData({...formData, message: e.target.value})}
-                      placeholder="Describe your issue in detail..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0d2c7f] transition-colors resize-none"
-                    ></textarea>
-                  </div>
-
-                  {/* Submit Button */}
-                  <button 
-                    type="submit"
-                    className="w-full bg-[#0d2c7f] hover:bg-[#0d2c7f]/90 text-white font-bold py-3 px-5 rounded-xl transition-all shadow-md shadow-[#0d2c7f]/10 hover:shadow-[#0d2c7f]/20 flex items-center justify-center gap-2 text-xs"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    Submit Ticket
-                  </button>
-                </form>
-              )}
-            </div>
-
-            {/* Registrar Info Box */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-lg shadow-slate-100/50 space-y-6">
-              <h3 className="text-lg font-extrabold text-slate-900">Registrar&apos;s Office</h3>
-              
-              <div className="space-y-4">
-                {/* Main Campus */}
-                <div className="flex items-start gap-4">
-                  <div className="w-9 h-9 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-700 shrink-0 shadow-sm">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-xs sm:text-sm">Main Campus</h4>
-                    <p className="text-xs text-slate-400 font-semibold leading-relaxed mt-1">
-                      Building A, Room 102<br/>
-                      University Avenue
-                    </p>
-                  </div>
-                </div>
-
-                {/* Phone Support */}
-                <div className="flex items-start gap-4">
-                  <div className="w-9 h-9 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-700 shrink-0 shadow-sm">
-                    <Phone className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-xs sm:text-sm">Phone Support</h4>
-                    <p className="text-xs text-slate-400 font-semibold leading-relaxed mt-1">
-                      +1(555) 123-4567<br/>
-                      Mon-Fri, 8AM - 5PM
-                    </p>
-                  </div>
-                </div>
-
-                {/* Email Support */}
-                <div className="flex items-start gap-4">
-                  <div className="w-9 h-9 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-700 shrink-0 shadow-sm">
-                    <Mail className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-800 text-xs sm:text-sm">Email</h4>
-                    <p className="text-xs text-slate-400 font-semibold leading-relaxed mt-1">
-                      registrar@rmcsisp.edu
-                    </p>
-                  </div>
-                </div>
-              </div>
+          {/* Contact information is omitted until verified institutional details are supplied. */}
+          <div className="lg:col-span-5">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-100/50 sm:p-8">
+              <h3 className="text-lg font-extrabold text-slate-900">Portal support</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                This page does not receive support tickets. Sign in to access student services and review your request status. For other assistance, use the published Regis Marie College contact details below.
+              </p>
+              <Link
+                href="/login"
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#0d2c7f] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0d2c7f]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0d2c7f] focus-visible:ring-offset-2"
+              >
+                Sign in to SISP
+              </Link>
             </div>
           </div>
 

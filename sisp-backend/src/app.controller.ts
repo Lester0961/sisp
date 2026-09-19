@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { AppService } from './app.service';
 import { Public } from './common/decorators/public.decorator';
 import { PrismaService } from './prisma/prisma.service';
@@ -13,10 +13,21 @@ export class AppController {
   @Public()
   @Get('health')
   getHealth(): object {
+    // Never report a healthy service while running on ephemeral mock storage.
+    // Development mock mode therefore surfaces as HTTP 503 / status degraded.
+    if (this.prisma.isOffline) {
+      throw new ServiceUnavailableException({
+        status: 'degraded',
+        service: 'sisp-backend',
+        database: 'offline-mock',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return {
       status: 'ok',
       service: 'sisp-backend',
-      database: this.prisma.isOffline ? 'offline-mock' : 'connected',
+      database: 'connected',
       timestamp: new Date().toISOString(),
     };
   }

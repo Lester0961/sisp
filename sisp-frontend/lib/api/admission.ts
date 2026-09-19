@@ -72,12 +72,14 @@ export const admissionApi = {
     return response.data;
   },
 
-  getApplicationStatus: async (applicationNo: string) => {
-    const response = await apiClient.get<AdmissionApplication>(`/admission/status/${applicationNo}`);
+  getApplicationStatus: async (applicationNo: string, email: string) => {
+    const response = await apiClient.get<AdmissionApplication>(`/admission/status/${applicationNo}`, {
+      params: { email },
+    });
     return response.data;
   },
 
-  submitRequirement: async (applicationNo: string, data: { definitionId: string; fileUrl: string; fileName: string; fileSize?: number; mimeType?: string }) => {
+  submitRequirement: async (applicationNo: string, data: { email: string; definitionId: string; fileUrl: string; fileName: string; fileSize?: number; mimeType?: string }) => {
     const response = await apiClient.post(`/admission/status/${applicationNo}/requirements`, data);
     return response.data;
   },
@@ -98,11 +100,17 @@ export const admissionApi = {
     return response.data;
   },
 
-  activateStudentAccount: async (studentNumber: string, dob: string, email: string) => {
+  activateStudentAccount: async (
+    studentNumber: string,
+    dob: string,
+    email: string,
+    newPassword: string,
+  ) => {
     const response = await apiClient.post('/students/activate', {
       studentNumber,
       dob,
       email,
+      newPassword,
     });
     return response.data;
   },

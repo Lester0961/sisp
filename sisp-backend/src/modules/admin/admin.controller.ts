@@ -5,12 +5,12 @@ import { UsersService } from '../users/users.service';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { Public } from '../../common/decorators/public.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 @Controller('admin')
-@Roles('admin_staff', 'dean', 'faculty', 'sys_admin')
+@Roles('registrar', 'treasury', 'dean', 'sys_admin')
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
@@ -23,9 +23,9 @@ export class AdminController {
     return this.adminService.getDashboardStats();
   }
 
-  // ── User management (FIX #2 — routes under /admin prefix) ──
+  // ── User management (sys_admin only — Table 3.10) ────────
   @Get('users')
-  @Roles('admin_staff', 'sys_admin')
+  @RequirePermissions('user.manage')
   async listUsers(@Query('page') page?: string, @Query('limit') limit?: string, @Query('role') roleName?: string) {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
@@ -33,68 +33,47 @@ export class AdminController {
   }
 
   @Get('users/:id')
-  @Roles('admin_staff', 'sys_admin')
+  @RequirePermissions('user.manage')
   async getUser(@Param('id') id: string) {
     return this.usersService.findById(id);
   }
 
   @Patch('users/:id')
-  @Roles('admin_staff', 'sys_admin')
-  async updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.updateById(id, dto);
+  @RequirePermissions('user.manage')
+  async updateUser(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    return this.adminService.updateUser(id, dto, actor.sub);
   }
 
   @Patch('users/:id/role')
-  @Roles('admin_staff', 'sys_admin')
-  async updateUserRole(@Param('id') id: string, @Body('roleName') roleName: string) {
-    return this.adminService.updateUserRole(id, roleName);
+  @RequirePermissions('role.manage')
+  async updateUserRole(
+    @Param('id') id: string,
+    @Body('roleName') roleName: string,
+    @CurrentUser() actor: JwtPayload,
+  ) {
+    return this.adminService.updateUserRole(id, roleName, actor.sub);
   }
 
   @Patch('users/:id/deactivate')
-  @Roles('admin_staff', 'sys_admin')
-  async deactivateUser(@Param('id') id: string) {
-    return this.adminService.deactivateUser(id);
+  @RequirePermissions('user.manage')
+  async deactivateUser(@Param('id') id: string, @CurrentUser() actor: JwtPayload) {
+    return this.adminService.deactivateUser(id, actor.sub);
   }
 
   @Post('users/create')
-  @Roles('admin_staff', 'sys_admin')
+  @RequirePermissions('user.manage')
   async createUser(@Body() dto: CreateUserDto) {
     return this.adminService.createUser(dto);
   }
 
   @Delete('users/:id')
-  @Roles('admin_staff', 'sys_admin')
-  async deleteUser(@Param('id') id: string) {
-    return this.adminService.deleteUser(id);
+  @RequirePermissions('user.manage')
+  async deleteUser(@Param('id') id: string, @CurrentUser() actor: JwtPayload) {
+    return this.adminService.deleteUser(id, actor.sub);
   }
 
-  // ── Dean exception approval (FIX #9) ─────────────────────
-  @Post('dean/approve-exception')
-  @Roles('dean', 'admin_staff')
-  async approveException(
-    @Body()
-    body: {
-      exceptionId: string;
-      decision: 'approved' | 'rejected';
-    },
-    @CurrentUser() user: JwtPayload,
-  ) {
-    return this.adminService.approveException(body.exceptionId, body.decision, user.sub);
   }
-
-  @Delete('wipe-demo-users')
-  async wipeDemoUsers() {
-    return this.adminService.wipeDemoUsers();
-  }
-
-  @Post('seed-curricula-debug')
-  async seedCurriculaDebug() {
-    const { execSync } = require('child_process');
-    try {
-      const out = execSync('node prisma/seed-curricula.js --apply', { encoding: 'utf8' });
-      return { success: true, output: out };
-    } catch (error: any) {
-      return { success: false, error: error.message, stdout: error.stdout, stderr: error.stderr };
-    }
-  }
-}

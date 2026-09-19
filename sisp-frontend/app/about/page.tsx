@@ -43,7 +43,7 @@ export default function AboutPage() {
               <div className="w-full h-full bg-white border border-[#0A439B]/10 p-2 space-y-2" style={{ borderRadius: '6px' }}>
                 <div className="h-2 w-12 bg-[#0A439B]/10 rounded" />
                 <div className="h-1 w-20 bg-[#0A439B]/10 rounded" />
-                <div className="h-6 bg-[#F4F6F9] border border-[#0A439B]/10 rounded flex items-center justify-center text-[8px] font-bold text-[#0A439B]/50">Mock Data</div>
+                <div className="h-6 bg-[#F4F6F9] border border-[#0A439B]/10 rounded" aria-hidden="true" />
               </div>
             </div>
 
@@ -81,9 +81,9 @@ export default function AboutPage() {
               <div className="text-[#0A439B]">
                 <Zap className="w-6 h-6" />
               </div>
-              <h3 className="font-extrabold text-[#0A439B] text-base">Real-time Sync</h3>
+              <h3 className="font-extrabold text-[#0A439B] text-base">Connected Workflows</h3>
               <p className="text-xs sm:text-sm text-[#0A439B]/70 leading-relaxed font-semibold">
-                Instant updates across all modules ensures that advisors, students, and administration are always aligned.
+                Student services, academic records, and staff workflows are available through one portal.
               </p>
             </div>
 

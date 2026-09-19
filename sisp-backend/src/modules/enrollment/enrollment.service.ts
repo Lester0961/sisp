@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
   BadRequestException,
@@ -9,10 +10,21 @@ import { EnrollDto } from './dto/enroll.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
 import { CreateHistoryDto } from './dto/create-history.dto';
 import { requireStudentProfile } from '../../common/utils/require-student-profile';
+import { assertTransition } from '../../common/utils/state-machine';
+import {
+  ENROLLMENT_TRANSITIONS,
+  getCompletedCourseIdSet,
+} from '../../common/utils/course-completion';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class EnrollmentService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(EnrollmentService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async enroll(userId: string, dto: EnrollDto) {
     // Get student profile from userId
@@ -34,6 +46,28 @@ export class EnrollmentService {
       throw new NotFoundException(`Academic term ${dto.termId} not found`);
     }
 
+    // Optional scheduled section (P5-07). A section must belong to the same
+    // course and term and be active; the faculty owner is inherited from the
+    // section (P5-08) instead of maintaining a separate assignment list.
+    let classSection: any = null;
+    if (dto.classSectionId) {
+      classSection = await this.prisma.classSection.findUnique({
+        where: { id: dto.classSectionId },
+      });
+      if (!classSection) {
+        throw new NotFoundException(`Class section ${dto.classSectionId} not found`);
+      }
+      if (classSection.courseId !== dto.courseId) {
+        throw new BadRequestException('The selected section does not belong to this course.');
+      }
+      if (term?.id && classSection.termId !== term.id) {
+        throw new BadRequestException('The selected section does not belong to the active term.');
+      }
+      if (classSection.status !== 'active') {
+        throw new BadRequestException('The selected section is no longer active.');
+      }
+    }
+
     // 1. Treasury Clearance Rule: Check if student has an existing outstanding balance before enrolling
     const accountBalance = await this.prisma.accountBalance.findUnique({
       where: { studentId: profile.id },
@@ -51,15 +85,31 @@ export class EnrollmentService {
       );
     }
 
-    const existing = await this.prisma.enrollment.findFirst({
-      where: {
-        studentId: profile.id,
-        courseId: dto.courseId,
-        status: 'enrolled',
-      },
-    });
+    // One enrollment identity per student/course/term (P3-02). When a
+    // dropped record exists, reinstatement is a Registrar action rather than
+    // a second row (the DB unique index also enforces this).
+    const existing = term?.id
+      ? await this.prisma.enrollment.findFirst({
+          where: {
+            studentId: profile.id,
+            courseId: dto.courseId,
+            termId: term.id,
+          },
+        })
+      : await this.prisma.enrollment.findFirst({
+          where: {
+            studentId: profile.id,
+            courseId: dto.courseId,
+            status: 'enrolled',
+          },
+        });
 
     if (existing) {
+      if (existing.status === 'dropped') {
+        throw new ConflictException(
+          `A dropped enrollment record already exists for ${course.code} - ${course.title}. Please contact the Registrar to reinstate it.`,
+        );
+      }
       throw new ConflictException(`You are already enrolled in ${course.code} - ${course.title}`);
     }
 
@@ -71,11 +121,9 @@ export class EnrollmentService {
       select: { requiresCode: true, requiresId: true },
     });
     if (prereqs.length > 0) {
-      const completed = await this.prisma.enrollment.findMany({
-        where: { studentId: profile.id, status: 'completed' },
-        select: { courseId: true },
-      });
-      const completedIds = new Set(completed.map((e) => e.courseId));
+      // Single completion helper (P5-05): structured prerequisite data is
+      // authoritative; the client cannot bypass this by editing requests.
+      const completedIds = await getCompletedCourseIdSet(this.prisma, profile.id);
       const missing = prereqs.filter((p) => p.requiresId && !completedIds.has(p.requiresId));
       if (missing.length > 0) {
         throw new BadRequestException(
@@ -84,35 +132,67 @@ export class EnrollmentService {
       }
     }
 
-    const enrollment = await this.prisma.enrollment.create({
-      data: {
-        studentId: profile.id,
-        courseId: dto.courseId,
-        section: dto.section,
-        status: 'enrolled',
-        termId: term?.id,
-        semester: term ? `T${term.termNumber}` : undefined,
-        year: term?.academicYear,
-      },
-      include: {
-        term: true,
-        course: {
-          select: {
-            code: true,
-            title: true,
-            units: true,
+    let enrollment;
+    try {
+      enrollment = await this.prisma.$transaction(async (tx: any) => {
+        const created = await tx.enrollment.create({
+          data: {
+            studentId: profile.id,
+            courseId: dto.courseId,
+            section: dto.section ?? classSection?.sectionCode ?? undefined,
+            classSectionId: classSection?.id ?? undefined,
+            instructorId: classSection?.instructorId ?? undefined,
+            status: 'enrolled',
+            termId: term?.id,
+            semester: term ? `T${term.termNumber}` : undefined,
+            year: term?.academicYear,
           },
-        },
-        student: {
-          select: {
-            studentNumber: true,
-            user: {
-              select: { email: true },
+          include: {
+            term: true,
+            course: {
+              select: {
+                code: true,
+                title: true,
+                units: true,
+              },
+            },
+            student: {
+              select: {
+                studentNumber: true,
+                user: {
+                  select: { email: true },
+                },
+              },
             },
           },
-        },
-      },
-    });
+        });
+
+        // Automatic enrollment history (P3-03): written in the same
+        // transaction as the state change.
+        await tx.enrollmentHistory.create({
+          data: {
+            studentId: profile.id,
+            enrollmentId: created.id,
+            courseId: dto.courseId,
+            academicTermId: term?.id ?? null,
+            academicYear: term?.academicYear ?? null,
+            term: term ? term.code : 'unassigned',
+            previousStatus: null,
+            status: 'enrolled',
+            changedById: userId,
+          },
+        });
+
+        return created;
+      });
+    } catch (error: any) {
+      if (error?.code === 'P2002') {
+        throw new ConflictException(
+          'An enrollment record already exists for this course and term.',
+        );
+      }
+      throw error;
+    }
 
     // Auto-create a default Grade record for this enrollment so the student immediately appears in the grade evaluation matrix
     try {
@@ -130,6 +210,12 @@ export class EnrollmentService {
       console.error('Failed to auto-create grade record on enrollment:', gradeErr);
       // Non-blocking catch to ensure enrollment success still completes
     }
+
+    await this.notifyStatusEvent(
+      userId,
+      'Enrollment Recorded',
+      'Your course enrollment has been recorded.',
+    );
 
     return {
       message: `Successfully enrolled in ${course.code} - ${course.title}`,
@@ -223,11 +309,13 @@ export class EnrollmentService {
     };
   }
 
-  async updateEnrollmentStatus(id: string, dto: UpdateEnrollmentDto) {
+  async updateEnrollmentStatus(id: string, dto: UpdateEnrollmentDto, actorId?: string) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id },
       include: {
         course: { select: { code: true, title: true } },
+        term: true,
+        student: { select: { userId: true } },
       },
     });
 
@@ -235,27 +323,53 @@ export class EnrollmentService {
       throw new NotFoundException(`Enrollment with ID ${id} not found`);
     }
 
-    // Prevent re-enrolling a dropped course directly
-    if (enrollment.status === 'dropped' && dto.status === 'enrolled') {
-      throw new BadRequestException(
-        'Cannot re-enroll a dropped course. Submit a new enrollment instead.',
-      );
-    }
+    // Enforced state machine (P5-01): enrolled → completed|failed|dropped,
+    // dropped → enrolled (Registrar reinstatement). Completed/failed are
+    // terminal for the term; a retake is a new term enrollment.
+    assertTransition(enrollment.status, dto.status, ENROLLMENT_TRANSITIONS);
 
-    const updated = await this.prisma.enrollment.update({
-      where: { id },
-      data: { status: dto.status },
-      include: {
-        course: {
-          select: { code: true, title: true, units: true },
-        },
-        student: {
-          include: {
-            user: { select: { email: true } },
+    const previousStatus = enrollment.status;
+
+    // Status change and its immutable history event share one transaction
+    // (P5-06).
+    const updated = await this.prisma.$transaction(async (tx: any) => {
+      const result = await tx.enrollment.update({
+        where: { id },
+        data: { status: dto.status },
+        include: {
+          course: {
+            select: { code: true, title: true, units: true },
+          },
+          student: {
+            include: {
+              user: { select: { email: true } },
+            },
           },
         },
-      },
+      });
+
+      await tx.enrollmentHistory.create({
+        data: {
+          studentId: enrollment.studentId,
+          enrollmentId: enrollment.id,
+          courseId: enrollment.courseId,
+          academicTermId: enrollment.termId ?? null,
+          academicYear: enrollment.year ?? null,
+          term: enrollment.term?.code ?? enrollment.year ?? 'unassigned',
+          previousStatus,
+          status: dto.status,
+          changedById: actorId ?? null,
+        },
+      });
+
+      return result;
     });
+
+    await this.notifyStatusEvent(
+      enrollment.student.userId,
+      'Enrollment Updated',
+      'Your enrollment status was updated in SISP.',
+    );
 
     return {
       message: `Enrollment status updated to '${dto.status}'`,
@@ -308,6 +422,7 @@ export class EnrollmentService {
       where: { id: enrollmentId },
       include: {
         course: { select: { code: true, title: true } },
+        term: true,
       },
     });
 
@@ -324,13 +439,42 @@ export class EnrollmentService {
       throw new ConflictException('This course is already dropped');
     }
 
-    const updated = await this.prisma.enrollment.update({
-      where: { id: enrollmentId },
-      data: { status: 'dropped' },
-      include: {
-        course: { select: { code: true, title: true } },
-      },
+    const previousStatus = enrollment.status;
+
+    assertTransition(enrollment.status, 'dropped', ENROLLMENT_TRANSITIONS);
+
+    // Drop and its history event share one transaction (P5-06).
+    const updated = await this.prisma.$transaction(async (tx: any) => {
+      const result = await tx.enrollment.update({
+        where: { id: enrollmentId },
+        data: { status: 'dropped' },
+        include: {
+          course: { select: { code: true, title: true } },
+        },
+      });
+
+      await tx.enrollmentHistory.create({
+        data: {
+          studentId: enrollment.studentId,
+          enrollmentId: enrollment.id,
+          courseId: enrollment.courseId,
+          academicTermId: enrollment.termId ?? null,
+          academicYear: enrollment.year ?? null,
+          term: enrollment.term?.code ?? enrollment.year ?? 'unassigned',
+          previousStatus,
+          status: 'dropped',
+          changedById: userId,
+        },
+      });
+
+      return result;
     });
+
+    await this.notifyStatusEvent(
+      userId,
+      'Enrollment Updated',
+      'Your enrollment status was updated in SISP.',
+    );
 
     return {
       message: `Successfully dropped ${enrollment.course.code} - ${enrollment.course.title}`,
@@ -349,12 +493,81 @@ export class EnrollmentService {
 
     const history = await this.prisma.enrollmentHistory.findMany({
       where: { studentId: profile.id },
+      include: {
+        course: { select: { code: true, title: true } },
+        academicTerm: { select: { code: true, label: true } },
+        changedBy: { select: { firstName: true, lastName: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
     return {
       data: history,
       total: history.length,
+    };
+  }
+
+  private async notifyStatusEvent(userId: string, title: string, message: string) {
+    try {
+      await this.notificationsService.sendToUser(userId, title, message);
+    } catch {
+      this.logger.warn('Enrollment status changed, but its notification could not be persisted.');
+    }
+  }
+
+  /**
+   * Student schedule view (P4-05). Schedule day/time/room values come from
+   * `ClassSection`/`ClassSchedule` records only; entries without a published
+   * section keep their course + section text and report
+   * `schedulePublished: false` instead of inventing values (DEC-010).
+   */
+  async getMySchedule(userId: string) {
+    const profile = await requireStudentProfile(this.prisma, userId);
+
+    const enrollments = await this.prisma.enrollment.findMany({
+      where: { studentId: profile.id, status: 'enrolled' },
+      include: {
+        course: { select: { code: true, title: true, units: true } },
+        term: true,
+        instructor: { select: { firstName: true, lastName: true } },
+        classSection: {
+          select: {
+            sectionCode: true,
+            schedules: {
+              orderBy: { dayOfWeek: 'asc' },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      data: enrollments.map((enrollment: any) => ({
+        id: enrollment.id,
+        courseCode: enrollment.course?.code ?? null,
+        courseTitle: enrollment.course?.title ?? null,
+        units: enrollment.course?.units ?? 0,
+        section: enrollment.classSection?.sectionCode ?? enrollment.section ?? null,
+        instructor: enrollment.instructor
+          ? `${enrollment.instructor.firstName ?? ''} ${enrollment.instructor.lastName ?? ''}`.trim()
+          : null,
+        term: enrollment.term
+          ? {
+              code: enrollment.term.code,
+              label: enrollment.term.label,
+              academicYear: enrollment.term.academicYear,
+            }
+          : null,
+        schedulePublished: Boolean(enrollment.classSection?.schedules?.length),
+        schedules: (enrollment.classSection?.schedules ?? []).map((slot: any) => ({
+          dayOfWeek: slot.dayOfWeek,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          room: slot.room ?? null,
+        })),
+      })),
+      total: enrollments.length,
     };
   }
 
@@ -390,11 +603,18 @@ export class EnrollmentService {
       const term = termId
         ? await this.prisma.academicTerm.findUnique({ where: { id: termId } })
         : await this.prisma.academicTerm.findFirst({ where: { isCurrent: true } });
-      const curriculum = await this.prisma.curriculum.findFirst({
-        where: { programId: profile.programId },
-        orderBy: { effectiveYear: 'desc' },
-        select: { id: true },
-      });
+      // Use the curriculum assigned to the student when present; fall back to
+      // the newest effective curriculum for the program (P5-04).
+      const curriculum = profile.curriculumId
+        ? await this.prisma.curriculum.findUnique({
+            where: { id: profile.curriculumId },
+            select: { id: true },
+          })
+        : await this.prisma.curriculum.findFirst({
+            where: { programId: profile.programId },
+            orderBy: { effectiveYear: 'desc' },
+            select: { id: true },
+          });
       if (curriculum && term) {
         const links = await this.prisma.curriculumCourse.findMany({
           where: { curriculumId: curriculum.id, termNumber: term.termNumber },
@@ -417,17 +637,7 @@ export class EnrollmentService {
 
   async getCompletedCourseIds(userId: string): Promise<string[]> {
     const profile = await requireStudentProfile(this.prisma, userId);
-
-    const completed = await this.prisma.enrollment.findMany({
-      where: {
-        studentId: profile.id,
-        status: 'completed',
-      },
-      select: {
-        courseId: true,
-      },
-    });
-
-    return completed.map((e) => e.courseId);
+    const completedIds = await getCompletedCourseIdSet(this.prisma, profile.id);
+    return [...completedIds];
   }
 }

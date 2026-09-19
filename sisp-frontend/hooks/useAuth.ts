@@ -80,16 +80,15 @@ const redirectByRole = useCallback((roleOverride?: string) => {
       router.push('/dashboard');
       break;
     case 'faculty':
-      router.push('/faculty/grades');
+      router.push('/faculty');
       break;
-    case 'admin_staff':
+    case 'registrar':
+    case 'treasury':
+    case 'sys_admin':
       router.push('/admin/dashboard');
       break;
     case 'dean':
       router.push('/dean/grades');
-      break;
-    case 'sys_admin':
-      router.push('/admin/dashboard');
       break;
     case 'live_agent':
       router.push('/live-agent');

@@ -1,160 +1,154 @@
+"""Index active, durably stored KB documents into the migration-managed pgvector tables."""
+
 import sys
 import os
 import uuid
-import joblib
+
 from sqlalchemy import text
 
-# Add parent directory to path so app module can be found
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from app.config import get_settings
-from app.database import engine, check_db_connection
+from app.database import check_db_connection, engine
 
 settings = get_settings()
 
-def chunk_text(file_path: str) -> list:
-    """Read a file and chunk it by double newlines (paragraphs)."""
-    if not os.path.exists(file_path):
-        print(f"[WARNING] File not found: {file_path}")
+
+def split_content(content: str, title: str) -> list[str]:
+    paragraphs = [part.strip() for part in content.split("\n\n") if part.strip()]
+    if not paragraphs:
         return []
-    
-    with open(file_path, "r", encoding="utf-8") as f:
-        text_content = f.read()
-    
-    # Split by double newline to get logical paragraphs/sections
-    raw_paragraphs = text_content.split("\n\n")
-    chunks = []
-    
-    # Clean and filter paragraphs
-    title = ""
-    for idx, para in enumerate(raw_paragraphs):
-        para = para.strip()
-        if not para:
-            continue
-        
-        # Track first line as header if it looks like one
-        if idx == 0 and ("REGIS MARIE" in para or "POLICY" in para):
-            title = para
-            continue
-        
-        # Prepend the title for richer chunk context if helpful
-        content = f"{title}\n{para}" if title else para
-        chunks.append(content)
-        
-    return chunks
+    first_line = next((line.strip() for line in content.splitlines() if line.strip()), title)
+    prefix = first_line if first_line.casefold() != title.casefold() else title
+    if len(paragraphs) > 1 and paragraphs[0].casefold() == prefix.casefold():
+        paragraphs = paragraphs[1:]
+    return [f"{prefix}\n{paragraph}" for paragraph in paragraphs]
 
-def embed_and_index():
-    # Keep the API process lightweight at startup; this dependency is only
-    # needed when an authorized admin explicitly triggers re-indexing.
-    from sentence_transformers import SentenceTransformer
 
-    print("[INDEXING] Starting institutional knowledge base embedding process...")
-    
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    kb_dir = os.path.join(base_dir, "data", "knowledge_base")
-    
-    policy_files = {
-        "document_requests.txt": "document_request",
-        "enrollment_policy.txt": "enrollment_policy",
-        "grading_policy.txt": "grading_policy",
-        "official_advice.txt": "official_advice",
-        "program_catalog.txt": "programs_curriculum",
-        "registrar_operations.txt": "registrar_operations",
-    }
-    # VERIFIED curricula: per-program files generated from canonical JSON.
-    # Auto-include so future programs don't need code changes.
-    for _fname in sorted(os.listdir(kb_dir)):
-        if _fname.startswith("curriculum_") and _fname.endswith(".txt"):
-            policy_files.setdefault(_fname, "programs_curriculum")
-    
-    all_chunks = []
-    for file_name, category in policy_files.items():
-        file_path = os.path.join(kb_dir, file_name)
-        chunks = chunk_text(file_path)
-        print(f"  Parsed {len(chunks)} chunks from {file_name}")
-        for chunk in chunks:
-            all_chunks.append({
-                "content": chunk,
-                "source": file_name,
-                "category": category
-            })
-            
-    if not all_chunks:
-        print("[ERROR] No chunks found. Indexing aborted.")
+def _set_failed(document_id: str, message: str) -> None:
+    if engine is None:
         return
-    
-    # Initialize SentenceTransformer model
-    print(f"[MODEL] Loading embedding model: {settings.embedding_model}...")
-    model = SentenceTransformer(settings.embedding_model)
-    
-    # Compute embeddings
-    print(f"[MODEL] Generating embeddings for {len(all_chunks)} chunks...")
-    contents = [c["content"] for c in all_chunks]
-    embeddings = model.encode(contents, show_progress_bar=False)
-    
-    # Attach embeddings to chunks
-    for i, chunk in enumerate(all_chunks):
-        chunk["embedding"] = embeddings[i]
-        
-    # Attempt DB Insert
-    db_connected = check_db_connection()
-    db_success = False
-    
-    if db_connected:
-        print("[DATABASE] DB Connection verified. Inserting embeddings...")
-        try:
-            # We will use raw connection/SQL execution to insert the pgvector records
-            with engine.connect() as conn:
-                # Clear existing embeddings to prevent duplicates
-                conn.execute(text('TRUNCATE TABLE "VectorEmbeddings";'))
-                
-                # Insert chunks one by one
-                insert_query = text("""
-                INSERT INTO "VectorEmbeddings" (id, content, embedding, source, category)
-                VALUES (:id, :content, :embedding, :source, :category);
-                """)
-                
-                for chunk in all_chunks:
-                    # Convert numpy array to list for pgvector compatibility
-                    emb_list = chunk["embedding"].tolist()
-                    conn.execute(insert_query, {
-                        "id": str(uuid.uuid4()),
-                        "content": chunk["content"],
-                        "embedding": emb_list,
-                        "source": chunk["source"],
-                        "category": chunk["category"]
-                    })
-                
-                conn.commit()
-                print("[DATABASE] Successfully inserted all embeddings to PostgreSQL VectorEmbeddings table!")
-                db_success = True
-        except Exception as e:
-            print(f"[DATABASE] [WARNING] Failed to insert into DB table: {e}")
-            print("[DATABASE] Will rely on local vector index file backup.")
-    else:
-        print("[DATABASE] [WARNING] DB connection failed or paused. Skipping PostgreSQL insert.")
-        
-    # Serialize to local file index as backup/local-simulation mode source
-    local_index_path = os.path.join(base_dir, "data", "local_vector_index.pkl")
-    print(f"[LOCAL] Saving index to local file: {local_index_path}...")
     try:
-        # Create data structure without numpy object arrays if we want it super clean,
-        # but joblib handles numpy arrays perfectly.
-        local_data = []
-        for c in all_chunks:
-            local_data.append({
-                "content": c["content"],
-                "source": c["source"],
-                "category": c["category"],
-                "embedding": c["embedding"]  # numpy float32 array
+        with engine.begin() as connection:
+            connection.execute(text("""
+                UPDATE knowledge_documents
+                SET index_status = 'failed', index_error = :message,
+                    indexed_at = NULL
+                WHERE id = :document_id AND is_active = TRUE
+            """), {"document_id": document_id, "message": message})
+    except Exception as exc:
+        print(f"[INDEXING] Could not persist failure status ({type(exc).__name__}).")
+
+
+def _index_document(model, document: dict) -> bool:
+    chunks = split_content(document["content"], document["title"])
+    if not chunks:
+        raise ValueError("Document has no indexable content.")
+    embeddings = model.encode(chunks, show_progress_bar=False, normalize_embeddings=True)
+
+    with engine.begin() as connection:
+        current = connection.execute(text("""
+            SELECT title, category, content, is_active
+            FROM knowledge_documents
+            WHERE id = :document_id
+            FOR UPDATE
+        """), {"document_id": document["id"]}).mappings().first()
+        if (
+            current is None
+            or not current["is_active"]
+            or current["title"] != document["title"]
+            or current["category"] != document["category"]
+            or current["content"] != document["content"]
+        ):
+            return False
+
+        for index, (content, embedding) in enumerate(zip(chunks, embeddings)):
+            connection.execute(text("""
+                INSERT INTO knowledge_chunks
+                    (id, document_id, chunk_index, content, category, embedding,
+                     embedding_model, embedded_at, created_at)
+                VALUES
+                (:id, :document_id, :chunk_index, :content, :category,
+                     CAST(:embedding AS vector), :embedding_model, NOW(), NOW())
+                ON CONFLICT (document_id, chunk_index) DO UPDATE SET
+                    content = EXCLUDED.content,
+                    category = EXCLUDED.category,
+                    embedding = EXCLUDED.embedding,
+                    embedding_model = EXCLUDED.embedding_model,
+                    embedded_at = EXCLUDED.embedded_at
+            """), {
+                "id": str(uuid.uuid4()),
+                "document_id": document["id"],
+                "chunk_index": index,
+                "content": content,
+                "category": document["category"],
+                "embedding": str(embedding.tolist()),
+                "embedding_model": settings.embedding_model,
             })
-            
-        joblib.dump(local_data, local_index_path)
-        print("[LOCAL] Successfully created local vector index file!")
-    except Exception as e:
-        print(f"[LOCAL] [ERROR] Failed to save local vector index file: {e}")
-        
-    print(f"[SUMMARY] Indexing completed. DB Online: {db_success}, Local Index Saved: True")
+
+        connection.execute(text("""
+            UPDATE knowledge_chunks
+            SET embedding = NULL, embedding_model = NULL, embedded_at = NULL
+            WHERE document_id = :document_id AND chunk_index >= :chunk_count
+        """), {"document_id": document["id"], "chunk_count": len(chunks)})
+        connection.execute(text("""
+            UPDATE knowledge_documents
+            SET index_status = 'indexed', index_error = NULL,
+                indexed_at = NOW()
+            WHERE id = :document_id AND is_active = TRUE
+        """), {"document_id": document["id"]})
+    return True
+
+
+def embed_and_index() -> dict:
+    if engine is None or not check_db_connection():
+        raise RuntimeError("Durable database is unavailable; no local-only indexing success is reported.")
+
+    with engine.begin() as connection:
+        connection.execute(text("""
+            UPDATE knowledge_documents
+            SET index_status = 'pending', index_error = NULL, indexed_at = NULL
+            WHERE is_active = TRUE
+        """))
+
+    with engine.connect() as connection:
+        documents = [dict(row) for row in connection.execute(text("""
+            SELECT id, filename, title, category, content
+            FROM knowledge_documents
+            WHERE is_active = TRUE
+            ORDER BY filename ASC
+        """)).mappings().all()]
+
+    if not documents:
+        return {"indexed": 0, "failed": 0}
+
+    try:
+        from sentence_transformers import SentenceTransformer
+        model = SentenceTransformer(settings.embedding_model)
+    except Exception as exc:
+        message = "Embedding model could not be loaded; retry indexing after service recovery."
+        for document in documents:
+            _set_failed(document["id"], message)
+        print(f"[INDEXING] Embedding model load failed ({type(exc).__name__}); {len(documents)} document(s) marked failed.")
+        return {"indexed": 0, "failed": len(documents)}
+
+    indexed = 0
+    failed = 0
+    skipped = 0
+    for document in documents:
+        try:
+            if _index_document(model, document):
+                indexed += 1
+            else:
+                skipped += 1
+        except Exception as exc:
+            _set_failed(document["id"], "Indexing failed; retry the re-index request.")
+            print(f"[INDEXING] {document['filename']} failed ({type(exc).__name__}).")
+            failed += 1
+
+    print(f"[INDEXING] Complete: {indexed} indexed, {failed} failed, {skipped} changed/archived during indexing.")
+    return {"indexed": indexed, "failed": failed, "skipped": skipped}
+
 
 if __name__ == "__main__":
     embed_and_index()

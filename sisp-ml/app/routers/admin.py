@@ -1,11 +1,9 @@
 from fastapi import APIRouter, Header, HTTPException, BackgroundTasks, status
 from app.ml.retrain import retrain_model
 from app.services.classifier_service import classifier_service
-from app.config import get_settings
+from app.security import verify_ml_secret_value
 
 router = APIRouter(prefix="/admin", tags=["admin"])
-
-settings = get_settings()
 
 def run_retraining_task():
     try:
@@ -37,11 +35,7 @@ async def trigger_retrain(background_tasks: BackgroundTasks, x_ml_secret: str = 
     Triggers asynchronous retraining of the intent classifier model.
     Must be authenticated with 'X-ML-Secret' header matching ML_SECRET_TOKEN.
     """
-    if x_ml_secret != settings.ml_secret_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid ML Secret Header token."
-        )
+    verify_ml_secret_value(x_ml_secret)
     
     background_tasks.add_task(run_retraining_task)
     return {

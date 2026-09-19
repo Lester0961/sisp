@@ -4,32 +4,37 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 
 @Controller('chat')
 export class ChatbotController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
+  // Table 3.10: Academic Advisory Chat is granted to Student (aria.use).
   @Post()
   @Roles('student')
+  @RequirePermissions('aria.use')
   async sendMessage(@CurrentUser() user: JwtPayload, @Body() sendMessageDto: SendMessageDto) {
     return this.chatbotService.sendMessage(user.sub, sendMessageDto);
   }
 
   @Get('history')
   @Roles('student')
+  @RequirePermissions('aria.use')
   async getHistory(@CurrentUser() user: JwtPayload) {
     return this.chatbotService.getHistory(user.sub);
   }
 
   @Get('quota')
   @Roles('student')
+  @RequirePermissions('aria.use')
   async getQuota(@CurrentUser() user: JwtPayload) {
     return this.chatbotService.getQuota(user.sub);
   }
 }
 
 @Controller('admin/escalations')
-@Roles('admin_staff', 'dean')
+@Roles('registrar', 'dean')
 export class ChatbotAdminController {
   constructor(private readonly chatbotService: ChatbotService) {}
 

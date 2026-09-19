@@ -9,6 +9,12 @@ export class EnrollDto {
   @IsOptional()
   section?: string;
 
+  // Optional scheduled section (P5-07); validated server-side against the
+  // course and term before use.
+  @IsString()
+  @IsOptional()
+  classSectionId?: string;
+
   @IsString()
   @IsOptional()
   termId?: string;

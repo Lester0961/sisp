@@ -8,10 +8,10 @@ import { toast } from 'sonner';
 import { adminApi } from '@/lib/api/admin';
 import {
   BookOpen,
+  Archive,
   RefreshCw,
   Edit,
   Plus,
-  Trash2,
   FileText,
   Save,
   X,
@@ -29,10 +29,17 @@ import {
 
 interface KbDocument {
   filename: string;
+  title?: string;
   category: string;
   content: string;
   sizeBytes: number;
-  lastModified: number;
+  updatedAt?: string;
+  version?: string | null;
+  effectiveDate?: string | null;
+  active?: boolean;
+  indexStatus?: 'pending' | 'indexed' | 'failed' | 'unknown';
+  indexError?: string | null;
+  indexedAt?: string | null;
 }
 
 export default function KbManagementPage() {
@@ -40,6 +47,8 @@ export default function KbManagementPage() {
   const [documents, setDocuments] = useState<KbDocument[]>([]);
   const [loading, setLoading] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  const [indexStatusMessage, setIndexStatusMessage] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Edit / Add state
   const [editingDoc, setEditingDoc] = useState<KbDocument | null>(null);
@@ -53,9 +62,11 @@ export default function KbManagementPage() {
     try {
       const res = await adminApi.getKbDocuments();
       setDocuments(res.documents || []);
+      setLoadError(null);
     } catch (err) {
       console.error('Failed to load KB documents:', err);
-      toast.error('Failed to load knowledge base files.');
+      setLoadError('Knowledge-base records are unavailable. Check the database connection and reviewed migration state, then try again.');
+      toast.error('Failed to load knowledge-base records.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +85,8 @@ export default function KbManagementPage() {
     if (!editingDoc) return;
     try {
       await adminApi.updateKbDocument(editingDoc.filename, editingDoc.content);
-      toast.success(`Updated ${editingDoc.filename} successfully.`);
+      toast.success(`Saved ${editingDoc.filename}. Re-indexing is required before retrieval reflects the change.`);
+      setIndexStatusMessage(`Saved ${editingDoc.filename}; retrieval synchronization is pending and has not been confirmed.`);
       setEditingDoc(null);
       loadDocuments();
     } catch (err) {
@@ -104,6 +116,7 @@ export default function KbManagementPage() {
         category: newCategory,
       });
       toast.success(`Created document ${filenameWithExt} successfully.`);
+      setIndexStatusMessage(`Created ${filenameWithExt}; retrieval synchronization is pending and has not been confirmed.`);
       setIsAdding(false);
       loadDocuments();
     } catch (err) {
@@ -113,12 +126,13 @@ export default function KbManagementPage() {
   };
 
   const handleDeleteDocument = async (filename: string) => {
-    if (!confirm(`Are you sure you want to delete ${filename}? This action is irreversible.`)) {
+    if (!confirm(`Archive ${filename}? It will become inactive and unavailable to ARIA retrieval.`)) {
       return;
     }
     try {
       await adminApi.deleteKbDocument(filename);
-      toast.success(`Deleted ${filename} successfully.`);
+      toast.success(`Archived ${filename}.`);
+      setIndexStatusMessage(`Archived ${filename}; its vectors were invalidated and it is no longer active for retrieval.`);
       loadDocuments();
     } catch (err) {
       console.error('Failed to delete document:', err);
@@ -129,11 +143,22 @@ export default function KbManagementPage() {
   const handleReindex = async () => {
     setReindexing(true);
     try {
-      await adminApi.reindexKb();
-      toast.success('KB re-indexing task triggered in background.');
+      const result = await adminApi.reindexKb();
+      if (result?.status === 'indexed') {
+        toast.success('Knowledge base indexing completed.');
+        setIndexStatusMessage('The service confirmed indexing completed.');
+      } else if (result?.status === 'accepted' || result?.status === 'pending') {
+        toast.message('Knowledge base indexing is pending; completion has not been confirmed.');
+        setIndexStatusMessage('Indexing was accepted. Per-document completion status appears in the table.');
+      } else {
+        toast.error('Indexing did not return a confirmed completion status.');
+        setIndexStatusMessage('Indexing completion could not be confirmed.');
+      }
+      await loadDocuments();
     } catch (err) {
       console.error('Reindexing failed:', err);
       toast.error('Failed to trigger KB re-indexing.');
+      setIndexStatusMessage('Indexing request failed.');
     } finally {
       setReindexing(false);
     }
@@ -151,7 +176,7 @@ export default function KbManagementPage() {
               Policy library
             </h1>
             <p className="portal-description mt-2">
-              Manage the approved policy sources used by ARIA.
+              Manage ARIA source documents stored in the portal database. Index state is tracked separately from document edits.
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
@@ -159,6 +184,7 @@ export default function KbManagementPage() {
               onClick={handleReindex}
               disabled={reindexing}
               variant="outline"
+              aria-label={reindexing ? 'Re-indexing knowledge base' : 'Re-index knowledge base embeddings'}
             >
               <Database className="h-4 w-4" />
               {reindexing ? 'Re-indexing...' : 'Re-index Embeddings'}
@@ -173,43 +199,7 @@ export default function KbManagementPage() {
           </div>
         </div>
 
-        <section className="portal-surface border-l-4 border-[#0a439b] bg-[#f5faff] p-5" aria-labelledby="official-advice-placeholder">
-          <div className="flex items-start gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#e2effa] text-[#0a439b]">
-              <MessageSquareText className="size-4" strokeWidth={1.8} />
-            </span>
-            <div>
-              <h2 id="official-advice-placeholder" className="font-semibold text-[#102f49]">Direct official advice</h2>
-              <p className="mt-1 text-sm leading-relaxed text-[#587387]">
-                Placeholder for dean, registrar, and other authorized office advisories. Add the signed source, issuing office, effective date, and audience before making an advisory available to ARIA.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#365a72]">
-                <span className="rounded-full border border-[#cbdde9] bg-white px-2.5 py-1">Issuer: pending</span>
-                <span className="rounded-full border border-[#cbdde9] bg-white px-2.5 py-1">Effective date: pending</span>
-                <span className="rounded-full border border-[#cbdde9] bg-white px-2.5 py-1">Publication: not yet approved</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="portal-surface border-l-4 border-[#16794c] bg-[#f4fbf7] p-5" aria-labelledby="curriculum-source-placeholder">
-          <div className="flex items-start gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#e3f4e9] text-[#16794c]">
-              <BookOpen className="size-4" strokeWidth={1.8} />
-            </span>
-            <div>
-              <h2 id="curriculum-source-placeholder" className="font-semibold text-[#102f49]">Program and curriculum source</h2>
-              <p className="mt-1 text-sm leading-relaxed text-[#587387]">
-                Keep the approved RMC program catalog and trisemestral curriculum mappings in one versioned source so ARIA can explain programs without inventing course sequences.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-[#365a72]">
-                <span className="rounded-full border border-[#c8e3d1] bg-white px-2.5 py-1">Program catalog: supplied</span>
-                <span className="rounded-full border border-[#c8e3d1] bg-white px-2.5 py-1">Term mappings: awaiting approval</span>
-                <span className="rounded-full border border-[#c8e3d1] bg-white px-2.5 py-1">ARIA use: grounded only</span>
-              </div>
-            </div>
-          </div>
-        </section>
+        {indexStatusMessage && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status" aria-live="polite">{indexStatusMessage}</p>}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
@@ -228,20 +218,25 @@ export default function KbManagementPage() {
               </div>
 
               <div className="overflow-x-auto" role="region" aria-label="Policy library table" tabIndex={0}>
-              <Table className="min-w-[600px]">
+              <Table className="min-w-[740px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Filename</TableHead>
                     <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Category</TableHead>
+                    <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[9px]">Updated / Index</TableHead>
                     <TableHead className="font-bold text-slate-500 uppercase tracking-wider text-[9px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">
-                        Scanning KB Directory...
+                      <TableCell colSpan={4} className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                        Loading database records...
                       </TableCell>
+                    </TableRow>
+                  ) : loadError ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="py-8 text-center text-sm text-rose-700" role="alert">{loadError}</TableCell>
                     </TableRow>
                   ) : documents.length > 0 ? (
                     documents.map((doc) => (
@@ -255,25 +250,38 @@ export default function KbManagementPage() {
                             {doc.category}
                           </span>
                         </TableCell>
+                        <TableCell className="text-xs text-slate-600">
+                          <div>{doc.updatedAt ? new Date(doc.updatedAt).toLocaleString() : 'Update time unavailable'}</div>
+                          <div className="mt-1">{doc.active === false ? 'Archived' : 'Active'}</div>
+                          <div className="mt-1 text-[10px] uppercase tracking-wide">Index: {doc.indexStatus ?? 'unknown'}</div>
+                          {doc.indexedAt && <div>Indexed: {new Date(doc.indexedAt).toLocaleString()}</div>}
+                          {doc.indexError && <div className="mt-1 text-rose-700" role="status">{doc.indexError}</div>}
+                          {doc.version && <div>Version: {doc.version}</div>}
+                          {doc.effectiveDate && <div>Effective: {doc.effectiveDate}</div>}
+                        </TableCell>
                         <TableCell className="text-right py-3.5 space-x-1.5">
                           <Button
                             onClick={() => handleEditClick(doc)}
+                            aria-label={`Edit ${doc.filename}`}
+                            disabled={doc.active === false}
                             className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 p-1.5 h-8 rounded-lg shadow-sm"
                           >
                             <Edit className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             onClick={() => handleDeleteDocument(doc.filename)}
+                            aria-label={`Archive ${doc.filename}`}
+                            disabled={doc.active === false}
                             className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 p-1.5 h-8 rounded-lg shadow-sm"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Archive className="h-3.5 w-3.5" />
                           </Button>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">
+                      <TableCell colSpan={4} className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">
                         No policy documents found
                       </TableCell>
                     </TableRow>
@@ -312,7 +320,7 @@ export default function KbManagementPage() {
                       onChange={(e) => setNewFilename(e.target.value)}
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-900 rounded-xl text-xs outline-none focus:border-blue-500 transition-all font-mono"
                     />
-                    <p className="text-[9px] text-slate-400 font-semibold">System automatically appends .txt suffix if omitted.</p>
+                    <p className="text-[9px] text-slate-400 font-semibold">Use letters, numbers, dot, underscore, or hyphen. System appends .txt if omitted.</p>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">Category</label>

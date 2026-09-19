@@ -1,9 +1,10 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { AuditService } from './audit.service';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 
+// Table 3.10: audit logs are visible to the System Administrator only.
 @Controller('audit')
-@Roles('admin_staff', 'dean', 'sys_admin')
+@RequirePermissions('audit.read')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
@@ -33,12 +34,18 @@ export class AuditController {
     @Query('limit') limit?: string,
     @Query('userId') userId?: string,
     @Query('resource') resource?: string,
+    @Query('action') action?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     return this.auditService.getAllLogs(
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 50,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 50,
       userId,
       resource,
+      action,
+      startDate,
+      endDate,
     );
   }
 }

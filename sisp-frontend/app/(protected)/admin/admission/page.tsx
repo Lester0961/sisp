@@ -8,6 +8,7 @@ import { Loader2, UserCheck, Search, Filter, ShieldCheck, CheckCircle2, XCircle 
 export default function AdminAdmissionPage() {
   const [applications, setApplications] = useState<AdmissionApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('submitted');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedApp, setSelectedApp] = useState<AdmissionApplication | null>(null);
@@ -20,10 +21,12 @@ export default function AdminAdmissionPage() {
 
   async function loadApplications() {
     setLoading(true);
+    setLoadError(false);
     try {
       const data = await admissionApi.listApplications(filterStatus || undefined);
       setApplications(data);
     } catch (err) {
+      setLoadError(true);
       toast.error('Failed to load admission applications.');
     } finally {
       setLoading(false);
@@ -83,6 +86,7 @@ export default function AdminAdmissionPage() {
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
           type="text"
+          aria-label="Search applicant name, email, or application number"
           placeholder="Search applicant name, email, or application number..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -93,6 +97,11 @@ export default function AdminAdmissionPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12 text-slate-400">
           <Loader2 className="h-6 w-6 animate-spin mr-2" /> Loading applications...
+        </div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-800">
+          <p>Admission applications could not be loaded.</p>
+          <button type="button" onClick={() => void loadApplications()} className="mt-3 rounded-lg border border-red-300 bg-white px-3 py-2 font-semibold hover:bg-red-100">Retry</button>
         </div>
       ) : filteredApps.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-xs text-slate-500">
@@ -127,7 +136,7 @@ export default function AdminAdmissionPage() {
 
               <div className="text-xs space-y-1 text-slate-600">
                 <div><span className="text-slate-400">Type:</span> <span className="font-semibold capitalize">{app.applicantType}</span></div>
-                <div><span className="text-slate-400">Program:</span> <span className="font-semibold text-slate-800">{app.program?.code || 'BSCS'}</span></div>
+                <div><span className="text-slate-400">Program:</span> <span className="font-semibold text-slate-800">{app.program?.code || 'Not recorded'}</span></div>
                 <div><span className="text-slate-400">Email:</span> {app.email}</div>
                 <div><span className="text-slate-400">Mobile:</span> {app.mobile}</div>
               </div>

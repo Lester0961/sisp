@@ -1,20 +1,39 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, BookOpen, CalendarDays, RefreshCw } from 'lucide-react';
+import { AlertCircle, CalendarDays, Clock, MapPin, RefreshCw, User } from 'lucide-react';
 import { enrollmentsApi } from '@/lib/api/enrollments';
-import { Enrollment } from '@/types';
 import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 
-type EnrollmentPayload = Enrollment[] | { data?: Enrollment[] };
+interface ScheduleSlot {
+  dayOfWeek: string;
+  startTime: string | null;
+  endTime: string | null;
+  room: string | null;
+}
 
-function normalizeEnrollments(payload: EnrollmentPayload): Enrollment[] {
-  return Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
+interface ScheduleEntry {
+  id: string;
+  courseCode: string | null;
+  courseTitle: string | null;
+  units: number;
+  section: string | null;
+  instructor: string | null;
+  term: { code: string; label: string; academicYear: string } | null;
+  schedulePublished: boolean;
+  schedules: ScheduleSlot[];
+}
+
+function formatTime(value: string | null): string {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
 }
 
 export default function SchedulePage() {
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,8 +41,8 @@ export default function SchedulePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await enrollmentsApi.getMyEnrollments() as EnrollmentPayload;
-      setEnrollments(normalizeEnrollments(data));
+      const data = await enrollmentsApi.getMySchedule();
+      setEntries(Array.isArray(data?.data) ? data.data : []);
     } catch {
       setError('We could not load your schedule. Please try again.');
     } finally {
@@ -42,7 +61,7 @@ export default function SchedulePage() {
         <div className="portal-page-header">
           <div>
             <h1 className="portal-title">My schedule</h1>
-            <p className="portal-description mt-2">See the courses currently listed in your enrollment.</p>
+            <p className="portal-description mt-2">Published class sections and meeting times for your active enrollment.</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => void loadSchedule()} disabled={loading}>
             <RefreshCw className={loading ? 'animate-spin' : ''} strokeWidth={1.8} />
@@ -66,7 +85,7 @@ export default function SchedulePage() {
             </div>
             <Button size="sm" onClick={() => void loadSchedule()}>Try again</Button>
           </section>
-        ) : enrollments.length === 0 ? (
+        ) : entries.length === 0 ? (
           <section className="portal-surface portal-empty">
             <CalendarDays className="size-8 text-[#0a439b]" strokeWidth={1.7} />
             <div>
@@ -75,25 +94,54 @@ export default function SchedulePage() {
             </div>
           </section>
         ) : (
-          <section className="portal-surface overflow-hidden">
-            <div className="border-b border-[#dce7ef] px-5 py-4">
-              <h2 className="flex items-center gap-2 font-semibold text-[#102f49]">
-                <BookOpen className="size-4 text-[#0a439b]" strokeWidth={1.8} />
-                Current courses
-              </h2>
-            </div>
-            <div className="divide-y divide-[#e7eef3]">
-              {enrollments.map((enrollment) => (
-                <article key={enrollment.id} className="grid gap-1 px-5 py-4 sm:grid-cols-[8rem_1fr_auto] sm:items-center sm:gap-4">
-                  <p className="font-semibold text-[#0a439b]">{enrollment.course?.code}</p>
+          <section className="space-y-4">
+            {entries.map((entry) => (
+              <article key={entry.id} className="portal-surface overflow-hidden">
+                <div className="flex flex-col gap-1 border-b border-[#dce7ef] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="font-medium text-[#102f49]">{enrollment.course?.title}</h3>
-                    <p className="mt-1 text-sm text-[#587387]">Section {enrollment.section || 'To be assigned'}</p>
+                    <h2 className="font-semibold text-[#102f49]">
+                      <span className="text-[#0a439b]">{entry.courseCode}</span> · {entry.courseTitle}
+                    </h2>
+                    <p className="mt-1 text-xs text-[#587387]">
+                      {entry.units} units
+                      {entry.section ? ` · Section ${entry.section}` : ' · Section to be assigned'}
+                      {entry.term ? ` · ${entry.term.academicYear} ${entry.term.label}` : ''}
+                    </p>
                   </div>
-                  <p className="text-sm font-medium text-[#365a72]">{enrollment.course?.units ?? 0} units</p>
-                </article>
-              ))}
-            </div>
+                  {entry.instructor ? (
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-[#365a72]">
+                      <User className="size-3.5" strokeWidth={1.8} />
+                      {entry.instructor}
+                    </p>
+                  ) : null}
+                </div>
+
+                {entry.schedulePublished ? (
+                  <ul className="divide-y divide-[#e7eef3]">
+                    {entry.schedules.map((slot, index) => (
+                      <li key={`${entry.id}-${index}`} className="flex flex-wrap items-center gap-x-5 gap-y-1 px-5 py-3 text-sm text-[#102f49]">
+                        <span className="font-medium">{slot.dayOfWeek}</span>
+                        <span className="flex items-center gap-1.5 text-[#587387]">
+                          <Clock className="size-3.5" strokeWidth={1.8} />
+                          {formatTime(slot.startTime)}
+                          {slot.endTime ? ` – ${formatTime(slot.endTime)}` : ''}
+                        </span>
+                        {slot.room ? (
+                          <span className="flex items-center gap-1.5 text-[#587387]">
+                            <MapPin className="size-3.5" strokeWidth={1.8} />
+                            {slot.room}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="px-5 py-3 text-xs text-[#587387]">
+                    Meeting day, time, and room for this section have not been published yet.
+                  </p>
+                )}
+              </article>
+            ))}
           </section>
         )}
       </main>

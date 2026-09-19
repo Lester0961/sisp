@@ -2,14 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { FormEvent, useMemo, useState } from 'react';
 import {
   ArrowRight,
   BookOpenText,
   Bot,
   Check,
   GraduationCap,
-  Send,
   ShieldCheck,
   Sparkles,
   Users,
@@ -17,17 +15,6 @@ import {
 import { PublicNavbar } from '@/components/shared/PublicNavbar';
 import { PublicFooter } from '@/components/shared/PublicFooter';
 import { HeroZoom, PosterReveal, Reveal } from '@/components/landing/LandingMotion';
-
-type AdvisorMessage = {
-  role: 'advisor' | 'student';
-  text: string;
-};
-
-const promptOptions = [
-  'What documents can I request?',
-  'How can ARIA help with my curriculum?',
-  'When should I talk to an adviser?',
-];
 
 const whyRmc = [
   {
@@ -79,154 +66,27 @@ const programGroups = [
   },
 ];
 
-function getPreviewResponse(question: string) {
-  const text = question.toLowerCase();
-
-  if (text.includes('document') || text.includes('transcript') || text.includes('record')) {
-    return 'ARIA can explain the document-request process and direct signed-in students to the correct portal service. Official processing still stays with the school office.';
-  }
-
-  if (
-    text.includes('curriculum') ||
-    text.includes('subject') ||
-    text.includes('course') ||
-    text.includes('prerequisite')
-  ) {
-    return 'ARIA can help signed-in students understand curriculum progress, subject requirements, and prerequisite questions using approved school information.';
-  }
-
-  if (text.includes('adviser') || text.includes('human') || text.includes('exception')) {
-    return 'ARIA refers exceptional, sensitive, or approval-based concerns to an academic adviser or the appropriate school office. It supports the work of human advisers.';
-  }
-
-  if (text.includes('enroll') || text.includes('admission')) {
-    return 'ARIA can explain general enrollment steps and common requirements. Final eligibility, schedules, and approvals are confirmed by authorized RMC personnel.';
-  }
-
-  return 'In the full portal, ARIA answers questions about enrollment, curriculum progress, grades, schedules, and document requests using approved institutional sources.';
-}
-
 function AdvisorPreview() {
-  const [messages, setMessages] = useState<AdvisorMessage[]>([
-    {
-      role: 'advisor',
-      text: 'Hi, I am ARIA. Ask how I can support your academic journey at RMC.',
-    },
-  ]);
-  const [input, setInput] = useState('');
-  const [isReplying, setIsReplying] = useState(false);
-
-  const answeredPrompts = useMemo(
-    () => new Set(messages.filter((message) => message.role === 'student').map((message) => message.text)),
-    [messages],
-  );
-
-  const ask = (question: string) => {
-    const trimmed = question.trim();
-    if (!trimmed || isReplying) return;
-
-    setMessages((current) => [...current, { role: 'student', text: trimmed }]);
-    setInput('');
-    setIsReplying(true);
-
-    window.setTimeout(() => {
-      setMessages((current) => [
-        ...current,
-        { role: 'advisor', text: getPreviewResponse(trimmed) },
-      ]);
-      setIsReplying(false);
-    }, 550);
-  };
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    ask(input);
-  };
-
   return (
-    <div className="public-panel overflow-hidden rounded-[1.75rem]">
-      <div className="flex items-center justify-between border-b border-[#1a4a6e]/10 bg-[#f3f8fc] px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-[#1a4a6e] text-white">
-            <Bot className="size-5" aria-hidden="true" />
-          </div>
-          <div>
-            <p className="font-semibold text-[#102f49]">ARIA Academic Advisor</p>
-            <p className="text-xs text-[#49697f]">Interactive preview</p>
-          </div>
+    <div className="public-panel overflow-hidden rounded-[1.75rem] p-6 sm:p-8">
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-[#1a4a6e] text-white">
+          <Bot className="size-5" aria-hidden="true" />
         </div>
-        <span className="rounded-full border border-[#1a4a6e]/20 bg-white px-3 py-1 text-xs font-semibold text-[#1a4a6e]">
-          Preview mode
-        </span>
-      </div>
-
-      <div aria-live="polite" className="h-[290px] space-y-3 overflow-y-auto bg-[#fbfdff] p-5">
-        {messages.map((message, index) => (
-          <div
-            key={`${message.role}-${index}`}
-            className={`flex ${message.role === 'student' ? 'justify-end' : 'justify-start'}`}
-          >
-            <p
-              className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                message.role === 'student'
-                  ? 'rounded-br-sm bg-[#1a4a6e] text-white'
-                  : 'rounded-bl-sm border border-[#1a4a6e]/10 bg-white text-[#294d65]'
-              }`}
-            >
-              {message.text}
-            </p>
-          </div>
-        ))}
-        {isReplying && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-sm border border-[#1a4a6e]/10 bg-white px-4 py-3 text-sm text-[#49697f]">
-              ARIA is preparing a response...
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-[#1a4a6e]/10 bg-white p-4">
-        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-          {promptOptions.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              disabled={isReplying}
-              onClick={() => ask(prompt)}
-              className="shrink-0 rounded-full border border-[#1a4a6e]/20 bg-[#f3f8fc] px-3 py-2 text-xs font-medium text-[#1a4a6e] transition hover:-translate-y-0.5 hover:border-[#1a4a6e]/40 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {answeredPrompts.has(prompt) && <Check className="mr-1 inline size-3" aria-hidden="true" />}
-              {prompt}
-            </button>
-          ))}
+        <div>
+          <p className="font-semibold text-[#102f49]">ARIA Academic Advisor</p>
+          <p className="text-xs text-[#49697f]">Available in the signed-in student portal</p>
         </div>
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <label htmlFor="aria-preview-question" className="sr-only">
-            Ask ARIA a question
-          </label>
-          <input
-            id="aria-preview-question"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            disabled={isReplying}
-            placeholder="Ask about RMC academic services"
-            className="min-w-0 flex-1 rounded-xl border border-[#1a4a6e]/20 bg-white px-4 py-3 text-sm text-[#102f49] outline-none transition placeholder:text-[#6c8799] focus:border-[#1a4a6e] focus:ring-2 focus:ring-[#1a4a6e]/20 disabled:bg-slate-50"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isReplying}
-            aria-label="Send question"
-            className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#1a4a6e] text-white transition hover:bg-[#123a58] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <Send className="size-4" aria-hidden="true" />
-          </button>
-        </form>
       </div>
+      <p className="mt-5 text-sm leading-relaxed text-[#49697f]">
+        ARIA uses approved school information and your authenticated portal context. The public site does not simulate answers.
+      </p>
+      <Link href="/login" className="public-primary mt-6 inline-flex">
+        Sign in to use ARIA <ArrowRight className="size-4" aria-hidden="true" />
+      </Link>
     </div>
   );
 }
-
 export default function LandingPage() {
   return (
     <div className="public-site public-landing min-h-[100dvh] overflow-x-hidden bg-white text-[#102f49]">
@@ -376,13 +236,13 @@ export default function LandingPage() {
                     </article>
                   </Reveal>
                 ))}
-                <a
-                  href="mailto:itsupport@regismarie-college.com"
+                <Link
+                  href="/support"
                   className="group flex min-h-20 items-center justify-between rounded-2xl bg-[#1a4a6e] px-5 py-4 font-semibold text-white shadow-[0_18px_40px_rgba(26,74,110,0.18)] transition hover:-translate-y-1 hover:bg-[#123a58] sm:col-span-2"
                 >
                   Ask RMC about admissions
                   <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-                </a>
+                </Link>
               </div>
             </div>
           </div>

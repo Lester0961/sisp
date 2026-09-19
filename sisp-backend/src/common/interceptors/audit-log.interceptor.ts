@@ -50,9 +50,13 @@ export class AuditLogInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap({
         next: () => {
-          // Write audit log after successful response
+          // Write audit log after successful response. Actor email/role are
+          // snapshotted so entries remain attributable after account removal
+          // or role changes (P3-09).
           void this.writeAuditLog(
             user.sub,
+            user.email,
+            user.role,
             `${method} ${cleanUrl}`,
             resource,
             resourceId,
@@ -82,6 +86,8 @@ export class AuditLogInterceptor implements NestInterceptor {
 
   private async writeAuditLog(
     userId: string,
+    actorEmail: string | undefined,
+    actorRole: string | undefined,
     action: string,
     resource: string,
     resourceId: string | null,
@@ -91,6 +97,8 @@ export class AuditLogInterceptor implements NestInterceptor {
       await this.prisma.auditLog.create({
         data: {
           userId,
+          actorEmail: actorEmail ?? null,
+          actorRole: actorRole ?? null,
           action,
           resource,
           resourceId,

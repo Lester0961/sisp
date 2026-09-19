@@ -7,8 +7,8 @@ export class CreateHistoryDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsIn(['enrolled', 'completed', 'withdrawn', 'on_leave'], {
-    message: 'Status must be one of: enrolled, completed, withdrawn, on_leave',
+  @IsIn(['enrolled', 'completed', 'failed', 'dropped'], {
+    message: 'Status must be one of: enrolled, completed, failed, dropped',
   })
   status: string;
 }

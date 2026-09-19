@@ -22,16 +22,17 @@ export function PublicFooter() {
           <div>
             <h2 className="text-sm font-semibold">Visit campus</h2>
             <address className="mt-4 text-sm not-italic leading-6 text-[#49697f]">
-              F. Llosa-Lane Village-Andres St.<br />
-              Bagong Pook, Parañaque City
+              7108 Lire Lane, Villanueva Village<br />
+              Parañaque City, Metro Manila 1700
             </address>
-            <p className="mt-3 text-xs text-[#587387]">Monday to Friday, 8:00 AM to 5:00 PM</p>
+            <p className="mt-3 text-xs text-[#587387]">Monday to Saturday, 8:00 AM to 5:00 PM</p>
           </div>
 
           <div>
             <h2 className="text-sm font-semibold">Contact RMC</h2>
             <div className="mt-4 grid gap-3 text-sm text-[#49697f]">
-              <a href="tel:09104947097" className="hover:text-[#102f49]">0910 494 7097</a>
+              <a href="tel:+63286710199" className="hover:text-[#102f49]">(02) 8671 0199</a>
+              <a href="tel:+639614376209" className="hover:text-[#102f49]">0961 437 6209</a>
               <a href="mailto:itsupport@regismarie-college.com" className="break-all hover:text-[#102f49]">itsupport@regismarie-college.com</a>
               <a href="https://www.facebook.com/regismariecollegeparanaque" target="_blank" rel="noreferrer" className="hover:text-[#102f49]">
                 Facebook page

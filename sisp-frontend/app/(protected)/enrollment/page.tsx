@@ -38,12 +38,25 @@ interface MyEnrollment {
   createdAt: string;
 }
 
+interface EnrollmentHistoryEntry {
+  id: string;
+  status: string;
+  previousStatus?: string | null;
+  term?: string | null;
+  academicYear?: string | null;
+  createdAt: string;
+  course?: { code: string; title: string } | null;
+  academicTerm?: { code: string; label: string } | null;
+  changedBy?: { firstName?: string; lastName?: string } | null;
+}
+
 export default function EnrollmentPage() {
   const { profile, fetchProfile } = useStudentStore();
 
   const [availableCourses, setAvailableCourses] = useState<AvailableCourse[]>([]);
   const [myEnrollments, setMyEnrollments] = useState<MyEnrollment[]>([]);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [history, setHistory] = useState<EnrollmentHistoryEntry[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
   const [termInfo, setTermInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,10 +75,11 @@ export default function EnrollmentPage() {
     setLoading(true);
     setError(null);
     try {
-      const [coursesRes, enrollmentsRes, completedRes] = await Promise.all([
+      const [coursesRes, enrollmentsRes, completedRes, historyRes] = await Promise.all([
         enrollmentsApi.getAvailableCourses(),
         enrollmentsApi.getMyEnrollments(),
         enrollmentsApi.getCompletedCourseIds(),
+        enrollmentsApi.getMyHistory(),
       ]);
 
       setAvailableCourses(coursesRes.data ?? []);
@@ -77,6 +91,7 @@ export default function EnrollmentPage() {
         new Set(enrollments.filter((e) => e.status === 'enrolled').map((e) => e.courseId)),
       );
       setCompletedIds(completedRes ?? []);
+      setHistory(Array.isArray(historyRes?.data) ? historyRes.data : []);
     } catch {
       setError('Unable to load enrollment data. Please try again.');
     } finally {
@@ -359,6 +374,38 @@ export default function EnrollmentPage() {
               )}
             </section>
           </div>
+        )}
+
+        {/* Enrollment history (automatically maintained — P3-03/P4-04) */}
+        {!loading && !error && (
+          <section className="portal-surface mt-6 overflow-hidden">
+            <div className="border-b border-[#dce7ef] px-5 py-4">
+              <h2 className="font-semibold text-[#102f49]">Enrollment history</h2>
+              <p className="mt-1 text-sm text-[#587387]">Recorded status changes for your enrollment records.</p>
+            </div>
+            {history.length ? (
+              <div className="divide-y divide-[#e7eef3]">
+                {history.slice(0, 12).map((entry) => (
+                  <article key={entry.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-sm">
+                    <span className="min-w-16 rounded-lg bg-[#eaf3fa] px-2 py-1 text-center text-xs font-semibold text-[#0a439b]">
+                      {entry.course?.code ?? entry.term ?? 'Record'}
+                    </span>
+                    <span className="text-[#102f49]">{entry.course?.title ?? entry.academicTerm?.label ?? 'Enrollment update'}</span>
+                    <span className="text-xs text-[#587387]">
+                      {entry.previousStatus ? `${entry.previousStatus} → ` : ''}
+                      <span className="font-semibold text-[#365a72]">{entry.status}</span>
+                    </span>
+                    <span className="ml-auto text-xs text-[#6c879a]">
+                      {new Date(entry.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {entry.changedBy?.lastName ? ` · ${entry.changedBy.firstName ?? ''} ${entry.changedBy.lastName}`.trimEnd() : ''}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="px-5 py-4 text-sm text-[#587387]">No enrollment history has been recorded yet.</p>
+            )}
+          </section>
         )}
 
         {/* Late Enrollment Risk Waiver Modal */}

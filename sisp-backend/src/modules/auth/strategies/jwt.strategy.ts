@@ -31,16 +31,20 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   async validate(payload: JwtPayload): Promise<JwtPayload> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
+      include: { role: true },
     });
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('User not found or inactive');
     }
 
+    // Authorization uses the current database role, not the (possibly
+    // stale) role claim from the token. Role changes and deactivation apply
+    // on the next request (Phase 2, P2-04/P2-08).
     return {
       sub: payload.sub,
       email: payload.email,
-      role: payload.role,
+      role: user.role?.name ?? payload.role,
       mustChangePassword: user.mustChangePassword,
     };
   }

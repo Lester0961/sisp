@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import get_settings
@@ -68,11 +68,27 @@ async def root():
 @app.get("/health")
 async def health():
     db_ok = check_db_connection()
+    pgvector_ready = None
+    if settings.require_pgvector:
+        from app.services.retrieval_service import retrieval_service
+
+        pgvector_ready = db_ok and retrieval_service.pgvector_index_ready()
+        if not pgvector_ready:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "status": "degraded",
+                    "service": "sisp-ml",
+                    "database": "connected" if db_ok else "disconnected",
+                    "pgvector_index": "ready" if pgvector_ready else "unavailable",
+                },
+            )
     return {
         "status": "ok",
         "service": "sisp-ml",
         "version": settings.app_version,
         "database": "connected" if db_ok else "disconnected",
+        "pgvector_index": "ready" if pgvector_ready else ("not_required" if pgvector_ready is None else "unavailable"),
         "embedding_model": settings.embedding_model,
         "embedding_dimension": settings.embedding_dimension,
     }

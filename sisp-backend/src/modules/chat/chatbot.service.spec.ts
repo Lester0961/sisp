@@ -4,6 +4,7 @@ import { ChatbotService } from './chatbot.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ChatSessionService } from './chat-session.service';
 import { ChatQuotaService } from './chat-quota.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('ChatbotService (multi-intent + secure identity)', () => {
   let service: ChatbotService;
@@ -34,6 +35,7 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
   };
 
   const mockSessions = { createSession: jest.fn() };
+  const mockNotifications = { sendToUser: jest.fn() };
   const mockQuota = {
     consume: jest.fn(),
     refund: jest.fn(),
@@ -54,6 +56,7 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
         { provide: ConfigService, useValue: mockConfig },
         { provide: ChatSessionService, useValue: mockSessions },
         { provide: ChatQuotaService, useValue: mockQuota },
+        { provide: NotificationsService, useValue: mockNotifications },
       ],
     }).compile();
 
@@ -104,6 +107,15 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(init.headers['X-ML-Secret']).toBe('test-secret');
     const body = JSON.parse(init.body);
     expect(body.student_id).toBe('student-profile-1');
+    expect(mockPrisma.chatLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'user-1',
+        message: 'hi',
+        response: 'ok',
+        intent: 'enrollment_inquiry',
+        confidence: 0.9,
+      }),
+    });
   });
 
   it('omits student_id (but still works) when the user has no profile', async () => {
@@ -218,5 +230,61 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.escalated).toBe(true);
     expect(res.sessionId).toBe('sess-1');
     expect(res.parts[0].error).toBeTruthy();
+    expect(res.parts[0].text).toContain('could not verify this student record');
+    expect(res.parts[0].text).not.toContain('hint');
+    expect(res.response).not.toContain('hint');
+  });
+
+  it('notifies the student after an ARIA escalation response is persisted', async () => {
+    const order: string[] = [];
+    mockPrisma.escalationQueue.findUnique = jest.fn().mockResolvedValue({
+      id: 'escalation-1',
+      chat: { userId: 'user-1', chatSession: null },
+    });
+    mockPrisma.escalationQueue.update = jest.fn().mockImplementation(async () => {
+      order.push('resolved');
+      return { id: 'escalation-1', status: 'resolved' };
+    });
+    mockPrisma.chatLog.create.mockImplementation(async ({ data }: any) => {
+      order.push('response');
+      return { id: 'chat-log-1', ...data };
+    });
+    mockNotifications.sendToUser.mockImplementation(async () => {
+      order.push('notification');
+    });
+
+    await service.resolveEscalation('escalation-1', 'Approved course plan', 'registrar-1');
+
+    expect(order).toEqual(['resolved', 'response', 'notification']);
+    expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+      'user-1',
+      'ARIA Response Available',
+      'A staff response is available in your ARIA conversation.',
+    );
+  });
+
+  it('does not report a missing balance record as zero and escalates it', async () => {
+    fetchMock.mockImplementation(() =>
+      mlOk({
+        response: 'balance hint',
+        intent: 'payment_inquiry',
+        confidence: 0.9,
+        escalate: false,
+        sources: [],
+        route: 'database',
+        action: 'balance',
+        language: { code: 'en' },
+        data: null,
+        parts: [],
+      }),
+    );
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-profile-1' });
+
+    const res = await service.sendMessage('user-1', { message: 'What is my balance?' } as any);
+
+    expect(res.response).toContain('could not verify an account balance record');
+    expect(res.response).not.toContain('0.00');
+    expect(res.escalated).toBe(true);
+    expect(res.sessionId).toBe('sess-1');
   });
 });

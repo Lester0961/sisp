@@ -15,7 +15,9 @@ import {
 
 interface AuditLogEntry {
   id: string;
-  userId: string;
+  userId: string | null;
+  actorEmail?: string | null;
+  actorRole?: string | null;
   action: string;
   resource: string;
   resourceId: string | null;
@@ -38,16 +40,19 @@ interface AuditLogsResponse {
 export default function AuditLogsPage() {
   useAuth();
   const [logs, setLogs] = useState<AuditLogsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [page, setPage] = useState(1);
   const [resourceFilter, setResourceFilter] = useState('');
 
   const loadLogs = async (p: number = page, resource?: string) => {
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await adminApi.getAuditLogs(p, 20, resource || undefined);
       setLogs(res);
     } catch (err) {
+      setLoadError(true);
       console.error('Failed to load audit logs:', err);
     } finally {
       setLoading(false);
@@ -133,7 +138,14 @@ export default function AuditLogsPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {loadError ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-sm text-red-700" role="alert">
+                      <span>Audit records could not be loaded. </span>
+                      <Button variant="outline" size="sm" onClick={() => void loadLogs(page, resourceFilter)}>Retry</Button>
+                    </td>
+                  </tr>
+                ) : loading ? (
                   <tr>
                     <td colSpan={7} className="text-center py-12 text-slate-400 font-semibold uppercase tracking-wider text-[10px]">
                       Loading audit records...
@@ -146,11 +158,11 @@ export default function AuditLogsPage() {
                         {new Date(log.createdAt).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-slate-800 font-medium">
-                        {log.user?.email || log.userId}
+                        {log.actorEmail || log.user?.email || log.userId || 'Not recorded'}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[9px] font-bold uppercase">
-                          {log.user?.role?.name || 'Not recorded'}
+                          {log.actorRole || log.user?.role?.name || 'Not recorded'}
                         </span>
                       </td>
                       <td className="px-4 py-3">

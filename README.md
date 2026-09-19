@@ -145,14 +145,16 @@ Never commit these values or expose them through frontend configuration.
 ### Local Demo Identities
 The mock store and local seed include role-based fixture identities for development. Their password is controlled by `LOCAL_DEMO_PASSWORD` and must never be reused in a deployed environment.
 
-For this recovery test profile, `local-demo-only` is the canonical password and
-`password123` is accepted as a local-only compatibility alias.
+For local development, the password is the value of `LOCAL_DEMO_PASSWORD`
+(default `local-demo-only`), verified against the stored bcrypt hash. There
+are no password aliases and no login bypasses.
 
 | Role | Email |
 |------|-------|
 | Student | `student@rmc.edu.ph` |
 | Faculty | `faculty@rmc.edu.ph` |
-| Admin / Registrar | `admin@rmc.edu.ph` |
+| Registrar | `admin@rmc.edu.ph` |
+| Treasury / Accounting | `treasury@rmc.edu.ph` |
 | Dean | `dean@rmc.edu.ph` |
 | Live Agent | `agent@rmc.edu.ph` |
 | System Admin | `sysadmin@rmc.edu.ph` |
@@ -191,7 +193,7 @@ sisp/
 
 3. **Escalation Creates a Chat Session** — When ARIA (the chatbot) can't answer, it doesn't just log a ticket. It spins up a `ChatSession` record so a live agent and the student can exchange async messages within the same chat UI.
 
-4. **Mock-Aware Prisma Client** — The backend gracefully falls back to an in-memory JSON store when the database is unreachable. This makes demos and offline development frictionless, including document catalog/items and daily chat usage.
+4. **Mock-Aware Prisma Client (development only)** — In development the backend falls back to an in-memory JSON store when the database is unreachable. Production fails closed (`NODE_ENV=production` or `STRICT_DB=true`): the backend refuses to start on mock storage, and `/api/health` reports `degraded` (HTTP 503) whenever mock storage is active.
 
 5. **Advisory guardrails before generation** — Language detection, obfuscation-aware moderation, strict school-topic scope routing, semantic retrieval, and deterministic database responses run before the LLM router. Out-of-topic questions receive a redirect back to supported school-advising topics, and the model only generates from verified institutional context.
 

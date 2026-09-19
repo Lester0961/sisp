@@ -7,4 +7,5 @@ export class UpdateEnrollmentDto {
     message: 'Status must be one of: enrolled, dropped, completed, failed',
   })
   status: string;
+
 }

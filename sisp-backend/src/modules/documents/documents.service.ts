@@ -7,26 +7,14 @@ import { CreateCatalogItemDto } from './dto/create-catalog-item.dto';
 import { UpdateCatalogItemDto } from './dto/update-catalog-item.dto';
 import { assertTransition } from '../../common/utils/state-machine';
 import { requireStudentProfile } from '../../common/utils/require-student-profile';
-import { PAYMENT_CHANNELS } from '../../common/constants/payment-channels';
+import {
+  REQUEST_STATUS_MESSAGES,
+  REQUEST_STATUS_TRANSITIONS,
+} from '../../common/utils/request-status';
+import { getPaymentChannels } from '../../common/constants/payment-channels';
 import { SubmitProofDto } from './dto/submit-proof.dto';
 
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  awaiting_payment: ['pending', 'rejected'],
-  pending: ['under_review', 'approved', 'rejected'],
-  under_review: ['approved', 'rejected'],
-  approved: ['released'],
-  released: [],
-  rejected: [],
-};
 
-const STATUS_MESSAGES: Record<string, string> = {
-  awaiting_payment: 'is awaiting payment confirmation',
-  pending: 'is now pending review',
-  under_review: 'is now under review',
-  approved: 'has been approved',
-  released: 'is ready for release or pickup',
-  rejected: 'has been rejected',
-};
 
 function generatePaymentReference(): string {
   const timestamp = Date.now().toString(36).toUpperCase();
@@ -34,9 +22,7 @@ function generatePaymentReference(): string {
   return `SISP-${timestamp}-${random}`;
 }
 
-function generateQrCodeUrl(reference: string): string {
-  return `https://placehold.co/300x300/1e3a8a/FFFFFF/png?text=InstaPay+QR%0A${encodeURIComponent(reference)}`;
-}
+
 
 @Injectable()
 export class DocumentsService {
@@ -59,8 +45,8 @@ export class DocumentsService {
         label: item.label,
         fee: Number(item.fee),
         feeNote: item.feeNote || null,
-        tat: item.tat || '3-5 business days',
-        assignedTo: item.assignedTo || 'Records Staff',
+        tat: item.tat || null,
+        assignedTo: item.assignedTo || null,
         sortOrder: item.sortOrder ?? 0,
         isActive: Boolean(item.isActive ?? true),
         createdAt: item.createdAt,
@@ -82,8 +68,8 @@ export class DocumentsService {
         label: dto.label.trim(),
         fee: dto.fee,
         feeNote: dto.feeNote?.trim() || null,
-        tat: dto.tat?.trim() || '3-5 business days',
-        assignedTo: dto.assignedTo?.trim() || 'Records Staff',
+        tat: dto.tat?.trim() || null,
+        assignedTo: dto.assignedTo?.trim() || null,
         sortOrder: dto.sortOrder ?? 0,
         isActive: dto.isActive !== undefined ? dto.isActive : true,
       } as any,
@@ -119,8 +105,8 @@ export class DocumentsService {
         ...(dto.label ? { label: dto.label.trim() } : {}),
         ...(dto.fee !== undefined ? { fee: dto.fee } : {}),
         ...(dto.feeNote !== undefined ? { feeNote: dto.feeNote?.trim() || null } : {}),
-        ...(dto.tat !== undefined ? { tat: dto.tat?.trim() || '3-5 business days' } : {}),
-        ...(dto.assignedTo !== undefined ? { assignedTo: dto.assignedTo?.trim() || 'Records Staff' } : {}),
+        ...(dto.tat !== undefined ? { tat: dto.tat?.trim() || null } : {}),
+        ...(dto.assignedTo !== undefined ? { assignedTo: dto.assignedTo?.trim() || null } : {}),
         ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       } as any,
@@ -175,8 +161,8 @@ export class DocumentsService {
         label: item.label,
         fee: Number(item.fee),
         feeNote: item.feeNote || null,
-        tat: item.tat || '3-5 business days',
-        assignedTo: item.assignedTo || 'Records Staff',
+        tat: item.tat || null,
+        assignedTo: item.assignedTo || null,
         sortOrder: item.sortOrder ?? 0,
         isActive: true,
       }));
@@ -267,7 +253,9 @@ export class DocumentsService {
           fee: totalFee,
           paymentStatus: 'unpaid',
           paymentReference,
-          qrCodeUrl: generateQrCodeUrl(paymentReference),
+          // No fabricated QR image: students pay via the official Treasury
+          // channels and the reference is their payment identifier.
+          qrCodeUrl: null,
         },
       });
 
@@ -290,7 +278,7 @@ export class DocumentsService {
   }
 
   async getPaymentChannels() {
-    return PAYMENT_CHANNELS;
+    return getPaymentChannels();
   }
 
   async submitPaymentProof(userId: string, requestId: string, dto: SubmitProofDto) {
@@ -318,12 +306,17 @@ export class DocumentsService {
     });
     return {
       message:
-        'Proof of payment submitted. Treasury will verify it with Ms. Arlyne Punzalan before confirming your payment.',
+        'Proof of payment submitted. The Treasury Office will verify it before confirming your payment.',
       data: this.serializeRequest(updated),
     };
   }
 
-  async confirmPayment(actorId: string, requestId: string, actorRole?: string) {
+  /**
+   * Treasury confirms a document-request payment after verification
+   * (P6-03). Students can no longer self-confirm; the route is gated by
+   * `financial.manage` and the actor is always recorded.
+   */
+  async confirmPayment(actorId: string, requestId: string) {
     const request = await this.prisma.documentRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -334,26 +327,18 @@ export class DocumentsService {
     if (!request) {
       throw new NotFoundException(`Document request with ID ${requestId} not found`);
     }
-    if (actorRole === 'student') {
-      const profile = await requireStudentProfile(this.prisma, actorId);
-      if ((request as any).studentId !== profile.id) {
-        throw new NotFoundException(`Document request with ID ${requestId} not found`);
-      }
-    }
     if (request.status !== 'awaiting_payment') {
       throw new BadRequestException(`Request is not awaiting payment (current status: ${request.status})`);
     }
-    assertTransition(request.status, 'pending', STATUS_TRANSITIONS);
+    assertTransition(request.status, 'pending', REQUEST_STATUS_TRANSITIONS);
 
-    const isStaff = actorRole !== 'student';
     const updated = await this.prisma.documentRequest.update({
       where: { id: requestId },
       data: {
         status: 'pending',
         paymentStatus: 'paid',
-        ...(isStaff
-          ? { paymentConfirmedById: actorId, paymentConfirmedAt: new Date() }
-          : { paymentConfirmedAt: new Date() }),
+        paymentConfirmedById: actorId,
+        paymentConfirmedAt: new Date(),
       },
       include: {
         items: true,
@@ -363,7 +348,7 @@ export class DocumentsService {
     await this.notificationsService.sendToUser(
       request.student.user.id,
       'Payment Confirmed',
-      `Your combined payment for ${this.documentNames(request)} has been confirmed. Your request is now pending review.`,
+      'Your payment has been confirmed. Your service request is now pending review.',
     );
     return {
       message: 'Payment confirmed. Request is now pending review.',
@@ -427,7 +412,7 @@ export class DocumentsService {
     return this.serializeRequest(request);
   }
 
-  async updateRequestStatus(id: string, dto: UpdateRequestDto) {
+  async updateRequestStatus(id: string, dto: UpdateRequestDto, actorId?: string) {
     const request = await this.prisma.documentRequest.findUnique({
       where: { id },
       include: {
@@ -438,7 +423,9 @@ export class DocumentsService {
     if (!request) {
       throw new NotFoundException(`Document request with ID ${id} not found`);
     }
-    assertTransition(request.status, dto.status, STATUS_TRANSITIONS);
+    assertTransition(request.status, dto.status, REQUEST_STATUS_TRANSITIONS);
+
+    const previousStatus = request.status;
 
     const updated = await this.prisma.documentRequest.update({
       where: { id },
@@ -451,12 +438,26 @@ export class DocumentsService {
         student: { include: { user: { select: { id: true, email: true } } } },
       },
     });
-    const statusMessage = STATUS_MESSAGES[dto.status];
-    if (statusMessage) {
+
+    // Explicit audit record for the status change (P7-04): actor, request,
+    // old status, new status, timestamp.
+    await this.prisma.auditLog.create({
+      data: {
+        userId: actorId ?? null,
+        action: 'SERVICE_REQUEST_STATUS_CHANGE',
+        resource: 'requests',
+        resourceId: id,
+        oldValue: previousStatus,
+        newValue: dto.status,
+        ipAddress: null,
+      },
+    });
+
+    if (REQUEST_STATUS_MESSAGES[dto.status]) {
       await this.notificationsService.sendToUser(
         request.student.user.id,
         'Document Request Update',
-        `Your request for ${this.documentNames(request)} ${statusMessage}.${dto.remarks ? ` Remarks: ${dto.remarks}` : ''}`,
+        `Your service request status is now ${dto.status.replaceAll('_', ' ')}.`,
       );
     }
     return {

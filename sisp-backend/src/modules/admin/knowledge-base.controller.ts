@@ -12,7 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 
 // Strict allowlist for filename segments — blocks path traversal, encoded
 // slashes, and unusual characters before interpolating into the ML URL.
@@ -28,7 +28,7 @@ const validateFilename = (filename: string): string => {
 };
 
 @Controller('admin/kb')
-@Roles('admin_staff', 'sys_admin')
+@RequirePermissions('knowledge_base.manage')
 export class KnowledgeBaseController {
   private readonly logger = new Logger(KnowledgeBaseController.name);
   private readonly mlServiceUrl: string;
@@ -36,12 +36,14 @@ export class KnowledgeBaseController {
 
   constructor(private readonly config: ConfigService) {
     this.mlServiceUrl = this.config.get<string>('ML_SERVICE_URL') || 'http://localhost:8000';
-    // Fallback matches the ML service default (ml_secret_token) so a missing
-    // env fails identically on both sides instead of half-working.
-    this.mlSecret = this.config.get<string>('ML_SECRET_TOKEN') || 'local-ml-service-only';
+    // No shared default: a missing service secret must fail closed.
+    this.mlSecret = this.config.get<string>('ML_SECRET_TOKEN') || '';
   }
 
   private async proxyToMl(method: string, path: string, body?: any): Promise<any> {
+    if (!this.mlSecret) {
+      throw new HttpException('ML service authentication is not configured', HttpStatus.SERVICE_UNAVAILABLE);
+    }
     const url = `${this.mlServiceUrl}${path}`;
     this.logger.log(`Proxying ${method} ${url}`);
 

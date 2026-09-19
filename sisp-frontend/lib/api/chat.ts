@@ -135,6 +135,26 @@ export interface ChatSessionRecord {
   messages?: ChatSessionMessage[];
 }
 
+export interface AdvisorSessionSummary {
+  id: string;
+  studentId: string;
+  agentId: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  student: { studentNumber: string };
+  agent?: { id: string; firstName: string; lastName: string } | null;
+  messages: Array<{ senderRole: string; createdAt: string }>;
+}
+
+export interface PaginatedAdvisorSessions {
+  data: AdvisorSessionSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
 export interface ChatSessionMessage {
   id: string;
   sessionId: string;
@@ -179,13 +199,18 @@ export const chatApi = {
   },
 
   // Live Agent Session endpoints
-  getSessions: async (status?: string): Promise<ChatSessionRecord[]> => {
-    const response = await apiClient.get('/chat/sessions', { params: { status } });
+  getSessions: async (status?: string, page = 1, pageSize = 25): Promise<PaginatedAdvisorSessions> => {
+    const response = await apiClient.get<PaginatedAdvisorSessions>('/chat/sessions', { params: { status, page, pageSize } });
     return response.data;
   },
 
-  getAssignedSessions: async (): Promise<ChatSessionRecord[]> => {
-    const response = await apiClient.get('/chat/sessions/assigned');
+  getAssignedSessions: async (): Promise<PaginatedAdvisorSessions> => {
+    const response = await apiClient.get<PaginatedAdvisorSessions>('/chat/sessions/assigned');
+    return response.data;
+  },
+
+  getSession: async (sessionId: string): Promise<ChatSessionRecord> => {
+    const response = await apiClient.get<ChatSessionRecord>(`/chat/sessions/${sessionId}`);
     return response.data;
   },
 

@@ -1,163 +1,263 @@
-import os
+import re
+import uuid
 from typing import Optional
-from fastapi import APIRouter, Header, HTTPException, BackgroundTasks, status
-from pydantic import BaseModel
-from app.config import get_settings
+
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, status
+from pydantic import BaseModel, constr
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+
+from app.database import check_db_connection, engine
 from app.ml.embed_documents import embed_and_index
+from app.security import verify_ml_secret_value
 
 router = APIRouter(prefix="/kb", tags=["knowledge_base"])
 
-settings = get_settings()
-
-KB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "knowledge_base")
-
-# Category mapping for known files
-KNOWN_CATEGORIES = {
-    "document_requests.txt": "document_request",
-    "enrollment_policy.txt": "enrollment_policy",
-    "grading_policy.txt": "grading_policy",
-    "official_advice.txt": "official_advice",
-    "program_catalog.txt": "programs_curriculum",
-}
+SAFE_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,123}\.txt$")
+SAFE_CATEGORY_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+SELECT_DOCUMENT = """
+    SELECT id, filename, title, category, content, version, effective_date,
+           is_active, index_status, index_error, indexed_at, updated_at
+    FROM knowledge_documents
+"""
 
 
 def verify_secret(x_ml_secret: Optional[str]):
-    if x_ml_secret != settings.ml_secret_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid ML Secret Header token."
-        )
+    verify_ml_secret_value(x_ml_secret)
 
 
 class DocumentCreate(BaseModel):
     filename: str
-    content: str
-    category: str
+    content: constr(min_length=1)
+    category: constr(pattern=r"^[a-z][a-z0-9_-]{0,63}$")
 
 
 class DocumentUpdate(BaseModel):
-    content: str
+    content: constr(min_length=1)
+
+
+def normalize_filename(filename: str) -> str:
+    normalized = filename if filename.endswith(".txt") else f"{filename}.txt"
+    if not SAFE_FILENAME_RE.fullmatch(normalized):
+        raise HTTPException(status_code=400, detail="Invalid document filename.")
+    return normalized
+
+
+def _require_database():
+    if engine is None or not check_db_connection():
+        raise HTTPException(status_code=503, detail="Durable knowledge-base storage is unavailable.")
+    return engine
+
+
+def _iso(value):
+    if value is None:
+        return None
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+def _document_response(row, include_content: bool = True) -> dict:
+    data = {
+        "id": row["id"],
+        "filename": row["filename"],
+        "title": row["title"],
+        "category": row["category"],
+        "version": row["version"],
+        "effectiveDate": _iso(row["effective_date"]),
+        "updatedAt": _iso(row["updated_at"]),
+        "active": row["is_active"],
+        "indexStatus": row["index_status"],
+        "indexError": row["index_error"],
+        "indexedAt": _iso(row["indexed_at"]),
+    }
+    if include_content:
+        content = row["content"]
+        data["content"] = content
+        data["sizeBytes"] = len(content.encode("utf-8"))
+    return data
+
+
+def _title(content: str, fallback: str) -> str:
+    return next((line.strip() for line in content.splitlines() if line.strip()), fallback)
 
 
 @router.get("/documents")
 async def list_documents(x_ml_secret: str = Header(None)):
-    """List all knowledge base documents with their content and metadata."""
     verify_secret(x_ml_secret)
-
-    documents = []
-    if not os.path.exists(KB_DIR):
-        return {"documents": []}
-
-    for filename in sorted(os.listdir(KB_DIR)):
-        if not filename.endswith(".txt"):
-            continue
-        filepath = os.path.join(KB_DIR, filename)
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                content = f.read()
-            documents.append({
-                "filename": filename,
-                "category": KNOWN_CATEGORIES.get(filename, filename.replace(".txt", "").replace("_", " ")),
-                "content": content,
-                "sizeBytes": os.path.getsize(filepath),
-                "lastModified": os.path.getmtime(filepath),
-            })
-        except Exception as e:
-            documents.append({
-                "filename": filename,
-                "category": "unknown",
-                "content": f"[Error reading file: {str(e)}]",
-                "sizeBytes": 0,
-                "lastModified": 0,
-            })
-
-    return {"documents": documents}
+    database = _require_database()
+    try:
+        with database.connect() as connection:
+            rows = connection.execute(text(SELECT_DOCUMENT + " ORDER BY updated_at DESC, filename ASC")).mappings().all()
+        return {"documents": [_document_response(row) for row in rows]}
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        print(f"[KB] Durable document list failed: {type(exc).__name__}")
+        raise HTTPException(status_code=503, detail="Knowledge-base documents could not be loaded.") from exc
 
 
 @router.get("/documents/{filename}")
 async def get_document(filename: str, x_ml_secret: str = Header(None)):
-    """Get the content of a specific knowledge base document."""
     verify_secret(x_ml_secret)
-
-    filepath = os.path.join(KB_DIR, filename)
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail=f"Document '{filename}' not found.")
-
-    with open(filepath, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    return {
-        "filename": filename,
-        "category": KNOWN_CATEGORIES.get(filename, filename.replace(".txt", "").replace("_", " ")),
-        "content": content,
-    }
+    filename = normalize_filename(filename)
+    database = _require_database()
+    try:
+        with database.connect() as connection:
+            row = connection.execute(
+                text(SELECT_DOCUMENT + " WHERE filename = :filename AND is_active = TRUE"),
+                {"filename": filename},
+            ).mappings().first()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"Document '{filename}' not found.")
+        return _document_response(row)
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        print(f"[KB] Durable document read failed: {type(exc).__name__}")
+        raise HTTPException(status_code=503, detail="Knowledge-base document could not be loaded.") from exc
 
 
 @router.put("/documents/{filename}")
 async def update_document(filename: str, body: DocumentUpdate, x_ml_secret: str = Header(None)):
-    """Update the content of an existing knowledge base document."""
     verify_secret(x_ml_secret)
-
-    filepath = os.path.join(KB_DIR, filename)
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail=f"Document '{filename}' not found.")
-
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(body.content)
-
-    return {"message": f"Document '{filename}' updated successfully.", "filename": filename}
+    if not body.content.strip():
+        raise HTTPException(status_code=422, detail="Document content must include non-whitespace text.")
+    filename = normalize_filename(filename)
+    database = _require_database()
+    try:
+        with database.begin() as connection:
+            result = connection.execute(text("""
+                UPDATE knowledge_documents
+                SET content = :content,
+                    title = :title,
+                    index_status = 'pending',
+                    index_error = NULL,
+                    indexed_at = NULL,
+                    updated_at = NOW()
+                WHERE filename = :filename AND is_active = TRUE
+                RETURNING id, filename
+            """), {"filename": filename, "content": body.content, "title": _title(body.content, filename)})
+            document = result.mappings().first()
+            if document is None:
+                raise HTTPException(status_code=404, detail=f"Document '{filename}' not found.")
+            connection.execute(text("""
+                UPDATE knowledge_chunks
+                SET embedding = NULL, embedding_model = NULL, embedded_at = NULL
+                WHERE document_id = :document_id
+            """), {"document_id": document["id"]})
+        return {
+            "message": f"Document '{filename}' was saved to durable storage; retrieval synchronization is pending.",
+            "filename": filename,
+            "indexStatus": "pending",
+        }
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        print(f"[KB] Durable document update failed: {type(exc).__name__}")
+        raise HTTPException(status_code=503, detail="Knowledge-base document could not be updated.") from exc
 
 
 @router.post("/documents", status_code=status.HTTP_201_CREATED)
 async def create_document(body: DocumentCreate, x_ml_secret: str = Header(None)):
-    """Create a new knowledge base document."""
     verify_secret(x_ml_secret)
-
-    # Ensure filename ends with .txt
-    filename = body.filename if body.filename.endswith(".txt") else f"{body.filename}.txt"
-    filepath = os.path.join(KB_DIR, filename)
-
-    if os.path.exists(filepath):
-        raise HTTPException(status_code=409, detail=f"Document '{filename}' already exists.")
-
-    # Register category
-    KNOWN_CATEGORIES[filename] = body.category
-
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(body.content)
-
-    return {"message": f"Document '{filename}' created successfully.", "filename": filename}
+    if not body.content.strip():
+        raise HTTPException(status_code=422, detail="Document content must include non-whitespace text.")
+    filename = normalize_filename(body.filename)
+    if not SAFE_CATEGORY_RE.fullmatch(body.category):
+        raise HTTPException(status_code=400, detail="Invalid document category.")
+    database = _require_database()
+    try:
+        with database.begin() as connection:
+            row = connection.execute(text("""
+                INSERT INTO knowledge_documents
+                    (id, filename, title, category, content, version, effective_date,
+                     is_active, index_status, index_error, indexed_at, created_at, updated_at)
+                VALUES
+                    (:id, :filename, :title, :category, :content, NULL, NULL,
+                     TRUE, 'pending', NULL, NULL, NOW(), NOW())
+                RETURNING id, filename
+            """), {
+                "id": str(uuid.uuid4()),
+                "filename": filename,
+                "title": _title(body.content, filename),
+                "category": body.category,
+                "content": body.content,
+            }).mappings().one()
+        return {
+            "message": f"Document '{filename}' was saved to durable storage; retrieval synchronization is pending.",
+            "id": row["id"],
+            "filename": filename,
+            "indexStatus": "pending",
+        }
+    except IntegrityError as exc:
+        raise HTTPException(status_code=409, detail=f"Document '{filename}' already exists.") from exc
+    except SQLAlchemyError as exc:
+        print(f"[KB] Durable document creation failed: {type(exc).__name__}")
+        raise HTTPException(status_code=503, detail="Knowledge-base document could not be created.") from exc
 
 
 @router.delete("/documents/{filename}")
-async def delete_document(filename: str, x_ml_secret: str = Header(None)):
-    """Delete a knowledge base document."""
+async def archive_document(filename: str, x_ml_secret: str = Header(None)):
     verify_secret(x_ml_secret)
-
-    filepath = os.path.join(KB_DIR, filename)
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail=f"Document '{filename}' not found.")
-
-    os.remove(filepath)
-    return {"message": f"Document '{filename}' deleted successfully."}
+    filename = normalize_filename(filename)
+    database = _require_database()
+    try:
+        with database.begin() as connection:
+            document = connection.execute(text("""
+                UPDATE knowledge_documents
+                SET is_active = FALSE,
+                    index_status = 'pending',
+                    index_error = NULL,
+                    indexed_at = NULL,
+                    updated_at = NOW()
+                WHERE filename = :filename AND is_active = TRUE
+                RETURNING id
+            """), {"filename": filename}).mappings().first()
+            if document is None:
+                raise HTTPException(status_code=404, detail=f"Document '{filename}' not found.")
+            connection.execute(text("""
+                UPDATE knowledge_chunks
+                SET embedding = NULL, embedding_model = NULL, embedded_at = NULL
+                WHERE document_id = :document_id
+            """), {"document_id": document["id"]})
+        return {
+            "message": f"Document '{filename}' was archived in durable storage.",
+            "filename": filename,
+            "active": False,
+            "indexStatus": "pending",
+        }
+    except HTTPException:
+        raise
+    except SQLAlchemyError as exc:
+        print(f"[KB] Durable document archive failed: {type(exc).__name__}")
+        raise HTTPException(status_code=503, detail="Knowledge-base document could not be archived.") from exc
 
 
 def run_reindex_task():
     try:
-        print("[BG_TASK] Starting knowledge base re-indexing...")
+        print("[KB] Starting durable knowledge-base re-indexing.")
         embed_and_index()
-        print("[BG_TASK] Knowledge base re-indexing completed successfully.")
-    except Exception as e:
-        print(f"[BG_TASK] Re-indexing task failed: {e}")
+    except Exception as exc:
+        print(f"[KB] Durable re-index task failed: {type(exc).__name__}")
 
 
 @router.post("/reindex", status_code=status.HTTP_202_ACCEPTED)
 async def reindex_embeddings(background_tasks: BackgroundTasks, x_ml_secret: str = Header(None)):
-    """Trigger re-embedding and re-indexing of all knowledge base documents."""
     verify_secret(x_ml_secret)
+    database = _require_database()
+    try:
+        with database.begin() as connection:
+            count = connection.execute(text("""
+                UPDATE knowledge_documents
+                SET index_status = 'pending', index_error = NULL, indexed_at = NULL
+                WHERE is_active = TRUE
+            """)).rowcount
+    except SQLAlchemyError as exc:
+        print(f"[KB] Durable re-index request failed: {type(exc).__name__}")
+        raise HTTPException(status_code=503, detail="Knowledge-base re-indexing could not be scheduled.") from exc
 
     background_tasks.add_task(run_reindex_task)
     return {
         "status": "accepted",
-        "message": "Re-indexing task scheduled in background. Embeddings will be updated shortly."
+        "documentsQueued": count,
+        "message": "Re-indexing was accepted. Per-document completion is recorded in the knowledge-base list.",
     }

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GradesService } from './grades.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('GradesService', () => {
   let service: GradesService;
@@ -22,10 +23,15 @@ describe('GradesService', () => {
       findMany: jest.fn(),
     },
   };
+  const mockNotifications = { sendToUser: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [GradesService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        GradesService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: NotificationsService, useValue: mockNotifications },
+      ],
     }).compile();
 
     service = module.get<GradesService>(GradesService);
@@ -33,6 +39,39 @@ describe('GradesService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('notifies the student only when the Registrar publishes the grade', async () => {
+    mockPrisma.grade.findUnique.mockResolvedValue({ id: 'grade-1', status: 'posted' });
+    mockPrisma.grade.update.mockResolvedValue({
+      id: 'grade-1',
+      enrollment: { student: { user: { id: 'student-user-1' } } },
+    });
+
+    await service.approveGrade('registrar-1', 'grade-1');
+
+    expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+      'student-user-1',
+      'Grade Published',
+      'A grade has been published to your student record.',
+    );
+  });
+
+  it('sends a generic notice when grade visibility changes', async () => {
+    mockPrisma.grade.findUnique.mockResolvedValue({
+      id: 'grade-2',
+      isVisible: false,
+      enrollment: { student: { userId: 'student-user-2' } },
+    });
+    mockPrisma.grade.update.mockResolvedValue({ id: 'grade-2', isVisible: true });
+
+    await service.toggleVisibility('grade-2', true);
+
+    expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+      'student-user-2',
+      'Grade Visibility Updated',
+      'Your grade visibility was updated. Visit Grades for current availability.',
+    );
   });
 
   it('hides grades for an unpaid term while keeping paid past terms visible', async () => {

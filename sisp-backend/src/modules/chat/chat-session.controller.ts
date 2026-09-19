@@ -14,13 +14,18 @@ export class ChatSessionController {
   ) {}
 
   @Get()
-  @Roles('admin_staff', 'dean', 'live_agent')
-  async getSessions(@CurrentUser() user: JwtPayload, @Query('status') status?: string) {
-    return this.sessionService.getVisibleSessions(user.sub, user.role, status);
+  @Roles('registrar', 'dean', 'live_agent')
+  async getSessions(
+    @CurrentUser() user: JwtPayload,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    return this.sessionService.getVisibleSessions(user.sub, user.role, status, Number(page) || 1, Number(pageSize) || 25);
   }
 
   @Get('assigned')
-  @Roles('admin_staff', 'dean', 'live_agent')
+  @Roles('registrar', 'dean', 'live_agent')
   async getMyAssignedSessions(@CurrentUser() user: JwtPayload) {
     return this.sessionService.getSessions(user.sub, undefined);
   }
@@ -33,19 +38,19 @@ export class ChatSessionController {
   }
 
   @Get(':id')
-  @Roles('student', 'admin_staff', 'dean', 'live_agent')
+  @Roles('student', 'registrar', 'dean', 'live_agent')
   async getSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.sessionService.getAuthorizedSession(id, user.sub, user.role);
   }
 
   @Get(':id/messages')
-  @Roles('student', 'admin_staff', 'dean', 'live_agent')
+  @Roles('student', 'registrar', 'dean', 'live_agent')
   async getMessages(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.sessionService.getMessages(id, user.sub, user.role);
   }
 
   @Post(':id/messages')
-  @Roles('student', 'admin_staff', 'dean', 'live_agent')
+  @Roles('student', 'registrar', 'dean', 'live_agent')
   async sendMessage(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -57,7 +62,7 @@ export class ChatSessionController {
   }
 
   @Patch(':id/assign')
-  @Roles('admin_staff', 'dean', 'live_agent')
+  @Roles('registrar', 'dean', 'live_agent')
   async assignAgent(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     const session = await this.sessionService.assignAgent(id, user.sub, user.role);
     this.chatGateway.emitSessionUpdated(id, session);
@@ -65,7 +70,7 @@ export class ChatSessionController {
   }
 
   @Patch(':id/close')
-  @Roles('admin_staff', 'dean', 'live_agent')
+  @Roles('registrar', 'dean', 'live_agent')
   async closeSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     const session = await this.sessionService.closeSession(id, user.sub, user.role);
     this.chatGateway.emitSessionUpdated(id, session);

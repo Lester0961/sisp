@@ -5,8 +5,6 @@ import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class AnalyticsService {
-  private static readonly PASSING_THRESHOLD = 75;
-
   constructor(private readonly prisma: PrismaService) {}
 
   async getEnrollmentStats() {
@@ -32,77 +30,15 @@ export class AnalyticsService {
     };
   }
 
-  async getGpaDistribution() {
+  async getPublishedGradeCount() {
     const grades = await this.prisma.grade.findMany({
       where: { isVisible: true },
       select: { finalGrade: true },
     });
 
-    const brackets = {
-      '90 - 100': 0,
-      '80 - 89.99': 0,
-      '75 - 79.99': 0,
-      '60 - 74.99': 0,
-      'Below 60': 0,
+    return {
+      publishedGradeCount: grades.filter((grade) => grade.finalGrade !== null && grade.finalGrade !== undefined).length,
     };
-
-    grades.forEach((g) => {
-      if (g.finalGrade === null || g.finalGrade === undefined) return;
-      const fg = g.finalGrade;
-      if (fg >= 90) brackets['90 - 100']++;
-      else if (fg >= 80) brackets['80 - 89.99']++;
-      else if (fg >= 75) brackets['75 - 79.99']++;
-      else if (fg >= 60) brackets['60 - 74.99']++;
-      else brackets['Below 60']++;
-    });
-
-    return brackets;
-  }
-
-  async getPassFailRates() {
-    const courseGrades = await this.prisma.grade.findMany({
-      select: {
-        finalGrade: true,
-        enrollment: {
-          select: {
-            course: {
-              select: {
-                id: true,
-                code: true,
-                title: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const courseStatsMap = new Map<
-      string,
-      { code: string; title: string; pass: number; fail: number }
-    >();
-
-    courseGrades.forEach((g) => {
-      const course = g.enrollment?.course;
-      if (!course) return;
-      if (!courseStatsMap.has(course.id)) {
-        courseStatsMap.set(course.id, {
-          code: course.code,
-          title: course.title,
-          pass: 0,
-          fail: 0,
-        });
-      }
-      const stat = courseStatsMap.get(course.id)!;
-      if (g.finalGrade === null || g.finalGrade === undefined) return;
-      if (g.finalGrade >= AnalyticsService.PASSING_THRESHOLD) {
-        stat.pass++;
-      } else {
-        stat.fail++;
-      }
-    });
-
-    return Array.from(courseStatsMap.values());
   }
 
   async getRequestVolume() {
@@ -127,68 +63,74 @@ export class AnalyticsService {
     });
 
     const escalatedCount = await this.prisma.escalationQueue.count();
-    const escalationRate = totalLogs > 0 ? escalatedCount / totalLogs : 0.0;
+    const escalationRate = totalLogs > 0 ? escalatedCount / totalLogs : null;
 
     return {
       totalLogs,
       escalatedCount,
-      escalationRate,
+      // ChatLog and EscalationQueue have no common attribution key here.
+      escalationRate: null,
       intentDistribution: intentStats.map((stat) => ({
         intent: stat.intent || 'unknown',
         count: stat._count.id,
-        avgConfidence: stat._avg.confidence || 0.0,
+        avgConfidence: stat._avg.confidence === null
+          ? null
+          : Number(stat._avg.confidence.toFixed(2)),
       })),
     };
   }
 
   async getMonthlyExecutiveReport() {
-    const totalInquiries = await this.prisma.chatLog.count();
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const period = { gte: periodStart, lt: periodEnd };
+    const totalInquiries = await this.prisma.chatLog.count({ where: { createdAt: period } });
     const intentStats = await this.prisma.chatLog.groupBy({
       by: ['intent'],
       _count: { id: true },
       _avg: { confidence: true },
+      where: { createdAt: period },
     });
-    const escalatedCount = await this.prisma.escalationQueue.count();
-    const documentRequestsCount = await this.prisma.documentRequest.count();
+    const [escalatedCount, escalationsResolved, pendingEscalations, documentRequestsCount] = await Promise.all([
+      this.prisma.escalationQueue.count({ where: { createdAt: period } }),
+      this.prisma.escalationQueue.count({ where: { createdAt: period, status: { not: 'pending' } } }),
+      this.prisma.escalationQueue.count({ where: { createdAt: period, status: 'pending' } }),
+      this.prisma.documentRequest.count({ where: { createdAt: period } }),
+    ]);
     const totalEnrolled = await this.prisma.studentProfile.count();
 
     const topInquiries = intentStats
       .map((stat) => ({
         topic: stat.intent || 'General Institutional Query',
         inquiryCount: stat._count.id,
-        confidence: Number((stat._avg.confidence || 0.92).toFixed(2)),
+        confidence: stat._avg.confidence === null ? null : Number(stat._avg.confidence.toFixed(2)),
       }))
       .sort((a, b) => b.inquiryCount - a.inquiryCount);
 
     return {
-      reportingOfficer: 'Doc Chad (Executive Dean Review)',
-      reportPeriod: 'Monthly Administrative & Academic Advisory Report',
-      generatedAt: new Date().toISOString(),
+      reportPeriod: { start: periodStart.toISOString(), endExclusive: periodEnd.toISOString() },
+      generatedAt: now.toISOString(),
       summary: {
         totalStudentInquiries: totalInquiries,
-        totalEnrolledStudents: totalEnrolled,
+        totalStudentProfiles: totalEnrolled,
         totalDocumentRequests: documentRequestsCount,
-        escalationsResolved: Math.max(0, escalatedCount - 1),
-        pendingEscalations: Math.min(1, escalatedCount),
-        inquiryResolutionRate: totalInquiries > 0 ? Number(((1 - escalatedCount / totalInquiries) * 100).toFixed(1)) : 100,
+        escalationsCreated: escalatedCount,
+        escalationsResolved,
+        pendingEscalations,
+        escalationResolutionRate: escalatedCount > 0
+          ? Number(((escalationsResolved / escalatedCount) * 100).toFixed(1))
+          : null,
       },
       topStudentConcerns: topInquiries.slice(0, 5),
-      departmentWorkload: [
-        { department: 'Registrar (Miss Rose & Sir Christian)', primaryTasks: 'TOR Evaluation, CHED Serial Numbers, SO Endorsements', status: 'Operational' },
-        { department: 'Treasury / Finance', primaryTasks: 'Down Payment Settlements, Final Exam Balance Clearances', status: 'Operational' },
-        { department: 'Admission & Records', primaryTasks: 'Transferee Credentials Validation, Subject Enlistment', status: 'Operational' },
-      ],
-      operationalHighlights: [
-        'Undergraduates automatically restricted to "TOR for Employment Purposes Only" per CHED compliance.',
-        'Late enrollment academic risk waivers tracked systematically.',
-        'Treasury clearance prerequisite prevents unauthorized subject enrollment with unpaid balances.',
-      ],
     };
   }
 
 
   async exportEnrollmentExcel(): Promise<Buffer> {
-    const students = await this.prisma.studentProfile.findMany({
+    const [summary, students] = await Promise.all([
+      this.getEnrollmentStats(),
+      this.prisma.studentProfile.findMany({
       include: {
         user: {
           select: {
@@ -204,10 +146,23 @@ export class AnalyticsService {
           },
         },
       },
-    });
+      }),
+    ]);
 
     const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Enrollment Report');
+    const summarySheet = workbook.addWorksheet('Program Summary');
+    summarySheet.columns = [
+      { header: 'Program', key: 'programName', width: 36 },
+      { header: 'Student Profiles', key: 'count', width: 20 },
+    ];
+    summary.data.forEach((program) => {
+      summarySheet.addRow({ programName: program.programName, count: program.count });
+    });
+    summarySheet.addRow({ programName: 'Total Student Profiles', count: summary.totalEnrolled });
+    summarySheet.getRow(1).font = { bold: true };
+    summarySheet.getRow(summarySheet.rowCount).font = { bold: true };
+
+    const worksheet = workbook.addWorksheet('Student Details');
 
     worksheet.columns = [
       { header: 'Student Number', key: 'studentNumber', width: 20 },
@@ -239,34 +194,7 @@ export class AnalyticsService {
   }
 
   async exportGradesPdf(studentId: string): Promise<Buffer> {
-    const student = await this.prisma.studentProfile.findUnique({
-      where: { id: studentId },
-      include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-        program: {
-          select: {
-            name: true,
-            code: true,
-          },
-        },
-        enrollments: {
-          include: {
-            course: true,
-            grade: true,
-          },
-        },
-      },
-    });
-
-    if (!student) {
-      throw new NotFoundException(`Student profile with ID ${studentId} not found`);
-    }
+    const student = await this.getGradeReportStudent(studentId);
 
     return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
@@ -336,32 +264,54 @@ export class AnalyticsService {
         const grade = enrollment.grade;
         doc.text(enrollment.course.code, 50, y);
         doc.text(enrollment.course.title.substring(0, 32), 140, y);
-        doc.text(
-          grade?.prelim !== null && grade?.prelim !== undefined ? String(grade?.prelim) : 'N/A',
-          330,
-          y,
-        );
-        doc.text(
-          grade?.midterm !== null && grade?.midterm !== undefined ? String(grade?.midterm) : 'N/A',
-          380,
-          y,
-        );
-        doc.text(
-          grade?.finals !== null && grade?.finals !== undefined ? String(grade?.finals) : 'N/A',
-          430,
-          y,
-        );
-        doc.text(
-          grade?.finalGrade !== null && grade?.finalGrade !== undefined
-            ? String(grade?.finalGrade)
-            : 'N/A',
-          485,
-          y,
-        );
+        doc.text(grade?.prelim !== null && grade?.prelim !== undefined ? String(grade.prelim) : 'N/A', 330, y);
+        doc.text(grade?.midterm !== null && grade?.midterm !== undefined ? String(grade.midterm) : 'N/A', 380, y);
+        doc.text(grade?.finals !== null && grade?.finals !== undefined ? String(grade.finals) : 'N/A', 430, y);
+        doc.text(grade?.finalGrade !== null && grade?.finalGrade !== undefined ? String(grade.finalGrade) : 'N/A', 485, y);
         y += 18;
       });
 
       doc.end();
     });
+  }
+
+  async getGradeReportStudent(studentId: string) {
+    const student = await this.prisma.studentProfile.findUnique({
+      where: { id: studentId },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        program: {
+          select: {
+            name: true,
+            code: true,
+          },
+        },
+        enrollments: {
+          include: {
+            course: true,
+            grade: true,
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      throw new NotFoundException(`Student profile with ID ${studentId} not found`);
+    }
+    return {
+      ...student,
+      enrollments: student.enrollments.map((enrollment) => ({
+        ...enrollment,
+        // The dashboard aggregates only published grades. Hide unpublished
+        // values in the export while retaining an N/A row for the enrollment.
+        grade: enrollment.grade?.isVisible ? enrollment.grade : null,
+      })),
+    };
   }
 }

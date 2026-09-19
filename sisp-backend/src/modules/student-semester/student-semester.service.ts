@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FinanceService } from '../finance/finance.service';
 import { CreateStudentSemesterDto, UpdateStudentSemesterDto } from './dto/create-student-semester.dto';
 
 @Injectable()
 export class StudentSemesterService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly financeService: FinanceService,
+  ) {}
 
   async create(dto: CreateStudentSemesterDto) {
     // Verify student exists
@@ -68,6 +72,10 @@ export class StudentSemesterService {
       },
     });
 
+    // Keep the derived balance explainable from obligations + payments
+    // (P6-02): obligation changes recalculate the account balance.
+    await this.financeService.recalculateBalance(record.studentId);
+
     return {
       message: 'Student semester record created successfully',
       data: record,
@@ -101,6 +109,9 @@ export class StudentSemesterService {
         },
       },
     });
+
+    // Balance stays derivable from obligations + verified payments (P6-02).
+    await this.financeService.recalculateBalance(existing.studentId);
 
     return {
       message: `Student semester record marked as ${dto.isFullyPaid ? 'fully paid' : 'not fully paid'}`,

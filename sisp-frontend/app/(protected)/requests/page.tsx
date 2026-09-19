@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRequestStore } from '@/stores/requestStore';
 import { Navbar } from '@/components/shared/Navbar';
 import { RequestStatusTracker } from '@/components/shared/RequestStatusTracker';
@@ -28,64 +28,8 @@ import {
 import { toast } from 'sonner';
 import { requestsApi, DocumentCatalogItem, PaymentChannels } from '@/lib/api/requests';
 
-const DOCUMENT_TYPES = [
-  {
-    value: 'transcript_of_records_undergrad',
-    label: 'TOR (Undergraduate - Employment Purposes Only)',
-    fee: 500,
-    feeNote: 'per page',
-    tat: '3-4 weeks',
-    staff: 'Miss Rose',
-    undergradOnly: true,
-  },
-  {
-    value: 'transcript_of_records',
-    label: 'Official TOR (Graduates / Alumni)',
-    fee: 500,
-    feeNote: 'per page',
-    tat: '3-4 weeks',
-    staff: 'Miss Rose',
-    graduateOnly: true,
-  },
-  {
-    value: 'certificate_of_enrollment',
-    label: 'Certificate of Enrollment (COE)',
-    fee: 300,
-    tat: '2-3 days',
-    staff: 'Sir Christian',
-  },
-  {
-    value: 'certified_true_copy_cor',
-    label: 'Certified True Copy – COR',
-    fee: 300,
-    tat: '2-3 days',
-    staff: 'Sir Christian',
-  },
-  {
-    value: 'certificate_of_good_moral',
-    label: 'Certificate of Good Moral Character',
-    fee: 500,
-    tat: '2-3 days',
-    staff: 'Records Staff',
-  },
-  {
-    value: 'copy_of_grades',
-    label: '2nd Copy of Copy of Grades',
-    fee: 150,
-    tat: '2-3 days',
-    staff: 'Miss Rose',
-  },
-  {
-    value: 'certified_true_copy_grades',
-    label: 'Certified True Copy – Copy of Grades',
-    fee: 300,
-    tat: '3-5 days',
-    staff: 'Miss Rose',
-  },
-];
-
 export default function RequestsPage() {
-  const { requests, isLoading, isSubmitting, fetchRequests, submitRequest } =
+  const { requests, isLoading, isSubmitting, error: requestsError, fetchRequests, submitRequest } =
     useRequestStore();
   const [showForm, setShowForm] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
@@ -109,38 +53,50 @@ export default function RequestsPage() {
       undergradOnly?: boolean;
       graduateOnly?: boolean;
     }>
-  >(DOCUMENT_TYPES);
+  >([]);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+
+  const loadCatalog = useCallback(async () => {
+    setCatalogLoading(true);
+    setCatalogError(null);
+    try {
+      const fees = await requestsApi.getFees();
+      const mapped = (Array.isArray(fees) ? fees : []).map((item: any) => ({
+        value: item.code || item.type,
+        label: item.label,
+        fee: Number(item.fee),
+        feeNote: item.feeNote || undefined,
+        tat: item.tat || undefined,
+        staff: item.assignedTo || undefined,
+        undergradOnly: (item.code || item.type) === 'transcript_of_records_undergrad',
+        graduateOnly: (item.code || item.type) === 'transcript_of_records',
+      }));
+      setCatalogItems(mapped);
+      if (mapped.length === 0) {
+        setCatalogError('The document catalog is currently unavailable. Please contact the Records Office.');
+      }
+    } catch {
+      setCatalogItems([]);
+      setCatalogError('We could not load the document catalog. Please try again.');
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (requests.length === 0) void fetchRequests();
-    void (async () => {
-      try {
-        const fees = await requestsApi.getFees();
-        if (Array.isArray(fees) && fees.length > 0) {
-          const mapped = fees.map((item: any) => ({
-            value: item.code || item.type,
-            label: item.label,
-            fee: Number(item.fee),
-            feeNote: item.feeNote || 'copy',
-            tat: item.tat || '2-3 days',
-            staff: item.assignedTo || 'Records Staff',
-            undergradOnly: (item.code || item.type) === 'transcript_of_records_undergrad',
-            graduateOnly: (item.code || item.type) === 'transcript_of_records',
-          }));
-          setCatalogItems(mapped);
-        }
-      } catch (e) {
-        console.warn('Using default document catalog fallback:', e);
-      }
-    })();
-  }, [requests.length, fetchRequests]);
+    void loadCatalog();
+  }, [requests.length, fetchRequests, loadCatalog]);
 
   useEffect(() => {
     void (async () => {
       try {
         setPaymentChannels(await requestsApi.getPaymentChannels());
       } catch {
-        console.warn('Using built-in payment channels fallback');
+        // Leave channels unset; the UI then directs the student to Treasury
+        // instead of showing unverified fallback account details.
+        setPaymentChannels(null);
       }
     })();
   }, []);
@@ -246,13 +202,26 @@ export default function RequestsPage() {
             <CardHeader>
               <CardTitle className="text-base">Submit New Request</CardTitle>
               <CardDescription>
-                Processing takes 3 to 5 business days after payment confirmation.
+                Request and payment status will appear in your portal after submission. Check the catalog for any available document details.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <fieldset disabled={isSubmitting} className="space-y-2">
                 <legend className="text-sm font-semibold text-[#102f49]">Choose documents</legend>
                 <p className="text-xs text-[#587387]">Select one or more document types, then set the quantity for each.</p>
+                {catalogLoading ? (
+                  <div className="portal-skeleton h-24 w-full" />
+                ) : catalogError || catalogItems.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+                    <AlertCircle className="size-6 text-amber-600" />
+                    <p className="text-sm font-medium text-amber-800">
+                      {catalogError ?? 'No documents are available.'}
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => void loadCatalog()}>
+                      Retry catalog
+                    </Button>
+                  </div>
+                ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
                   {catalogItems.map((type) => {
                     const quantity = selectedItems[type.value] ?? 0;
@@ -275,9 +244,9 @@ export default function RequestsPage() {
                         <label htmlFor={`document-${type.value}`} className="min-w-0 flex-1 cursor-pointer">
                           <span className="block text-sm font-medium text-[#102f49]">{type.label}</span>
                           <span className="flex items-center gap-2 text-xs text-[#587387]">
-                            <span>₱{type.fee.toFixed(2)} / {('feeNote' in type && type.feeNote) || 'copy'}</span>
-                            <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">TAT: {type.tat}</span>
-                            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">In-Charge: {type.staff}</span>
+                            <span>₱{type.fee.toFixed(2)}{type.feeNote ? ` / ${type.feeNote}` : ''}</span>
+                            {type.tat ? <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">TAT: {type.tat}</span> : null}
+                            {type.staff ? <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">Office: {type.staff}</span> : null}
                           </span>
                         </label>
                         <input
@@ -299,6 +268,7 @@ export default function RequestsPage() {
                     );
                   })}
                 </div>
+                )}
               </fieldset>
 
               {/* Third Party Authorization Checklist (Regis Marie College Records Rule) */}
@@ -349,7 +319,7 @@ export default function RequestsPage() {
                   <div>
                     <p className="text-xs font-semibold text-amber-800">Payment Required</p>
                     <p className="text-xs text-amber-700">
-                      {selectedCount} document type{selectedCount === 1 ? '' : 's'} · Estimated total: ₱{estimatedTotal.toFixed(2)}. A payment reference and QR code will be issued after submission.
+                      {selectedCount} document type{selectedCount === 1 ? '' : 's'} · Estimated total: ₱{estimatedTotal.toFixed(2)}. A payment reference will be issued after submission; pay through the official channels below.
                     </p>
                   </div>
                 </div>
@@ -428,6 +398,14 @@ export default function RequestsPage() {
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+        ) : requestsError ? (
+          <Card className="portal-surface" role="alert">
+            <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+              <AlertCircle className="size-8 text-[#b42318]" />
+              <p className="text-sm text-[#b42318]">{requestsError}</p>
+              <Button size="sm" variant="outline" onClick={() => void fetchRequests()}>Retry</Button>
+            </CardContent>
+          </Card>
         ) : requests.length === 0 ? (
           <Card className="portal-surface">
             <CardContent className="py-16 text-center text-muted-foreground">
@@ -515,59 +493,68 @@ export default function RequestsPage() {
                           </code>
                         </p>
 
-                        {/* Official Treasury online channels */}
+                        {/* Official Treasury online channels (deployment-configured) */}
                         <div className="rounded-lg border border-amber-200 bg-white p-3 space-y-2">
-                          <p className="text-xs font-bold text-amber-800">
-                            Pay via GCash or PNB, then submit your proof below
-                          </p>
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            <div className="rounded-lg bg-slate-50 p-2.5 text-xs">
-                              <p className="font-bold text-[#102f49]">
-                                {paymentChannels?.gcash.label ?? 'GCash'}
+                          {paymentChannels?.configured ? (
+                            <>
+                              <p className="text-xs font-bold text-amber-800">
+                                Pay through an official channel, then submit your proof below
                               </p>
-                              <p className="mt-1 flex items-center gap-1.5 font-mono font-semibold text-[#102f49]">
-                                {paymentChannels?.gcash.number ?? '0919 911 8050'}
-                                <button
-                                  type="button"
-                                  onClick={() => void copyText(paymentChannels?.gcash.number ?? '0919 911 8050', 'GCash number')}
-                                  className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                                  aria-label="Copy GCash number"
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </button>
-                              </p>
-                              <p className="text-[11px] text-slate-500">
-                                {paymentChannels?.gcash.accountName ?? 'Richard H.'}
-                              </p>
-                              {paymentChannels?.gcash.note ? (
-                                <p className="mt-1 text-[10px] leading-relaxed text-amber-700">
-                                  {paymentChannels.gcash.note}
-                                </p>
-                              ) : null}
-                            </div>
-                            <div className="rounded-lg bg-slate-50 p-2.5 text-xs">
-                              <p className="font-bold text-[#102f49]">
-                                {paymentChannels?.pnb.label ?? 'PNB Bank Transfer / Deposit'}
-                              </p>
-                              <p className="mt-1 text-[11px] text-slate-600">
-                                {paymentChannels?.pnb.accountName ?? 'REGIS MARIE COLLEGE INC.'}
-                              </p>
-                              <p className="flex items-center gap-1.5 font-mono font-semibold text-[#102f49]">
-                                {paymentChannels?.pnb.accountNumber ?? '149110075280'}
-                                <button
-                                  type="button"
-                                  onClick={() => void copyText(paymentChannels?.pnb.accountNumber ?? '149110075280', 'PNB account number')}
-                                  className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                                  aria-label="Copy PNB account number"
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </button>
-                              </p>
-                            </div>
-                          </div>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                {paymentChannels.gcash?.number ? (
+                                  <div className="rounded-lg bg-slate-50 p-2.5 text-xs">
+                                    <p className="font-bold text-[#102f49]">{paymentChannels.gcash.label}</p>
+                                    <p className="mt-1 flex items-center gap-1.5 font-mono font-semibold text-[#102f49]">
+                                      {paymentChannels.gcash.number}
+                                      <button
+                                        type="button"
+                                        onClick={() => void copyText(paymentChannels.gcash!.number!, 'GCash number')}
+                                        className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                        aria-label="Copy GCash number"
+                                      >
+                                        <Copy className="h-3.5 w-3.5" />
+                                      </button>
+                                    </p>
+                                    {paymentChannels.gcash.accountName ? (
+                                      <p className="text-[11px] text-slate-500">{paymentChannels.gcash.accountName}</p>
+                                    ) : null}
+                                    {paymentChannels.gcash.note ? (
+                                      <p className="mt-1 text-[10px] leading-relaxed text-amber-700">
+                                        {paymentChannels.gcash.note}
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                ) : null}
+                                {paymentChannels.pnb?.accountNumber ? (
+                                  <div className="rounded-lg bg-slate-50 p-2.5 text-xs">
+                                    <p className="font-bold text-[#102f49]">{paymentChannels.pnb.label}</p>
+                                    {paymentChannels.pnb.accountName ? (
+                                      <p className="mt-1 text-[11px] text-slate-600">{paymentChannels.pnb.accountName}</p>
+                                    ) : null}
+                                    <p className="flex items-center gap-1.5 font-mono font-semibold text-[#102f49]">
+                                      {paymentChannels.pnb.accountNumber}
+                                      <button
+                                        type="button"
+                                        onClick={() => void copyText(paymentChannels.pnb!.accountNumber!, 'PNB account number')}
+                                        className="rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                                        aria-label="Copy PNB account number"
+                                      >
+                                        <Copy className="h-3.5 w-3.5" />
+                                      </button>
+                                    </p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-xs font-semibold text-amber-800">
+                              {paymentChannels?.instruction ??
+                                'Online payment channels are not configured yet. Please contact the Treasury Office for official payment instructions.'}
+                            </p>
+                          )}
                           <p className="text-[10px] leading-relaxed text-amber-700">
-                            {paymentChannels?.proofRecipient.instruction ??
-                              'Always send your proof of payment to Ms. Arlyne Punzalan of the Treasury Office after completing your transaction.'}
+                            {paymentChannels?.proofRecipient?.instruction ??
+                              'Submit your proof of payment after completing the transaction; the Treasury Office will verify it.'}
                           </p>
                         </div>
 

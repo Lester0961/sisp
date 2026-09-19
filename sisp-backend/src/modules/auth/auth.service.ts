@@ -11,11 +11,6 @@ import { MfaService } from './mfa.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
-import {
-  DEFAULT_LOCAL_DEMO_PASSWORD,
-  DEFAULT_LOCAL_DEMO_PASSWORD_ALIASES,
-  LOCAL_DEMO_FIXTURE_IDS,
-} from '../../common/constants/local-demo-fixtures';
 
 @Injectable()
 export class AuthService {
@@ -32,7 +27,7 @@ export class AuthService {
     );
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ipAddress?: string) {
     // Find user by email
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -40,48 +35,28 @@ export class AuthService {
     });
 
     if (!user) {
+      await this.recordLoginAudit(null, 'LOGIN_FAILURE', ipAddress);
       throw new UnauthorizedException('Invalid email or password');
     }
 
     if (!user.isActive) {
+      await this.recordLoginAudit(user, 'LOGIN_FAILURE', ipAddress);
       throw new UnauthorizedException('Account is disabled');
     }
 
-    // Verify password
-    let isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    const isLocalDevelopment =
-      this.configService.get<string>('NODE_ENV')?.trim().toLowerCase() !== 'production';
-    if (!isPasswordValid && isLocalDevelopment && LOCAL_DEMO_FIXTURE_IDS.has(user.id)) {
-      const configuredPassword =
-        this.configService.get<string>('LOCAL_DEMO_PASSWORD')?.trim() || DEFAULT_LOCAL_DEMO_PASSWORD;
-      const configuredAliases = (
-        this.configService.get<string>('LOCAL_DEMO_PASSWORD_ALIASES') ||
-        DEFAULT_LOCAL_DEMO_PASSWORD_ALIASES.join(',')
-      )
-        .split(',')
-        .map((password) => password.trim())
-        .filter(Boolean);
-      isPasswordValid = dto.password === configuredPassword || configuredAliases.includes(dto.password);
-    }
-
+    // Verify password against the stored bcrypt hash. No account, email,
+    // role, or environment receives a credential bypass.
+    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) {
-      // Force bypass for sysadmin demo account
-      if (dto.email === 'sysadmin@rmc.edu.ph' && dto.password === 'local-demo-only') {
-        isPasswordValid = true;
-      } else {
-        throw new UnauthorizedException('Invalid email or password');
-      }
+      await this.recordLoginAudit(user, 'LOGIN_FAILURE', ipAddress);
+      throw new UnauthorizedException('Invalid email or password');
     }
 
-    let requiresMfa =
+    const requiresMfa =
       this.configService.get<string>('MFA_ENABLED')?.trim().toLowerCase() === 'true';
-
-    // Force bypass MFA for sysadmin demo account
-    if (user.email === 'sysadmin@rmc.edu.ph') {
-      requiresMfa = false;
-    }
     if (!requiresMfa) {
       const tokens = await this.generateTokens(user.id, user.email, user.role.name);
+      await this.recordLoginAudit(user, 'LOGIN_SUCCESS', ipAddress);
       return {
         message: 'Login successful',
         user: {
@@ -123,23 +98,34 @@ export class AuthService {
   /**
    * Verify the MFA OTP code and issue full JWT tokens on success.
    */
-  async verifyMfa(mfaToken: string, otpCode: string) {
+  async verifyMfa(mfaToken: string, otpCode: string, ipAddress?: string) {
     let payload: any;
     try {
       payload = this.jwtService.verify(mfaToken, {
         secret: this.getRequiredSecret('JWT_SECRET'),
       });
     } catch {
+      await this.recordLoginAudit(null, 'LOGIN_FAILURE', ipAddress);
       throw new UnauthorizedException('Invalid or expired MFA token');
     }
 
     if (payload.purpose !== 'mfa') {
+      await this.recordLoginAudit(null, 'LOGIN_FAILURE', ipAddress);
       throw new UnauthorizedException('Invalid token type for MFA verification');
     }
 
     // Verify OTP
     const isValid = this.mfaService.verifyOtp(payload.sub, otpCode);
     if (!isValid) {
+      await this.recordLoginAudit(
+        {
+          id: typeof payload.sub === 'string' ? payload.sub : null,
+          email: typeof payload.email === 'string' ? payload.email : null,
+          role: { name: typeof payload.role === 'string' ? payload.role : null },
+        },
+        'LOGIN_FAILURE',
+        ipAddress,
+      );
       throw new UnauthorizedException('Invalid or expired OTP code');
     }
 
@@ -150,11 +136,13 @@ export class AuthService {
     });
 
     if (!user || !user.isActive) {
+      await this.recordLoginAudit(user, 'LOGIN_FAILURE', ipAddress);
       throw new UnauthorizedException('User not found or inactive');
     }
 
     // Generate full JWT tokens
     const tokens = await this.generateTokens(user.id, user.email, user.role.name);
+    await this.recordLoginAudit(user, 'LOGIN_SUCCESS', ipAddress);
 
     return {
       message: 'Login successful',
@@ -166,6 +154,29 @@ export class AuthService {
       },
       ...tokens,
     };
+  }
+
+  private async recordLoginAudit(
+    user: { id?: string | null; email?: string | null; role?: { name?: string | null } | null } | null,
+    action: 'LOGIN_SUCCESS' | 'LOGIN_FAILURE',
+    ipAddress?: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: user?.id ?? null,
+          actorEmail: user?.email ?? null,
+          actorRole: user?.role?.name ?? null,
+          action,
+          resource: 'auth',
+          resourceId: null,
+          ipAddress: ipAddress?.slice(0, 64) ?? null,
+        },
+      });
+    } catch {
+      // Keep authentication behavior independent of best-effort audit storage.
+      console.error('[AuthAudit] Failed to write login audit event');
+    }
   }
 
   async refresh(refreshToken: string) {

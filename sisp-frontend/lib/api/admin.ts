@@ -42,14 +42,6 @@ export const adminApi = {
     return response.data;
   },
 
-  approveException: async (exceptionId: string, decision: 'approved' | 'rejected') => {
-    const response = await apiClient.post('/admin/dean/approve-exception', {
-      exceptionId,
-      decision,
-    });
-    return response.data;
-  },
-
   createUser: async (data: {
     email: string;
     firstName: string;
@@ -57,8 +49,7 @@ export const adminApi = {
     roleName: string;
     studentNumber?: string;
     programId?: string;
-    temporaryPassword?: string;
-  }): Promise<{ message: string; user: UserProfile; temporaryPassword?: string }> => {
+  }): Promise<{ message: string; user: UserProfile; temporaryPassword: string }> => {
     const response = await apiClient.post('/admin/users/create', data);
     return response.data;
   },

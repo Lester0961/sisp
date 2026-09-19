@@ -4,6 +4,7 @@ import { CreateGradeDto } from './dto/create-grade.dto';
 import { UpdateGradeDto } from './dto/update-grade.dto';
 import { BulkGradeDto } from './dto/bulk-grade.dto';
 import { requireStudentProfile } from '../../common/utils/require-student-profile';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const GRADE_STATUS_TRANSITIONS: Record<string, string[]> = {
   draft: ['submitted'],
@@ -15,7 +16,10 @@ const GRADE_STATUS_TRANSITIONS: Record<string, string[]> = {
 
 @Injectable()
 export class GradesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   // Compute final grade from components
   private computeFinalGrade(
@@ -275,7 +279,7 @@ export class GradesService {
             course: { select: { code: true, title: true } },
             student: {
               include: {
-                user: { select: { email: true, firstName: true, lastName: true } },
+                user: { select: { id: true, email: true, firstName: true, lastName: true } },
               },
             },
           },
@@ -285,6 +289,12 @@ export class GradesService {
         approvedBy: { select: { firstName: true, lastName: true, email: true } },
       },
     });
+
+    await this.notificationsService.sendToUser(
+      updated.enrollment.student.user.id,
+      'Grade Published',
+      'A grade has been published to your student record.',
+    );
 
     return {
       message: 'Grade published by the registrar',
@@ -342,7 +352,7 @@ export class GradesService {
             course: { select: { code: true, title: true, units: true } },
             student: {
               include: {
-                user: { select: { email: true, firstName: true, lastName: true } },
+                user: { select: { id: true, email: true, firstName: true, lastName: true } },
               },
             },
           },
@@ -496,7 +506,7 @@ export class GradesService {
             course: { select: { code: true, title: true, units: true } },
             student: {
               include: {
-                user: { select: { email: true, firstName: true, lastName: true } },
+                user: { select: { id: true, email: true, firstName: true, lastName: true } },
               },
             },
           },
@@ -536,7 +546,7 @@ export class GradesService {
             course: { select: { code: true, title: true, units: true } },
             student: {
               include: {
-                user: { select: { email: true, firstName: true, lastName: true } },
+                user: { select: { id: true, email: true, firstName: true, lastName: true } },
               },
             },
           },
@@ -558,6 +568,7 @@ export class GradesService {
   async toggleVisibility(id: string, isVisible: boolean) {
     const existing = await this.prisma.grade.findUnique({
       where: { id },
+      include: { enrollment: { include: { student: { select: { userId: true } } } } },
     });
 
     if (!existing) {
@@ -568,6 +579,14 @@ export class GradesService {
       where: { id },
       data: { isVisible },
     });
+
+    if (existing.isVisible !== isVisible && existing.enrollment?.student?.userId) {
+      await this.notificationsService.sendToUser(
+        existing.enrollment.student.userId,
+        'Grade Visibility Updated',
+        'Your grade visibility was updated. Visit Grades for current availability.',
+      );
+    }
 
     return {
       message: `Grade ${isVisible ? 'published' : 'hidden'} successfully`,

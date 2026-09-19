@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateStudentProfileDto } from './dto/create-student-profile.dto';
@@ -309,7 +310,12 @@ export class StudentsService {
     };
   }
 
-  async activateAccount(studentNumber: string, dobStr: string, email: string) {
+  async activateAccount(
+    studentNumber: string,
+    dobStr: string,
+    email: string,
+    newPassword: string,
+  ) {
     // Locate student by studentNumber
     const profile = await this.prisma.studentProfile.findUnique({
       where: { studentNumber },
@@ -325,23 +331,37 @@ export class StudentsService {
       );
     }
 
-    // Verify date of birth matching admission record or user
-    if (profile.admissionApplication) {
-      const appDob = new Date(profile.admissionApplication.dob).toISOString().slice(0, 10);
-      const reqDob = new Date(dobStr).toISOString().slice(0, 10);
-      if (appDob !== reqDob) {
-        throw new BadRequestException('Identity verification failed. Date of birth does not match institutional records.');
-      }
+    // Identity verification always requires the institutional admission
+    // record. Without one, activation cannot be verified and must be handled
+    // by the Registrar (no invented proof rules).
+    const admission = profile.admissionApplication;
+    if (!admission) {
+      throw new ForbiddenException(
+        'No Registrar-verified admission record is on file for this student number. Please contact the Registrar to activate your account.',
+      );
+    }
+
+    const parsedDob = new Date(`${dobStr}T00:00:00.000Z`);
+    if (Number.isNaN(parsedDob.getTime())) {
+      throw new BadRequestException('Please provide a valid date of birth.');
+    }
+    const appDob = new Date(admission.dob).toISOString().slice(0, 10);
+    if (appDob !== dobStr) {
+      throw new BadRequestException(
+        'Identity verification failed. Date of birth does not match institutional records.',
+      );
     }
 
     // Check if account already claimed/activated
     if (profile.user && !profile.user.mustChangePassword && profile.user.isActive) {
-      throw new ConflictException('This student account has already been claimed and activated. Please log in directly.');
+      throw new ConflictException(
+        'This student account has already been claimed and activated. Please log in directly.',
+      );
     }
 
-    // Generate activation password
-    const temporaryPassword = process.env.LOCAL_DEMO_PASSWORD || 'RmcActivate2026!';
-    const passwordHash = await bcrypt.hash(temporaryPassword, 10);
+    // The student sets their own password; no temporary or hard-coded
+    // password is generated, stored in plaintext, or returned.
+    const passwordHash = await bcrypt.hash(newPassword, 12);
 
     // Link or update user email
     try {
@@ -350,7 +370,7 @@ export class StudentsService {
         data: {
           email,
           passwordHash,
-          mustChangePassword: true,
+          mustChangePassword: false,
           isActive: true,
         },
       });
@@ -365,8 +385,7 @@ export class StudentsService {
       message: 'Student account successfully verified and activated!',
       studentNumber: profile.studentNumber,
       email,
-      temporaryPassword,
-      instructions: 'Log in with your email and temporary password. You will be required to update your password immediately.',
+      instructions: 'Log in with your email and the password you just set.',
     };
   }
 }

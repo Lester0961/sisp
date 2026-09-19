@@ -5,6 +5,8 @@ import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 async function bootstrap() {
+  // Required environment variables are validated by ConfigModule (P1-06)
+  // as soon as AppModule initializes, before any request handling.
   const app = await NestFactory.create(AppModule);
 
   // Global prefix for all routes

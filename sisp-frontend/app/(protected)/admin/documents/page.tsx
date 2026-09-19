@@ -47,6 +47,7 @@ export default function AdminDocumentsPage() {
   useAuth();
   const [catalog, setCatalog] = useState<DocumentCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
 
@@ -63,21 +64,23 @@ export default function AdminDocumentsPage() {
   const [formData, setFormData] = useState({
     code: '',
     label: '',
-    fee: 300,
-    feeNote: 'copy',
-    tat: '2-3 business days',
-    assignedTo: 'Records Staff',
+    fee: '',
+    feeNote: '',
+    tat: '',
+    assignedTo: '',
     sortOrder: 10,
     isActive: true,
   });
 
   const loadCatalog = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await requestsApi.getCatalog(true);
       setCatalog(data || []);
     } catch (err: any) {
       console.error('Failed to load document catalog:', err);
+      setLoadError('The document catalog could not be loaded. Please try again.');
       toast.error('Unable to fetch document catalog.');
     } finally {
       setLoading(false);
@@ -108,10 +111,10 @@ export default function AdminDocumentsPage() {
     setFormData({
       code: '',
       label: '',
-      fee: 300,
-      feeNote: 'copy',
-      tat: '2-3 business days',
-      assignedTo: 'Records Staff',
+      fee: '',
+      feeNote: '',
+      tat: '',
+      assignedTo: '',
       sortOrder: nextSort,
       isActive: true,
     });
@@ -123,10 +126,10 @@ export default function AdminDocumentsPage() {
     setFormData({
       code: item.code,
       label: item.label,
-      fee: item.fee,
-      feeNote: item.feeNote || 'copy',
-      tat: item.tat || '2-3 business days',
-      assignedTo: item.assignedTo || 'Records Staff',
+      fee: String(item.fee),
+      feeNote: item.feeNote || '',
+      tat: item.tat || '',
+      assignedTo: item.assignedTo || '',
       sortOrder: item.sortOrder ?? 10,
       isActive: item.isActive,
     });
@@ -144,15 +147,20 @@ export default function AdminDocumentsPage() {
       toast.error('Code and Document Name are required');
       return;
     }
+    const fee = Number(formData.fee);
+    if (!formData.fee.trim() || !Number.isFinite(fee) || fee < 0) {
+      toast.error('Enter an institution-approved fee, including 0 when the document is free.');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: CreateCatalogItemPayload = {
         code: formData.code.trim().toLowerCase().replace(/\s+/g, '_'),
         label: formData.label.trim(),
-        fee: Number(formData.fee) || 0,
-        feeNote: formData.feeNote.trim() || 'copy',
-        tat: formData.tat.trim() || '2-3 business days',
-        assignedTo: formData.assignedTo.trim() || 'Records Staff',
+        fee,
+        feeNote: formData.feeNote.trim() || undefined,
+        tat: formData.tat.trim() || undefined,
+        assignedTo: formData.assignedTo.trim() || undefined,
         sortOrder: Number(formData.sortOrder) || 10,
         isActive: formData.isActive,
       };
@@ -171,15 +179,20 @@ export default function AdminDocumentsPage() {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
+    const fee = Number(formData.fee);
+    if (!formData.fee.trim() || !Number.isFinite(fee) || fee < 0) {
+      toast.error('Enter an institution-approved fee, including 0 when the document is free.');
+      return;
+    }
     setSubmitting(true);
     try {
       const payload: UpdateCatalogItemPayload = {
         label: formData.label.trim(),
         code: formData.code.trim().toLowerCase().replace(/\s+/g, '_'),
-        fee: Number(formData.fee) || 0,
-        feeNote: formData.feeNote.trim() || 'copy',
-        tat: formData.tat.trim() || '2-3 business days',
-        assignedTo: formData.assignedTo.trim() || 'Records Staff',
+        fee,
+        feeNote: formData.feeNote.trim() || undefined,
+        tat: formData.tat.trim() || undefined,
+        assignedTo: formData.assignedTo.trim() || undefined,
         sortOrder: Number(formData.sortOrder) || 10,
         isActive: formData.isActive,
       };
@@ -365,6 +378,13 @@ export default function AdminDocumentsPage() {
                       Loading document catalog items...
                     </TableCell>
                   </TableRow>
+                ) : loadError ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center" role="alert">
+                      <p className="mb-3 text-sm text-rose-700">{loadError}</p>
+                      <Button size="sm" variant="outline" onClick={() => void loadCatalog()} disabled={loading}>Try again</Button>
+                    </TableCell>
+                  </TableRow>
                 ) : filteredCatalog.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12">
@@ -392,21 +412,19 @@ export default function AdminDocumentsPage() {
                           <span className="text-xs font-extrabold text-[#102f49]">
                             ₱{Number(item.fee).toFixed(2)}
                           </span>
-                          <span className="text-[10px] font-medium text-[#587387]">
-                            / {item.feeNote || 'copy'}
-                          </span>
+                          {item.feeNote ? <span className="text-[10px] font-medium text-[#587387]">/ {item.feeNote}</span> : null}
                         </div>
                       </TableCell>
                       <TableCell>
                         <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-800">
                           <Clock className="size-3 text-blue-600" />
-                          {item.tat || '3-5 business days'}
+                          {item.tat || 'Not specified'}
                         </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5 text-xs text-slate-700 font-medium">
                           <UserCheck className="size-3.5 text-slate-400" />
-                          <span>{item.assignedTo || 'Records Staff'}</span>
+                          <span>{item.assignedTo || 'Not specified'}</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-center">
@@ -516,7 +534,7 @@ export default function AdminDocumentsPage() {
                   step="1"
                   required
                   value={formData.fee}
-                  onChange={(e) => setFormData({ ...formData, fee: Number(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-3 py-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none focus:ring-2 focus:ring-[#0a439b]/10"
                 />
               </div>
@@ -530,6 +548,7 @@ export default function AdminDocumentsPage() {
                   onChange={(e) => setFormData({ ...formData, feeNote: e.target.value })}
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-2.5 py-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
                 >
+                  <option value="">Select unit (optional)</option>
                   <option value="copy">per copy</option>
                   <option value="per page">per page</option>
                   <option value="set">per set</option>
@@ -539,7 +558,7 @@ export default function AdminDocumentsPage() {
                 <label className="block font-bold text-[#102f49] mb-1">Turnaround Time (TAT)</label>
                 <input
                   type="text"
-                  placeholder="e.g. 2-3 business days"
+                  placeholder="Institution-approved turnaround time (optional)"
                   value={formData.tat}
                   onChange={(e) => setFormData({ ...formData, tat: e.target.value })}
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-3 py-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
@@ -552,7 +571,7 @@ export default function AdminDocumentsPage() {
                 <label className="block font-bold text-[#102f49] mb-1">Person In-Charge</label>
                 <input
                   type="text"
-                  placeholder="e.g. Miss Rose, Sir Christian"
+                  placeholder="Office or person assigned (optional)"
                   value={formData.assignedTo}
                   onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-3 py-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
@@ -653,7 +672,7 @@ export default function AdminDocumentsPage() {
                   step="1"
                   required
                   value={formData.fee}
-                  onChange={(e) => setFormData({ ...formData, fee: Number(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-3 py-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
                 />
               </div>
@@ -667,6 +686,7 @@ export default function AdminDocumentsPage() {
                   onChange={(e) => setFormData({ ...formData, feeNote: e.target.value })}
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-2.5 py-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
                 >
+                  <option value="">Select unit (optional)</option>
                   <option value="copy">per copy</option>
                   <option value="per page">per page</option>
                   <option value="set">per set</option>
@@ -676,7 +696,7 @@ export default function AdminDocumentsPage() {
                 <label className="block font-bold text-[#102f49] mb-1">Turnaround Time (TAT)</label>
                 <input
                   type="text"
-                  placeholder="e.g. 2-3 business days"
+                  placeholder="Institution-approved turnaround time (optional)"
                   value={formData.tat}
                   onChange={(e) => setFormData({ ...formData, tat: e.target.value })}
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-3 py-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"
@@ -689,7 +709,7 @@ export default function AdminDocumentsPage() {
                 <label className="block font-bold text-[#102f49] mb-1">Person In-Charge</label>
                 <input
                   type="text"
-                  placeholder="e.g. Miss Rose, Sir Christian"
+                  placeholder="Office or person assigned (optional)"
                   value={formData.assignedTo}
                   onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
                   className="w-full rounded-xl border border-[#cbdde9] bg-white px-3 py-2 text-xs text-[#102f49] focus:border-[#0a439b] focus:outline-none"

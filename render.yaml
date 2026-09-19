@@ -36,6 +36,24 @@ services:
         sync: false # Set to the deployed sisp-ml service URL
       - key: ML_SECRET_TOKEN
         sync: false # Must match the sisp-ml service secret
+      # Treasury payment channels (P6-04). Set only from official school
+      # announcements; leave unset to show the "contact Treasury" message.
+      - key: PAYMENT_CHANNEL_GCASH_NUMBER
+        sync: false
+      - key: PAYMENT_CHANNEL_GCASH_NAME
+        sync: false
+      - key: PAYMENT_CHANNEL_GCASH_NOTE
+        sync: false
+      - key: PAYMENT_CHANNEL_PNB_ACCOUNT
+        sync: false
+      - key: PAYMENT_CHANNEL_PNB_NAME
+        sync: false
+      - key: PAYMENT_PROOF_RECIPIENT_NAME
+        sync: false
+      - key: PAYMENT_PROOF_RECIPIENT_OFFICE
+        sync: false
+      - key: PAYMENT_PROOF_RECIPIENT_INSTRUCTION
+        sync: false
 
   # ARIA's hybrid NLP, retrieval, moderation, and LLM-router service.
   # Keep provider credentials in Render's encrypted environment settings;
@@ -79,5 +97,9 @@ services:
         value: "true"
       - key: ADVISORY_SUPPORTED_LANGUAGES
         value: en,fil,ceb,ilo,hil,war
+      - key: RETRIEVAL_SIMILARITY_THRESHOLD
+        value: "0.3"
+      - key: REQUIRE_PGVECTOR
+        value: "true"
       - key: ML_SECRET_TOKEN
         sync: false

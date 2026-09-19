@@ -5,16 +5,21 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateAdmissionApplicationDto,
   ReviewAdmissionApplicationDto,
   SubmitRequirementDto,
 } from './dto/admission.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AdmissionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async getRequirementDefinitions(applicantType?: string) {
     const definitions = await this.prisma.admissionRequirementDefinition.findMany({
@@ -86,6 +91,10 @@ export class AdmissionService {
     return application;
   }
 
+  /**
+   * Internal lookup. Never includes the created user account or credentials —
+   * only the student profile number, which the applicant needs.
+   */
   async getApplicationByNo(applicationNo: string) {
     const application = await this.prisma.admissionApplication.findUnique({
       where: { applicationNo },
@@ -97,7 +106,7 @@ export class AdmissionService {
           include: { definition: true },
         },
         createdStudent: {
-          include: { user: true },
+          select: { id: true, studentNumber: true },
         },
       },
     });
@@ -107,8 +116,62 @@ export class AdmissionService {
     return application;
   }
 
+  /**
+   * Public status lookup (Phase 1, P1-09). Returns only applicant-relevant
+   * fields and requires the application email as proof. Unknown application
+   * numbers and mismatched proofs return the same message so the endpoint
+   * cannot be used to enumerate applications.
+   */
+  async getPublicApplicationStatus(applicationNo: string, email: string) {
+    const application = await this.prisma.admissionApplication.findUnique({
+      where: { applicationNo },
+      include: {
+        program: { select: { id: true, code: true, name: true } },
+        requirements: {
+          select: {
+            status: true,
+            reviewNotes: true,
+            definition: {
+              select: { code: true, title: true, isRequired: true },
+            },
+          },
+        },
+        createdStudent: { select: { studentNumber: true } },
+      },
+    });
+
+    if (!application || !this.emailMatches(application.email, email)) {
+      throw new NotFoundException(`Application ${applicationNo} not found.`);
+    }
+
+    return {
+      applicationNo: application.applicationNo,
+      status: application.status,
+      applicantType: application.applicantType,
+      firstName: application.firstName,
+      middleName: application.middleName,
+      lastName: application.lastName,
+      email: application.email,
+      program: application.program,
+      requirements: application.requirements,
+      reviewNotes: application.reviewNotes,
+      studentNumber: application.createdStudent?.studentNumber ?? null,
+      createdAt: application.createdAt,
+      updatedAt: application.updatedAt,
+    };
+  }
+
+  private emailMatches(recorded: string, provided?: string): boolean {
+    if (!provided) return false;
+    return recorded.trim().toLowerCase() === provided.trim().toLowerCase();
+  }
+
   async submitRequirement(applicationNo: string, dto: SubmitRequirementDto) {
     const application = await this.getApplicationByNo(applicationNo);
+
+    if (!this.emailMatches(application.email, dto.email)) {
+      throw new NotFoundException(`Application ${applicationNo} not found.`);
+    }
 
     const definition = await this.prisma.admissionRequirementDefinition.findUnique({
       where: { id: dto.definitionId },
@@ -221,9 +284,12 @@ export class AdmissionService {
     const studentCount = await this.prisma.studentProfile.count();
     const studentNumber = `${currentYear}-${String(studentCount + 1001).padStart(4, '0')}`;
 
-    // Default student initial password
-    const defaultPassword = process.env.LOCAL_DEMO_PASSWORD || 'RmcStudent2026!';
-    const passwordHash = await bcrypt.hash(defaultPassword, 10);
+    // Pre-activation placeholder credential: cryptographically random and
+    // never disclosed to anyone. The applicant sets their own password
+    // through /api/students/activate, which verifies identity against this
+    // admission record. No public or hard-coded default password is used.
+    const preActivationPassword = randomBytes(32).toString('hex');
+    const passwordHash = await bcrypt.hash(preActivationPassword, 12);
 
     // Create User & StudentProfile in transaction
     const result = await this.prisma.$transaction(async (tx) => {
@@ -279,13 +345,33 @@ export class AdmissionService {
         include: {
           program: true,
           createdStudent: {
-            include: { user: true, curriculum: true },
+            select: {
+              id: true,
+              studentNumber: true,
+              curriculumId: true,
+              yearLevel: true,
+              programId: true,
+            },
           },
         },
       });
 
       return updatedApp;
     });
+
+    const studentUser = result.createdStudentId
+      ? await this.prisma.studentProfile.findUnique({
+          where: { id: result.createdStudentId },
+          select: { userId: true },
+        })
+      : null;
+    if (studentUser?.userId) {
+      await this.notificationsService.sendToUser(
+        studentUser.userId,
+        'Admission Approved',
+        'Your admission application has been approved. Activate your account to access SISP.',
+      );
+    }
 
     return result;
   }

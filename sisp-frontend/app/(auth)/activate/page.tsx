@@ -6,23 +6,42 @@ import { toast } from 'sonner';
 import { admissionApi } from '@/lib/api/admission';
 import { Loader2, ArrowLeft, CheckCircle2, ShieldCheck, KeyRound, Sparkles } from 'lucide-react';
 
+const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
+
 export default function ActivatePage() {
   const [studentNumber, setStudentNumber] = useState('');
   const [dob, setDob] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentNumber || !dob || !email) {
+    if (!studentNumber || !dob || !email || !password || !confirmPassword) {
       toast.error('Please fill in all fields to verify identity.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+    if (password.length < 8 || !PASSWORD_PATTERN.test(password)) {
+      toast.error(
+        'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number.',
+      );
       return;
     }
 
     setLoading(true);
     try {
-      const res = await admissionApi.activateStudentAccount(studentNumber, dob, email);
+      const res = await admissionApi.activateStudentAccount(
+        studentNumber,
+        dob,
+        email,
+        password,
+      );
       setResult(res);
       toast.success('Account successfully verified and activated!');
     } catch (err: any) {
@@ -78,8 +97,8 @@ export default function ActivatePage() {
                   <span className="font-semibold text-slate-800">{result.email}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Temp Password:</span>
-                  <span className="font-mono font-bold text-[#0a439b]">{result.temporaryPassword}</span>
+                  <span className="text-slate-500">Password:</span>
+                  <span className="font-semibold text-emerald-700">Set by you</span>
                 </div>
               </div>
 
@@ -124,6 +143,34 @@ export default function ActivatePage() {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs outline-none focus:border-[#0a439b] focus:bg-white"
                   required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">New Password</label>
+                <input
+                  type="password"
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs outline-none focus:border-[#0a439b] focus:bg-white"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700">Confirm Password</label>
+                <input
+                  type="password"
+                  placeholder="Re-enter your new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs outline-none focus:border-[#0a439b] focus:bg-white"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
                 />
               </div>
 

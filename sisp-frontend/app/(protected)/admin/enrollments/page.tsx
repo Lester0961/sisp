@@ -24,10 +24,14 @@ export default function EnrollmentAssignmentsPage() {
   const [rows, setRows] = useState<EnrollmentRow[]>([]);
   const [faculty, setFaculty] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [termsLoading, setTermsLoading] = useState(true);
+  const [termsError, setTermsError] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
 
   const load = async (termId = selectedTermId) => {
     setLoading(true);
+    setLoadError(false);
     try {
       const [enrollmentResponse, facultyResponse] = await Promise.all([
         enrollmentsApi.getAllEnrollments({ termId }),
@@ -36,20 +40,33 @@ export default function EnrollmentAssignmentsPage() {
       setRows(enrollmentResponse.data ?? []);
       setFaculty(facultyResponse.data ?? []);
     } catch {
+      setLoadError(true);
       toast.error('Unable to load enrollment assignments.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void (async () => {
-      const availableTerms = await academicTermsApi.list().catch(() => []);
+  const loadTerms = async () => {
+    setTermsLoading(true);
+    setTermsError(false);
+    try {
+      const availableTerms = await academicTermsApi.list();
       setTerms(availableTerms);
       const current = availableTerms.find((term) => term.isCurrent) ?? availableTerms[0];
       setSelectedTermId(current?.id);
-      await load(current?.id);
-    })();
+      if (current) await load(current.id);
+      else setRows([]);
+    } catch {
+      setTermsError(true);
+    } finally {
+      setTermsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTerms();
   }, []);
 
   const assignedCount = useMemo(() => rows.filter((row) => row.instructorId).length, [rows]);
@@ -82,8 +99,10 @@ export default function EnrollmentAssignmentsPage() {
         <section className="portal-surface overflow-hidden" aria-label="Assignment term selector">
           <div className="flex flex-col gap-1 border-b border-[#e8f0f5] px-4 py-3 sm:px-5"><p className="text-sm font-semibold text-[#102f49]">Assignment term</p><p className="text-xs text-[#587387]">Faculty ownership is enforced by the grade API.</p></div>
           <div className="flex gap-2 overflow-x-auto p-3 sm:p-4">
-            {terms.map((term) => <button key={term.id} type="button" onClick={() => { setSelectedTermId(term.id); void load(term.id); }} className={`min-w-[9rem] rounded-xl border px-3 py-2.5 text-left text-xs transition ${selectedTermId === term.id ? 'border-[#0a439b] bg-[#f1f6fb]' : 'border-[#dce7ef] bg-white hover:border-[#9bc2df]'}`}><span className="block font-semibold text-[#102f49]">{term.label}</span><span className="mt-1 block text-[#587387]">{term.academicYear}{term.isCurrent ? ' · Current' : ''}</span></button>)}
-            {!terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">No academic terms configured.</p> : null}
+            {terms.map((term) => <button key={term.id} type="button" aria-pressed={selectedTermId === term.id} onClick={() => { setSelectedTermId(term.id); void load(term.id); }} className={`min-w-[9rem] rounded-xl border px-3 py-2.5 text-left text-xs transition ${selectedTermId === term.id ? 'border-[#0a439b] bg-[#f1f6fb]' : 'border-[#dce7ef] bg-white hover:border-[#9bc2df]'}`}><span className="block font-semibold text-[#102f49]">{term.label}</span><span className="mt-1 block text-[#587387]">{term.academicYear}{term.isCurrent ? ' · Current' : ''}</span></button>)}
+            {termsLoading ? <p className="px-1 py-2 text-xs text-[#587387]">Loading academic terms…</p> : null}
+            {termsError ? <p role="alert" className="px-1 py-2 text-xs text-red-700">Academic terms could not be loaded. <button type="button" onClick={() => void loadTerms()} className="underline">Retry</button></p> : null}
+            {!termsLoading && !termsError && !terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">No academic terms are available.</p> : null}
           </div>
         </section>
 
@@ -93,7 +112,11 @@ export default function EnrollmentAssignmentsPage() {
           <div className="col-span-2 border-t border-[#dce7ef] p-4 sm:col-span-1 sm:border-t-0"><p className="text-xs text-[#587387]">Needs assignment</p><p className="mt-1 text-2xl font-semibold text-[#a15c05]">{Math.max(0, rows.length - assignedCount)}</p></div>
         </section>
 
-        {loading ? <section className="portal-surface space-y-3 p-5"><div className="portal-skeleton h-16" /><div className="portal-skeleton h-16" /></section> : rows.length === 0 ? (
+        {termsLoading || loading ? <section className="portal-surface space-y-3 p-5"><div className="portal-skeleton h-16" /><div className="portal-skeleton h-16" /></section> : termsError ? null : loadError ? (
+          <section role="alert" className="portal-surface border-red-200 p-5 text-sm text-red-800">Enrollment assignments could not be loaded. <button type="button" onClick={() => void load()} className="ml-2 underline">Retry</button></section>
+        ) : !terms.length ? (
+          <section className="portal-surface portal-empty"><AlertCircle className="size-8 text-[#a15c05]" /><div><h2 className="font-semibold text-[#102f49]">No academic terms available</h2><p className="mt-1 text-sm text-[#587387]">Enrollment assignments require an academic term.</p></div></section>
+        ) : rows.length === 0 ? (
           <section className="portal-surface portal-empty"><AlertCircle className="size-8 text-[#a15c05]" /><div><h2 className="font-semibold text-[#102f49]">No enrollments in this term</h2><p className="mt-1 text-sm text-[#587387]">Enrollment records will appear here when they are attached to an academic term.</p></div></section>
         ) : (
           <section className="portal-surface overflow-hidden">

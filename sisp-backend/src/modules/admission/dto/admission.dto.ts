@@ -123,6 +123,10 @@ export class ReviewAdmissionApplicationDto {
 }
 
 export class SubmitRequirementDto {
+  @IsEmail({}, { message: 'Please provide a valid application email address' })
+  @IsNotEmpty()
+  email!: string;
+
   @IsString()
   @IsNotEmpty()
   definitionId!: string;

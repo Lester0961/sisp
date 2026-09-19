@@ -24,7 +24,7 @@ interface RequestState {
 export const useRequestStore = create<RequestState>()((set) => ({
   // Initial state
   requests: [],
-  isLoading: false,
+  isLoading: true,
   isSubmitting: false,
   error: null,
 

@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Patch, Param, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
 import { AdmissionService } from './admission.service';
 import {
   CreateAdmissionApplicationDto,
@@ -28,11 +37,21 @@ export class AdmissionController {
     return this.admissionService.createApplication(dto);
   }
 
-  // Public/Applicant: Check application status by Application Number
+  // Public/Applicant: Check application status by Application Number + email
+  // proof. The recorded application email is the applicant's verification
+  // factor; unmatched requests receive the same "not found" response.
   @Public()
   @Get('status/:applicationNo')
-  async getApplicationStatus(@Param('applicationNo') applicationNo: string) {
-    return this.admissionService.getApplicationByNo(applicationNo);
+  async getApplicationStatus(
+    @Param('applicationNo') applicationNo: string,
+    @Query('email') email?: string,
+  ) {
+    if (!email) {
+      throw new BadRequestException(
+        'The email address used in the application is required to view its status.',
+      );
+    }
+    return this.admissionService.getPublicApplicationStatus(applicationNo, email);
   }
 
   // Public/Applicant: Submit required document for an application
@@ -47,7 +66,7 @@ export class AdmissionController {
 
   // Admin / Admission Staff: List applications
   @Get('applications')
-  @Roles('admin_staff', 'sys_admin', 'dean')
+  @Roles('registrar', 'sys_admin', 'dean')
   async listApplications(
     @Query('status') status?: string,
     @Query('programId') programId?: string,
@@ -58,7 +77,7 @@ export class AdmissionController {
 
   // Admin / Admission Staff: Review & Approve/Reject application
   @Patch('applications/:applicationNo/review')
-  @Roles('admin_staff', 'sys_admin', 'dean')
+  @Roles('registrar', 'sys_admin', 'dean')
   async reviewApplication(
     @CurrentUser() user: JwtPayload,
     @Param('applicationNo') applicationNo: string,

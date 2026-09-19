@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { DOCUMENT_CATALOG } from '../src/common/constants/document-catalog';
+import { PERMISSION_DEFINITIONS, ROLE_PERMISSIONS } from '../src/common/authz/rbac';
 
 const prisma = new PrismaClient();
 
@@ -10,9 +11,16 @@ async function main() {
   const localDemoPassword = process.env.LOCAL_DEMO_PASSWORD || 'local-demo-only';
   const mockPasswordHash = await bcrypt.hash(localDemoPassword, 10);
 
-  // 1. Seed Roles
+  // 1. Seed Roles. The combined admin_staff role is deliberately migrated to
+  // registrar (it keeps its id, so user references are preserved).
+  await prisma.role.updateMany({
+    where: { name: 'admin_staff' },
+    data: { name: 'registrar' },
+  });
+
   const rolesData = [
-    { id: 'role-id-admin_staff', name: 'admin_staff' },
+    { id: 'role-id-admin_staff', name: 'registrar' },
+    { id: 'role-id-treasury', name: 'treasury' },
     { id: 'role-id-dean', name: 'dean' },
     { id: 'role-id-faculty', name: 'faculty' },
     { id: 'role-id-student', name: 'student' },
@@ -28,6 +36,43 @@ async function main() {
     });
   }
   console.log('Roles seeded successfully.');
+
+  // 1b. Seed the permission catalog and role → permission mapping (P2-02).
+  for (const permission of PERMISSION_DEFINITIONS) {
+    await prisma.permission.upsert({
+      where: {
+        action_resource: {
+          action: permission.action,
+          resource: permission.resource,
+        },
+      },
+      update: {},
+      create: { action: permission.action, resource: permission.resource },
+    });
+  }
+
+  const seededPermissions = await prisma.permission.findMany();
+  const permissionIdByKey = new Map(
+    seededPermissions.map((permission) => [
+      `${permission.resource}.${permission.action}`,
+      permission.id,
+    ]),
+  );
+
+  for (const [roleName, permissionKeys] of Object.entries(ROLE_PERMISSIONS)) {
+    const role = await prisma.role.findUnique({ where: { name: roleName } });
+    if (!role) continue;
+    for (const key of permissionKeys) {
+      const permissionId = permissionIdByKey.get(key);
+      if (!permissionId) continue;
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: role.id, permissionId } },
+        update: {},
+        create: { roleId: role.id, permissionId },
+      });
+    }
+  }
+  console.log('Permissions and role mappings seeded successfully.');
 
   // 2. Seed Users
   const usersData = [
@@ -78,6 +123,14 @@ async function main() {
       firstName: 'Regis',
       lastName: 'Faculty',
       roleId: 'role-id-faculty',
+    },
+    {
+      id: 'mock-treasury-id',
+      email: 'treasury@rmc.edu.ph',
+      passwordHash: mockPasswordHash,
+      firstName: 'Regis',
+      lastName: 'Treasury',
+      roleId: 'role-id-treasury',
     },
   ];
 

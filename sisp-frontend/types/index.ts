@@ -1,7 +1,14 @@
 export interface User {
   id: string;
   email: string;
-  role: 'student' | 'faculty' | 'admin_staff' | 'dean' | 'sys_admin' | 'live_agent';
+  role:
+    | 'student'
+    | 'faculty'
+    | 'dean'
+    | 'registrar'
+    | 'treasury'
+    | 'sys_admin'
+    | 'live_agent';
   mustChangePassword?: boolean;
 }
 

@@ -17,7 +17,7 @@ export class NotificationsController {
 
   // Admin views all notifications
   @Get('admin/all')
-  @Roles('admin_staff', 'dean')
+  @Roles('registrar', 'dean')
   async getAllAdmin() {
     return this.notificationsService.getAllNotificationsAdmin();
   }
@@ -51,7 +51,7 @@ export class NotificationsController {
 
   // Admin sends a notification
   @Post('send')
-  @Roles('admin_staff', 'dean')
+  @Roles('registrar', 'dean')
   async sendNotification(@Body() dto: SendNotificationDto) {
     return this.notificationsService.sendNotification(dto);
   }

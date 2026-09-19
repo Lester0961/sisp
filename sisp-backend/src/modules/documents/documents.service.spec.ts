@@ -17,6 +17,7 @@ describe('DocumentsService', () => {
       update: jest.fn(),
       count: jest.fn(),
     },
+    auditLog: { create: jest.fn() },
   };
 
   const mockNotifications = {
@@ -103,12 +104,107 @@ describe('DocumentsService', () => {
     });
   });
 
-  describe('getPaymentChannels', () => {
-    it('serves the announced Treasury channels', async () => {
+  describe('updateRequestStatus (P7-02/P7-04)', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockPrisma.documentRequest.findUnique.mockResolvedValue({
+        id: 'req-1',
+        studentId: 'profile-1',
+        status: 'pending',
+        type: 'certificate_of_enrollment',
+        items: [],
+        student: { user: { id: 'user-1' } },
+      });
+      mockPrisma.documentRequest.update.mockImplementation((args: any) =>
+        Promise.resolve({
+          id: 'req-1',
+          type: 'certificate_of_enrollment',
+          status: args.data.status,
+          items: [],
+          student: { user: { id: 'user-1' } },
+        }),
+      );
+    });
+
+    it('records actor, old/new status, and request in the audit log', async () => {
+      mockPrisma.auditLog.create.mockResolvedValue({ id: 'audit-1' });
+
+      const res: any = await service.updateRequestStatus('req-1', { status: 'under_review' }, 'registrar-1');
+
+      expect(res.data.status).toBe('under_review');
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'registrar-1',
+          action: 'SERVICE_REQUEST_STATUS_CHANGE',
+          resource: 'requests',
+          resourceId: 'req-1',
+          oldValue: 'pending',
+          newValue: 'under_review',
+        }),
+      });
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        'user-1',
+        'Document Request Update',
+        expect.stringContaining('is now under review'),
+      );
+    });
+
+    it('rejects invalid status transitions', async () => {
+      mockPrisma.documentRequest.findUnique.mockResolvedValue({
+        id: 'req-1',
+        studentId: 'profile-1',
+        status: 'released',
+        items: [],
+        student: { user: { id: 'user-1' } },
+      });
+
+      await expect(
+        service.updateRequestStatus('req-1', { status: 'pending' }, 'registrar-1'),
+      ).rejects.toThrow(/Cannot transition/);
+      expect(mockPrisma.documentRequest.update).not.toHaveBeenCalled();
+      expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getPaymentChannels (P6-04)', () => {
+    const saved = {
+      gcashNumber: process.env.PAYMENT_CHANNEL_GCASH_NUMBER,
+      gcashName: process.env.PAYMENT_CHANNEL_GCASH_NAME,
+      pnbAccount: process.env.PAYMENT_CHANNEL_PNB_ACCOUNT,
+    };
+
+    afterEach(() => {
+      if (saved.gcashNumber === undefined) delete process.env.PAYMENT_CHANNEL_GCASH_NUMBER;
+      else process.env.PAYMENT_CHANNEL_GCASH_NUMBER = saved.gcashNumber;
+      if (saved.gcashName === undefined) delete process.env.PAYMENT_CHANNEL_GCASH_NAME;
+      else process.env.PAYMENT_CHANNEL_GCASH_NAME = saved.gcashName;
+      if (saved.pnbAccount === undefined) delete process.env.PAYMENT_CHANNEL_PNB_ACCOUNT;
+      else process.env.PAYMENT_CHANNEL_PNB_ACCOUNT = saved.pnbAccount;
+    });
+
+    it('reports unconfigured channels instead of hard-coded values', async () => {
+      delete process.env.PAYMENT_CHANNEL_GCASH_NUMBER;
+      delete process.env.PAYMENT_CHANNEL_PNB_ACCOUNT;
+
       const channels: any = await service.getPaymentChannels();
-      expect(channels.gcash.number).toBe('0919 911 8050');
-      expect(channels.pnb.accountNumber).toBe('149110075280');
-      expect(channels.proofRecipient.name).toMatch(/Arlyne Punzalan/);
+
+      expect(channels.configured).toBe(false);
+      expect(channels.gcash).toBeNull();
+      expect(channels.pnb).toBeNull();
+      expect(channels.instruction).toMatch(/contact the Treasury Office/i);
+    });
+
+    it('serves deployment-configured channels', async () => {
+      process.env.PAYMENT_CHANNEL_GCASH_NUMBER = '0999 000 0000';
+      process.env.PAYMENT_CHANNEL_GCASH_NAME = 'Test Treasury Account';
+      process.env.PAYMENT_CHANNEL_PNB_ACCOUNT = '000000000000';
+
+      const channels: any = await service.getPaymentChannels();
+
+      expect(channels.configured).toBe(true);
+      expect(channels.gcash.number).toBe('0999 000 0000');
+      expect(channels.gcash.accountName).toBe('Test Treasury Account');
+      expect(channels.pnb.accountNumber).toBe('000000000000');
     });
   });
 });

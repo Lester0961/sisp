@@ -19,24 +19,26 @@ import {
   CheckCircle2,
   AlertCircle,
   Wallet,
-  QrCode,
 } from 'lucide-react';
 
 export default function AdminRequestsPage() {
   useAuth();
   const [requests, setRequests] = useState<DocumentRequestItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const loadRequests = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await requestsApi.getAllRequests('awaiting_payment');
       const requestsArray = data?.data || [];
       setRequests(requestsArray);
     } catch (err) {
       console.error('Failed to load requests:', err);
+      setLoadError('Could not load payment confirmations. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -108,7 +110,7 @@ export default function AdminRequestsPage() {
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Fee</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Reference</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Proof of Payment</TableHead>
-                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">QR Code</TableHead>
+                  <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-center">Payment</TableHead>
                   <TableHead className="text-[10px] uppercase font-bold text-slate-500 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -117,6 +119,13 @@ export default function AdminRequestsPage() {
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-10 text-xs text-slate-400">
                       Loading payment confirmations...
+                    </TableCell>
+                  </TableRow>
+                ) : loadError ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-8 text-center" role="alert">
+                      <p className="mb-3 text-sm text-rose-700">{loadError}</p>
+                      <Button size="sm" variant="outline" onClick={() => void loadRequests()} disabled={loading}>Try again</Button>
                     </TableCell>
                   </TableRow>
                 ) : filteredRequests.length > 0 ? (
@@ -166,14 +175,14 @@ export default function AdminRequestsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-center">
-                        {r.qrCodeUrl ? (
-                          <img
-                            src={r.qrCodeUrl}
-                            alt="QR"
-                            className="w-16 h-16 rounded border border-slate-200 mx-auto"
-                          />
+                        {r.paymentStatus === 'paid' ? (
+                          <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            Paid
+                          </span>
                         ) : (
-                          <span className="text-[10px] text-slate-400">N/A</span>
+                          <span className="rounded bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                            Unpaid
+                          </span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">

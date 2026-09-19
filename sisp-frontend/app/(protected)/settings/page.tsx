@@ -55,7 +55,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-800">Security & Password</p>
-                    <p className="text-xs text-slate-500">Update password and 2FA</p>
+                    <p className="text-xs text-slate-500">Change your password</p>
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-slate-300" />

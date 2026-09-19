@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { StudentSemesterService } from './student-semester.service';
@@ -10,19 +11,19 @@ export class StudentTermController {
   constructor(private readonly service: StudentSemesterService) {}
 
   @Post()
-  @Roles('admin_staff', 'sys_admin')
+  @RequirePermissions('financial.manage')
   async create(@Body() dto: CreateStudentSemesterDto) {
     return this.service.create(dto);
   }
 
   @Patch(':id/payment')
-  @Roles('admin_staff', 'sys_admin')
+  @RequirePermissions('financial.manage')
   async updatePayment(@Param('id') id: string, @Body() dto: UpdateStudentSemesterDto) {
     return this.service.update(id, dto);
   }
 
   @Get()
-  @Roles('admin_staff', 'sys_admin', 'dean')
+  @Roles('treasury', 'sys_admin', 'dean')
   async findAll(@Query('studentId') studentId?: string) {
     return studentId ? this.service.findByStudent(studentId) : this.service.findAll();
   }

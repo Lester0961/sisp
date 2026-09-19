@@ -12,8 +12,7 @@ import {
   RefreshCw,
   Edit3,
   Check,
-  FileText,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
@@ -22,29 +21,10 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
-// Quick-fill templates to assist academic advisors with common inquiries
-const POLICY_TEMPLATES = [
-  {
-    name: 'Official TOR Request Procedure',
-    text: 'Clearance approved. To request your Official Transcript of Records (TOR), please submit the Document Request Form through your student portal or in person at the Registrar. The fee is PHP 200.00 per page, and processing time is 7 to 10 working days. Ensure your clearances from the Accounting Office, Library, and Dean\'s Office are fully signed.'
-  },
-  {
-    name: 'Late Enrollment Clearance',
-    text: 'Late enrollment is permitted up to the second week of regular classes. Please settle the PHP 500.00 Late Enrollment Fee at the Accounting Office, and submit your updated Matriculation Form to the Registrar to reactivate your course units.'
-  },
-  {
-    name: 'Grade Appeal Procedure (5-Day Window)',
-    text: 'Under Regis Marie College policies, formal grade re-evaluation appeals must be submitted in writing to the Dean\'s Office within five (5) working days from final grade posting in the SISP. The course Dean and instructor will conduct a joint calculation review.'
-  },
-  {
-    name: 'Incomplete (INC) Grade Resolution',
-    text: 'A grade of INC must be resolved by submitting your missing major requirements or taking the special completion exam within one (1) academic year. Failure to do so will automatically convert your INC grade into a failing grade of 5.00.'
-  }
-];
-
 export default function EscalationsPage() {
   const [escalations, setEscalations] = useState<EscalationRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'resolved'>('all');
   
   // Resolution Dialog state
@@ -54,11 +34,13 @@ export default function EscalationsPage() {
 
   const fetchRecords = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await chatApi.getEscalations();
       setEscalations(data);
     } catch (error) {
       console.error('Failed to load escalations:', error);
+      setLoadError('Could not load escalation records. Please try again.');
       toast.error('Could not load escalation records. Please check API server.');
     } finally {
       setLoading(false);
@@ -72,11 +54,6 @@ export default function EscalationsPage() {
   const handleOpenResolve = (record: EscalationRecord) => {
     setSelectedRecord(record);
     setResolutionText(record.resolution || '');
-  };
-
-  const handleSelectTemplate = (templateText: string) => {
-    setResolutionText(templateText);
-    toast.success('Policy template applied successfully!');
   };
 
   const handleSubmitResolution = async () => {
@@ -195,6 +172,14 @@ export default function EscalationsPage() {
         <div className="h-64 flex flex-col items-center justify-center text-slate-400 space-y-2">
           <Clock className="h-8 w-8 animate-spin text-indigo-600" />
           <span className="text-sm font-semibold">Fetching escalations queue...</span>
+        </div>
+      ) : loadError ? (
+        <div className="portal-surface portal-empty" role="alert">
+          <div>
+            <h2 className="font-semibold text-[#102f49]">Escalations are unavailable</h2>
+            <p className="mt-1 text-sm text-rose-700">{loadError}</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => void fetchRecords()} disabled={loading}>Try again</Button>
         </div>
       ) : filteredRecords.length === 0 ? (
         <div className="portal-surface portal-empty">
@@ -336,28 +321,6 @@ export default function EscalationsPage() {
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none">Student Question:</label>
                 <div className="p-3 border border-slate-100 rounded-xl bg-slate-50 text-xs font-semibold text-slate-800 leading-relaxed">
                   &ldquo;{selectedRecord.chat.message}&rdquo;
-                </div>
-              </div>
-
-              {/* Quick templates panel */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 flex items-center gap-1 select-none">
-                  <FileText className="h-3 w-3" />
-                  Quick-Fill Policy Templates:
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {POLICY_TEMPLATES.map((tmpl, idx) => (
-                    <Button
-                      key={idx}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSelectTemplate(tmpl.text)}
-                      className="text-[10px] h-7 px-2.5 rounded-full border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50/20"
-                    >
-                      {tmpl.name}
-                    </Button>
-                  ))}
                 </div>
               </div>
 

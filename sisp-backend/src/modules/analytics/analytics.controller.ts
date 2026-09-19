@@ -2,49 +2,45 @@ import { Controller, Get, Param, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { AnalyticsService } from './analytics.service';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 
 @Controller('analytics')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Get('enrollment')
-  @Roles('admin_staff', 'dean')
+  @Roles('registrar', 'dean')
   async getEnrollmentStats() {
     return this.analyticsService.getEnrollmentStats();
   }
 
   @Get('grades')
-  @Roles('admin_staff', 'dean', 'faculty')
-  async getGpaDistribution() {
-    const distribution = await this.analyticsService.getGpaDistribution();
-    const passFailRates = await this.analyticsService.getPassFailRates();
-    return {
-      distribution,
-      passFailRates,
-    };
+  @Roles('registrar', 'dean')
+  async getPublishedGradeCount() {
+    return this.analyticsService.getPublishedGradeCount();
   }
 
   @Get('requests')
-  @Roles('admin_staff', 'sys_admin')
+  @Roles('registrar', 'sys_admin')
   async getRequestVolume() {
     return this.analyticsService.getRequestVolume();
   }
 
   @Get('chatbot')
-  @Roles('admin_staff', 'dean', 'sys_admin')
+  @RequirePermissions('aria_trends.read')
   async getChatbotAnalytics() {
     return this.analyticsService.getChatbotAnalytics();
   }
 
   @Get('monthly-report')
-  @Roles('admin_staff', 'dean', 'sys_admin')
+  @Roles('registrar', 'dean', 'sys_admin')
   async getMonthlyExecutiveReport() {
     return this.analyticsService.getMonthlyExecutiveReport();
   }
 
 
   @Get('export/enrollment')
-  @Roles('admin_staff')
+  @RequirePermissions('report.read')
   async exportEnrollmentExcel(@Res() res: Response) {
     const buffer = await this.analyticsService.exportEnrollmentExcel();
     res.setHeader(
@@ -56,7 +52,7 @@ export class AnalyticsController {
   }
 
   @Get('export/grades/:studentId')
-  @Roles('admin_staff', 'dean')
+  @RequirePermissions('report.read')
   async exportGradesPdf(@Param('studentId') studentId: string, @Res() res: Response) {
     const buffer = await this.analyticsService.exportGradesPdf(studentId);
     res.setHeader('Content-Type', 'application/pdf');

@@ -4,7 +4,6 @@ import {
   IsNotEmpty,
   IsIn,
   IsOptional,
-  MinLength,
 } from 'class-validator';
 
 export class CreateUserDto {
@@ -21,10 +20,13 @@ export class CreateUserDto {
   lastName: string;
 
   @IsString()
-  @IsIn(['student', 'faculty', 'dean', 'admin_staff', 'live_agent', 'sys_admin'], {
-    message: 'roleName must be one of: student, faculty, dean, admin_staff, live_agent, sys_admin',
-  })
-  @IsNotEmpty()
+  @IsIn(
+    ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin', 'live_agent'],
+    {
+      message:
+        'roleName must be one of: student, faculty, dean, registrar, treasury, sys_admin, live_agent',
+    },
+  )
   roleName: string;
 
   // Student specific inputs
@@ -36,9 +38,4 @@ export class CreateUserDto {
   @IsOptional()
   programId?: string;
 
-  // Staff specific input
-  @IsString()
-  @IsOptional()
-  @MinLength(6, { message: 'Temporary password must be at least 6 characters' })
-  temporaryPassword?: string;
 }

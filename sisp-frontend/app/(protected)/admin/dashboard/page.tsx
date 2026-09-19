@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BookOpenCheck, Download, FileText, GraduationCap, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,18 +13,25 @@ import { GpaDistributionWidget } from '@/components/admin/dashboard/GpaDistribut
 import { MonthlyExecutiveReport } from '@/components/admin/dashboard/MonthlyExecutiveReport';
 
 const dashboardCopy = {
-  admin_staff: {
-    title: 'Operations overview',
-    description: 'Review active records and resolve the work that keeps student services moving.',
-    actionHref: '/admin/users',
-    actionLabel: 'Manage users',
+  registrar: {
+    title: 'Registrar operations',
+    description: 'Review active records, assignments, and the work that keeps student services moving.',
+    actionHref: '/admin/enrollments',
+    actionLabel: 'Open assignments',
     actionIcon: Users,
+  },
+  treasury: {
+    title: 'Treasury overview',
+    description: 'Review financial records and payment approvals for student obligations.',
+    actionHref: '/admin/requests',
+    actionLabel: 'Review payments',
+    actionIcon: FileText,
   },
   dean: {
     title: 'Academic review',
-    description: 'Review academic exceptions, approved grades, and program-level activity.',
-    actionHref: '/dean/exceptions',
-    actionLabel: 'Review exceptions',
+    description: 'Review advisees, academic progress, and program-level activity.',
+    actionHref: '/dean/advisees',
+    actionLabel: 'Review advisees',
     actionIcon: FileText,
   },
   faculty: {
@@ -45,41 +52,45 @@ const dashboardCopy = {
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   const {
     dashboardStats,
     enrollmentStats,
     chatbotAnalytics,
-    gpaDistribution,
+    publishedGradeCount,
     fetchDashboardStats,
     fetchEnrollmentStats,
     fetchChatbotAnalytics,
-    fetchGpaDistribution,
+    fetchPublishedGradeCount,
     downloadEnrollmentReport,
   } = useAdminStore();
 
-  const role = user?.role ?? 'admin_staff';
-  const copy = dashboardCopy[role as keyof typeof dashboardCopy] ?? dashboardCopy.admin_staff;
+  const role = user?.role ?? 'registrar';
+  const copy = dashboardCopy[role as keyof typeof dashboardCopy] ?? dashboardCopy.registrar;
   const ActionIcon = copy.actionIcon;
-  const canViewProgramData = role === 'admin_staff' || role === 'dean' || role === 'sys_admin';
+  const canViewProgramData = role === 'registrar' || role === 'dean' || role === 'sys_admin';
+
+  const loadDashboard = useCallback(async () => {
+    if (!user) return;
+    setDashboardLoading(true);
+    setDashboardError(null);
+    const requests = [fetchDashboardStats(), fetchPublishedGradeCount()];
+    if (canViewProgramData) requests.push(fetchEnrollmentStats(), fetchChatbotAnalytics());
+    await Promise.all(requests);
+    const error = useAdminStore.getState().error;
+    setDashboardError(error);
+    setDashboardLoading(false);
+  }, [user, canViewProgramData, fetchDashboardStats, fetchEnrollmentStats, fetchChatbotAnalytics, fetchPublishedGradeCount]);
 
   useEffect(() => {
-    if (!user) return;
-    void fetchDashboardStats();
-    void fetchGpaDistribution();
-    if (canViewProgramData) {
-      void fetchEnrollmentStats();
-      void fetchChatbotAnalytics();
-    }
-  }, [user, canViewProgramData, fetchDashboardStats, fetchEnrollmentStats, fetchChatbotAnalytics, fetchGpaDistribution]);
+    void loadDashboard();
+  }, [loadDashboard]);
 
-  const gpaChartData = gpaDistribution?.distribution
-    ? Object.entries(gpaDistribution.distribution).map(([bracket, count]) => ({ bracket, count }))
-    : [];
-  const passFailData = gpaDistribution?.passFailRates ?? [];
   const metrics = [
-    { label: 'Active students', compactLabel: 'Students', value: dashboardStats?.totalStudents ?? '…', icon: GraduationCap },
-    { label: 'Faculty records', compactLabel: 'Faculty', value: dashboardStats?.totalFaculty ?? '…', icon: Users },
-    { label: 'Document requests', compactLabel: 'Requests', value: dashboardStats?.totalRequests ?? '…', icon: FileText },
+    { label: 'Active students', compactLabel: 'Students', value: dashboardStats?.totalStudents ?? (dashboardLoading ? '…' : '—'), icon: GraduationCap },
+    { label: 'Faculty records', compactLabel: 'Faculty', value: dashboardStats?.totalFaculty ?? (dashboardLoading ? '…' : '—'), icon: Users },
+    { label: 'Document requests', compactLabel: 'Requests', value: dashboardStats?.totalRequests ?? (dashboardLoading ? '…' : '—'), icon: FileText },
   ];
 
   return (
@@ -94,13 +105,23 @@ export default function AdminDashboardPage() {
             <Button asChild className="w-full sm:w-auto">
               <Link href={copy.actionHref}><ActionIcon className="size-4" strokeWidth={1.8} />{copy.actionLabel}</Link>
             </Button>
-            {role === 'admin_staff' && (
+            {role === 'registrar' && (
               <Button variant="outline" className="w-full sm:w-auto" onClick={downloadEnrollmentReport}>
                 <Download className="size-4" strokeWidth={1.8} />Export report
               </Button>
             )}
           </div>
         </div>
+
+        {dashboardLoading && (
+          <p className="mb-4 text-sm text-[#587387]" role="status" aria-live="polite">Loading dashboard reports…</p>
+        )}
+        {dashboardError && !dashboardLoading && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+            <span>Dashboard data could not be loaded. {dashboardError}</span>
+            <Button variant="outline" size="sm" onClick={() => void loadDashboard()}>Try again</Button>
+          </div>
+        )}
 
         <section className="mb-5 grid grid-cols-3 divide-x divide-[#dce7ef] overflow-hidden rounded-2xl border border-[#dce7ef] bg-white shadow-[0_10px_28px_rgb(15_45_74_/_0.055)]">
           {metrics.map((metric) => {
@@ -116,7 +137,7 @@ export default function AdminDashboardPage() {
           })}
         </section>
 
-        <div className="space-y-5">
+        {!dashboardLoading && !dashboardError && <div className="space-y-5">
           {canViewProgramData && (
             <>
               <MonthlyExecutiveReport />
@@ -126,8 +147,8 @@ export default function AdminDashboardPage() {
               </section>
             </>
           )}
-          <GpaDistributionWidget gpaChartData={gpaChartData} passFailData={passFailData} />
-        </div>
+          <GpaDistributionWidget publishedGradeCount={publishedGradeCount?.publishedGradeCount ?? 0} />
+        </div>}
       </main>
       <PageFooter type="advising" />
     </div>

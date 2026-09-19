@@ -6,9 +6,10 @@ import { ChatSessionService } from './chat-session.service';
 import { ChatQuotaService } from './chat-quota.service';
 import { ChatGateway } from './chat.gateway';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, NotificationsModule],
   controllers: [ChatbotController, ChatbotAdminController, ChatSessionController],
   providers: [ChatbotService, ChatSessionService, ChatQuotaService, ChatGateway],
   exports: [ChatbotService, ChatSessionService, ChatQuotaService],

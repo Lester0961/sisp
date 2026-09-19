@@ -4,18 +4,35 @@ import type { NextRequest } from 'next/server';
 const PUBLIC_ROUTES = ['/login', '/register', '/about', '/services', '/support', '/admission', '/activate'];
 
 const ROLE_ROUTES: Record<string, string[]> = {
-  '/admin': ['admin_staff', 'sys_admin', 'live_agent'],
+  '/admin': ['registrar', 'treasury', 'sys_admin', 'live_agent'],
   '/faculty': ['faculty'],
   '/dean': ['dean'],
-  '/live-agent': ['admin_staff', 'dean', 'live_agent'],
-  '/dashboard': ['student', 'admin_staff', 'faculty', 'dean', 'sys_admin', 'live_agent'],
+  '/live-agent': ['registrar', 'dean', 'live_agent'],
+  '/dashboard': ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin', 'live_agent'],
   '/grades': ['student'],
+  '/financials': ['student'],
   '/requests': ['student'],
-  '/chat': ['student', 'admin_staff', 'dean', 'live_agent'],
+  '/chat': ['student'],
   '/enrollment': ['student'],
-  '/curriculum': ['student', 'admin_staff', 'dean', 'faculty'],
+  '/curriculum': ['student', 'registrar', 'dean', 'faculty'],
 };
 
+/**
+ * UX-ONLY route guard (Phase 2, P2-08).
+ *
+ * This middleware redirects for navigation convenience. It is NOT an
+ * authorization boundary:
+ *  - the role claim below is decoded, not signature-verified, and is
+ *    therefore forgeable;
+ *  - verifying the signature here would require shipping the backend
+ *    JWT_SECRET inside the frontend/edge bundle, so it is intentionally
+ *    not done;
+ *  - every API enforces authentication, role, permission, and record-level
+ *    authorization server-side (NestJS guards + services).
+ *
+ * Never add security controls here. Hiding a menu or redirecting a route is
+ * UX only; the backend is authoritative.
+ */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -62,8 +79,8 @@ export function middleware(request: NextRequest) {
 
     for (const [route, allowedRoles] of Object.entries(ROLE_ROUTES)) {
       if (pathname.startsWith(route) && !allowedRoles.includes(role)) {
-        // Allow dean and faculty to access the /admin/dashboard
-        if (route === '/admin' && pathname.startsWith('/admin/dashboard') && (role === 'dean' || role === 'faculty')) {
+        // Allow the dean to reach /admin/dashboard (faculty uses /faculty)
+        if (route === '/admin' && pathname.startsWith('/admin/dashboard') && role === 'dean') {
           continue;
         }
         return NextResponse.redirect(new URL('/dashboard', request.url));

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, FileText, LayoutDashboard, MessageSquare, Settings, Sparkles, Users } from 'lucide-react';
+import { BookOpen, FileText, LayoutDashboard, MessageSquare, Settings, Sparkles, Users, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -18,37 +18,39 @@ const roleNavs: Record<string, NavItem[]> = {
     { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
     { href: '/grades', label: 'Grades', icon: BookOpen },
     { href: '/chat', label: 'ARIA', icon: Sparkles, isCenter: true },
-    { href: '/requests', label: 'Documents', icon: FileText },
+    { href: '/financials', label: 'Financials', icon: Wallet },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   faculty: [
-    { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
+    { href: '/faculty', label: 'Home', icon: LayoutDashboard },
     { href: '/faculty/grades', label: 'Grades', icon: BookOpen },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   dean: [
     { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
+    { href: '/dean/advisees', label: 'Advisees', icon: Users },
     { href: '/dean/grades', label: 'Approvals', icon: BookOpen },
-    { href: '/dean/exceptions', label: 'Exceptions', icon: FileText },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
-  admin_staff: [
+  registrar: [
     { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/escalations', label: 'ARIA', icon: Sparkles, isCenter: true },
-    { href: '/admin/requests', label: 'Payments', icon: FileText },
+    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ],
+  treasury: [
+    { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
+    { href: '/admin/requests', label: 'Payments', icon: FileText, isCenter: true },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   sys_admin: [
     { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
-    { href: '/admin/audit', label: 'Audit', icon: FileText },
+    { href: '/admin/audit', label: 'Audit', icon: FileText, isCenter: true },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   live_agent: [
     { href: '/live-agent', label: 'Queue', icon: MessageSquare },
-    { href: '/admin/users', label: 'Records', icon: Users },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
 };

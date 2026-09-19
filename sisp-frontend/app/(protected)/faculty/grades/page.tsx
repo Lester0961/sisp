@@ -45,7 +45,10 @@ export default function FacultyGradesPage() {
   const [search, setSearch] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('All');
   const [selectedSection, setSelectedSection] = useState('All');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [termsLoading, setTermsLoading] = useState(true);
+  const [termsError, setTermsError] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savingAll, setSavingAll] = useState(false);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
@@ -55,30 +58,39 @@ export default function FacultyGradesPage() {
 
   const loadGrades = async (termId = selectedTermId ?? undefined) => {
     setLoading(true);
+    setLoadError(false);
     try {
       const data = await gradesApi.getAllGrades(undefined, undefined, undefined, termId);
       const gradesArray = Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data || [];
       setGrades(gradesArray);
       setOriginalGrades(JSON.parse(JSON.stringify(gradesArray)));
     } catch (err) {
+      setLoadError(true);
       console.error('Failed to load grades:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const loadTerms = async () => {
+    setTermsLoading(true);
+    setTermsError(false);
+    try {
+      const availableTerms = await academicTermsApi.list();
+      setTerms(availableTerms);
+      const current = availableTerms.find((term) => term.isCurrent) ?? availableTerms[0];
+      setSelectedTermId(current?.id ?? null);
+      if (current) await loadGrades(current.id);
+    } catch {
+      setTermsError(true);
+    } finally {
+      setTermsLoading(false);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    void (async () => {
-      try {
-        const availableTerms = await academicTermsApi.list();
-        setTerms(availableTerms);
-        const current = availableTerms.find((term) => term.isCurrent) ?? availableTerms[0];
-        setSelectedTermId(current?.id ?? null);
-        await loadGrades(current?.id);
-      } catch {
-        await loadGrades();
-      }
-    })();
+    void loadTerms();
   }, []);
 
   const handleGradeChange = (
@@ -243,10 +255,6 @@ export default function FacultyGradesPage() {
   const averageGrade = gradedCount > 0 
     ? (filteredGrades.reduce((sum, g) => sum + (g.finalGrade ?? 0), 0) / gradedCount).toFixed(1)
     : 'N/A';
-  const passCount = filteredGrades.filter((g) => g.finalGrade !== null && g.finalGrade !== undefined && g.finalGrade >= 75).length;
-  const passRate = gradedCount > 0 
-    ? `${((passCount / gradedCount) * 100).toFixed(0)}%`
-    : 'N/A';
   const submittedCount = filteredGrades.filter((g) => g.status === 'submitted' || g.status === 'posted' || g.status === 'approved').length;
 
   return (
@@ -306,7 +314,9 @@ export default function FacultyGradesPage() {
                 <span className="mt-1 block text-[11px] text-[#587387]">{term.academicYear}{term.isCurrent ? ' · Current' : ''}</span>
               </button>
             ))}
-            {!terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">Academic terms are not configured yet.</p> : null}
+            {termsLoading ? <p className="px-1 py-2 text-xs text-[#587387]">Loading academic terms…</p> : null}
+            {termsError ? <p role="alert" className="px-1 py-2 text-xs text-red-700">Academic terms could not be loaded. <button type="button" onClick={() => void loadTerms()} className="underline">Retry</button></p> : null}
+            {!termsLoading && !termsError && !terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">No academic terms are available.</p> : null}
           </div>
         </section>
 
@@ -324,8 +334,8 @@ export default function FacultyGradesPage() {
 
           <div className="min-w-0 bg-emerald-50/35 p-4 sm:p-5">
             <div className="space-y-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Passing</span>
-              <p className="mt-2 text-2xl font-semibold text-emerald-700">{passRate}</p>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-emerald-700">Recorded grades</span>
+              <p className="mt-2 text-2xl font-semibold text-emerald-700">{gradedCount}</p>
             </div>
             <div className="hidden h-10 w-10 rounded-xl border border-emerald-100 bg-white/70 text-emerald-600 sm:flex items-center justify-center">
               <GraduationCap className="h-5 w-5" />
@@ -420,12 +430,18 @@ export default function FacultyGradesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
+                {termsLoading || loading ? (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-400 font-semibold uppercase tracking-wider">
                       Fetching Student Evaluations...
                     </TableCell>
                   </TableRow>
+                ) : termsError ? (
+                  <TableRow className="hover:bg-transparent"><TableCell colSpan={8} role="alert" className="text-center py-8 text-sm text-red-700">Academic terms could not be loaded. <button type="button" onClick={() => void loadTerms()} className="underline">Retry</button></TableCell></TableRow>
+                ) : !terms.length ? (
+                  <TableRow className="hover:bg-transparent"><TableCell colSpan={8} className="text-center py-8 text-xs text-slate-500">No academic terms are available for grade entry.</TableCell></TableRow>
+                ) : loadError ? (
+                  <TableRow className="hover:bg-transparent"><TableCell colSpan={8} role="alert" className="text-center py-8 text-sm text-red-700">Grade evaluations could not be loaded. <button type="button" onClick={() => void loadGrades()} className="underline">Retry</button></TableCell></TableRow>
                 ) : filteredGrades.length > 0 ? (
                   filteredGrades.map((g) => {
                     const isDirty = isRowDirty(g.id);
@@ -534,16 +550,10 @@ export default function FacultyGradesPage() {
                         <TableCell className="text-center font-black text-xs">
                           {g.finalGrade !== null && g.finalGrade !== undefined ? (
                             <div className="flex flex-col items-center gap-1.5">
-                              <span className={g.finalGrade >= 75 ? 'text-emerald-600 text-sm font-black' : 'text-rose-600 text-sm font-black'}>
+                              <span className="text-sm font-black text-[#102f49]">
                                 {g.finalGrade}
                               </span>
-                              <span className={`text-[8px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded-full ${
-                                g.finalGrade >= 75
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                                  : 'bg-rose-50 text-rose-700 border border-rose-100'
-                              }`}>
-                                {g.finalGrade >= 75 ? 'Passed' : 'Failed'}
-                              </span>
+                              <span className="rounded-full border border-[#dce7ef] bg-[#f8fbfe] px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-widest text-[#365a72]">Recorded</span>
                             </div>
                           ) : (
                             <span className="text-slate-400 font-semibold italic">N/A</span>

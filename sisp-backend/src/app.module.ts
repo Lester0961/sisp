@@ -18,12 +18,18 @@ import { ChatbotModule } from './modules/chat/chatbot.module';
 import { StudentSemesterModule } from './modules/student-semester/student-semester.module';
 
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { FinanceModule } from './modules/finance/finance.module';
+import { FacultyModule } from './modules/faculty/faculty.module';
+import { DeanModule } from './modules/dean/dean.module';
 import { CurriculumModule } from './modules/curriculum/curriculum.module';
 import { AdmissionModule } from './modules/admission/admission.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { AuthzModule } from './common/authz/authz.module';
+import { PermissionsGuard } from './common/authz/permissions.guard';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { getRateLimitConfig } from './common/config/rate-limit.config';
+import { validateConfig } from './common/config/env-validation';
 
 const rateLimitConfig = getRateLimitConfig();
 
@@ -32,6 +38,7 @@ const rateLimitConfig = getRateLimitConfig();
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: validateConfig,
     }),
     // Global rate limiter. Stricter limits are applied per-route via @Throttle.
     ThrottlerModule.forRoot([
@@ -41,6 +48,7 @@ const rateLimitConfig = getRateLimitConfig();
       },
     ]),
     PrismaModule,
+    AuthzModule,
     AuthModule,
     UsersModule,
     AdminModule,
@@ -56,6 +64,9 @@ const rateLimitConfig = getRateLimitConfig();
     AnalyticsModule,
     CurriculumModule,
     AdmissionModule,
+    FinanceModule,
+    FacultyModule,
+    DeanModule,
   ],
   controllers: [AppController],
   providers: [
@@ -71,6 +82,10 @@ const rateLimitConfig = getRateLimitConfig();
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
     },
     {
       provide: APP_INTERCEPTOR,

@@ -19,6 +19,7 @@ import {
   LogOut,
   X,
   FileText,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -41,7 +42,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Overview',
     icon: LayoutDashboard,
     group: 'main',
-    roles: ['admin_staff', 'sys_admin', 'dean', 'faculty'],
+    roles: ['registrar', 'treasury', 'sys_admin', 'dean'],
   },
   {
     href: '/admin/users',
@@ -49,7 +50,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Users',
     icon: Users,
     group: 'operations',
-    roles: ['admin_staff', 'sys_admin', 'live_agent'],
+    roles: ['sys_admin'],
   },
   {
     href: '/admin/admission',
@@ -57,7 +58,15 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Admissions',
     icon: UserCheck,
     group: 'operations',
-    roles: ['admin_staff', 'sys_admin', 'dean'],
+    roles: ['registrar', 'sys_admin', 'dean'],
+  },
+  {
+    href: '/admin/financials',
+    label: 'Financial Records',
+    shortLabel: 'Financials',
+    icon: Wallet,
+    group: 'operations',
+    roles: ['treasury', 'sys_admin'],
   },
   {
     href: '/admin/requests',
@@ -65,7 +74,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Payments',
     icon: CreditCard,
     group: 'operations',
-    roles: ['admin_staff'],
+    roles: ['treasury'],
   },
   {
     href: '/admin/documents',
@@ -73,7 +82,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Catalog',
     icon: FileText,
     group: 'operations',
-    roles: ['admin_staff', 'sys_admin'],
+    roles: ['registrar', 'sys_admin'],
   },
   {
     href: '/admin/escalations',
@@ -81,7 +90,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Escalations',
     icon: Sparkles,
     group: 'operations',
-    roles: ['admin_staff'],
+    roles: ['registrar'],
   },
   {
     href: '/admin/enrollments',
@@ -89,7 +98,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Assignments',
     icon: UserCheck,
     group: 'academic',
-    roles: ['admin_staff', 'dean'],
+    roles: ['registrar', 'dean'],
   },
   {
     href: '/admin/grades',
@@ -97,7 +106,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Grades',
     icon: BookOpen,
     group: 'academic',
-    roles: ['admin_staff'],
+    roles: ['registrar'],
   },
   {
     href: '/admin/kb',
@@ -105,7 +114,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Policies',
     icon: BookMarked,
     group: 'system',
-    roles: ['admin_staff', 'sys_admin', 'live_agent'],
+    roles: ['registrar', 'sys_admin'],
   },
   {
     href: '/admin/audit',
@@ -121,7 +130,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Settings',
     icon: Settings,
     group: 'system',
-    roles: ['admin_staff', 'sys_admin', 'dean', 'faculty', 'live_agent'],
+    roles: ['registrar', 'treasury', 'sys_admin', 'dean', 'faculty', 'live_agent'],
   },
 ];
 
@@ -147,7 +156,7 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const role = user?.role ?? 'admin_staff';
+  const role = user?.role ?? 'registrar';
 
   const accessibleItems = ADMIN_NAV_ITEMS.filter(
     (item) => !item.roles || item.roles.includes(role)

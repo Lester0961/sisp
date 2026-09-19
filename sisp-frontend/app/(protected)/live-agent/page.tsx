@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { chatApi, ChatSessionMessage, ChatSessionRecord } from '@/lib/api/chat';
+import { AdvisorSessionSummary, chatApi, ChatSessionMessage, ChatSessionRecord } from '@/lib/api/chat';
 import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +47,9 @@ function studentTerm(session: ChatSessionRecord) {
 }
 
 export default function LiveAgentPage() {
-  const [sessions, setSessions] = useState<ChatSessionRecord[]>([]);
+  const [sessions, setSessions] = useState<AdvisorSessionSummary[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalSessions, setTotalSessions] = useState(0);
   const [mySessionIds, setMySessionIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,18 +74,16 @@ export default function LiveAgentPage() {
     setLoading(true);
     setError(null);
     try {
-      const [queue, mine] = await Promise.all([
-        chatApi.getSessions('open'),
-        chatApi.getAssignedSessions(),
-      ]);
-      setSessions(queue);
-      setMySessionIds(new Set(mine.map((session) => session.id)));
+      const queue = await chatApi.getSessions('open', page, 25);
+      setSessions(queue.data);
+      setTotalSessions(queue.total);
+      setMySessionIds(new Set(queue.data.filter((session) => session.agentId).map((session) => session.id)));
     } catch {
       setError('We could not load the support queue. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     void loadSessions();
@@ -105,10 +105,15 @@ export default function LiveAgentPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages]);
 
-  const handleOpenSession = async (session: ChatSessionRecord) => {
-    setActiveSession(session);
+  const handleOpenSession = async (summary: AdvisorSessionSummary) => {
     setMessages([]);
-    await loadSessionMessages(session.id);
+    try {
+      const session = await chatApi.getSession(summary.id);
+      setActiveSession(session);
+      await loadSessionMessages(session.id);
+    } catch {
+      toast.error('Unable to open this support session.');
+    }
   };
 
   const handleAssignSession = async () => {
@@ -118,7 +123,7 @@ export default function LiveAgentPage() {
       const assigned = await chatApi.assignSession(activeSession.id);
       setActiveSession(assigned);
       setMySessionIds((previous) => new Set(previous).add(assigned.id));
-      setSessions((previous) => previous.map((session) => session.id === assigned.id ? assigned : session));
+      await loadSessions();
       toast.success('Session assigned to you.');
     } catch {
       toast.error('Unable to assign this session.');
@@ -192,9 +197,9 @@ export default function LiveAgentPage() {
                 <h1 className="truncate font-semibold text-[#102f49]">{studentName(activeSession)}</h1>
                 <p className="truncate text-xs text-[#587387]">
                   {activeSession.student?.studentNumber || 'Student record'}
-                  {activeSession.student?.user?.email ? ` · ${activeSession.student.user.email}` : ''}
+                  {activeSession.student?.user?.email ? ` Â· ${activeSession.student.user.email}` : ''}
                 </p>
-                {term ? <p className="mt-1 text-[11px] font-medium text-[#587387]">{term.label} · {term.paid ? 'Paid term' : 'Payment pending'}</p> : null}
+                {term ? <p className="mt-1 text-[11px] font-medium text-[#587387]">{term.label} Â· {term.paid ? 'Paid term' : 'Payment pending'}</p> : null}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -237,7 +242,7 @@ export default function LiveAgentPage() {
                       <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:max-w-[72%] ${isAgent ? 'rounded-br-md bg-[#0a439b] text-white' : 'rounded-bl-md border border-[#dce7ef] bg-white text-[#102f49]'}`}>
                         <p>{message.content}</p>
                         <p className={`mt-2 text-[11px] ${isAgent ? 'text-blue-100' : 'text-[#6c879a]'}`}>
-                          {isAgent ? 'Support agent' : studentName(activeSession)} · {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {isAgent ? 'Support agent' : studentName(activeSession)} Â· {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                     </article>
@@ -328,19 +333,18 @@ export default function LiveAgentPage() {
           </section>
         ) : (
           <section className="portal-surface overflow-hidden">
-            <div className="border-b border-[#dce7ef] px-5 py-4"><h2 className="font-semibold text-[#102f49]">Open sessions</h2></div>
+            <div className="border-b border-[#dce7ef] px-5 py-4"><h2 className="font-semibold text-[#102f49]">Open sessions</h2><p className="mt-1 text-xs text-[#587387]">Showing {sessions.length} of {totalSessions}</p></div>
             <div className="divide-y divide-[#e7eef3]">
               {sessions.map((session) => {
                 const isMine = mySessionIds.has(session.id);
                 const isUnassigned = !session.agentId;
-                const term = studentTerm(session);
                 return (
                   <article key={session.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                     <button type="button" onClick={() => void handleOpenSession(session)} className="flex min-w-0 items-start gap-3 text-left">
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3fa] text-sm font-semibold text-[#0a439b]">{studentInitial(session)}</span>
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eaf3fa] text-sm font-semibold text-[#0a439b]">S</span>
                       <span className="min-w-0">
-                        <span className="flex items-center gap-2"><span className="truncate font-semibold text-[#102f49]">{studentName(session)}</span>{isMine && <Badge variant="outline" className="border-[#b8d5ed] bg-[#f1f7fb] text-[#0a439b]">Mine</Badge>}</span>
-                        <span className="mt-1 block truncate text-xs text-[#587387]">{session.student?.studentNumber || 'Student record'}{term ? ` · ${term.label} · ${term.paid ? 'Paid' : 'Payment pending'}` : ''}{session.messages?.[0]?.content ? ` · ${session.messages[0].content}` : ''}</span>
+                        <span className="flex items-center gap-2"><span className="truncate font-semibold text-[#102f49]">Student {session.student?.studentNumber || 'record'}</span>{isMine && <Badge variant="outline" className="border-[#b8d5ed] bg-[#f1f7fb] text-[#0a439b]">Mine</Badge>}</span>
+                        <span className="mt-1 block truncate text-xs text-[#587387]">{session.messages?.[0] ? `Latest message from ${session.messages[0].senderRole} · ${new Date(session.messages[0].createdAt).toLocaleString()}` : 'No messages yet'}</span>
                       </span>
                     </button>
                     <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
@@ -352,6 +356,13 @@ export default function LiveAgentPage() {
               })}
             </div>
           </section>
+        )}
+        {!loading && !error && totalSessions > 25 && (
+          <nav className="mt-4 flex items-center justify-between" aria-label="Support queue pages">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</Button>
+            <span className="text-sm text-[#587387]">Page {page} of {Math.ceil(totalSessions / 25)}</span>
+            <Button variant="outline" size="sm" disabled={page >= Math.ceil(totalSessions / 25)} onClick={() => setPage((value) => value + 1)}>Next</Button>
+          </nav>
         )}
       </main>
     </div>

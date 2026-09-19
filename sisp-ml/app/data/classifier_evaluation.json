@@ -1,0 +1,17 @@
+[
+  {"text": "Could you walk me through course registration for the coming term?", "intent": "enrollment_inquiry"},
+  {"text": "When will students be able to sign up for classes?", "intent": "enrollment_inquiry"},
+  {"text": "I need to change my course load before the semester begins.", "intent": "enrollment_inquiry"},
+  {"text": "Has my instructor posted the result for biology yet?", "intent": "grade_inquiry"},
+  {"text": "I can't find the assessment marks in my student account.", "intent": "grade_inquiry"},
+  {"text": "Where can I review the scores recorded for my classes?", "intent": "grade_inquiry"},
+  {"text": "How do I settle the amount shown on my school account?", "intent": "payment_inquiry"},
+  {"text": "Did the college receive my tuition installment?", "intent": "payment_inquiry"},
+  {"text": "Where should I submit evidence of a tuition transfer?", "intent": "payment_inquiry"},
+  {"text": "I need an official copy of my academic transcript.", "intent": "document_request"},
+  {"text": "How can I obtain proof that I am enrolled this term?", "intent": "document_request"},
+  {"text": "Can I check whether the registrar completed my certificate?", "intent": "document_request"},
+  {"text": "What campus office should I visit for advising help?", "intent": "general_inquiry"},
+  {"text": "Does the college offer a student library?", "intent": "general_inquiry"},
+  {"text": "Who can answer questions about the academic calendar?", "intent": "general_inquiry"}
+]

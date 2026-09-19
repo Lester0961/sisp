@@ -39,49 +39,51 @@ export class ChatSessionService {
     return session;
   }
 
-  async getSessions(agentId?: string, status?: string) {
+  async getSessions(agentId?: string, status?: string, pageInput = 1, pageSizeInput = 25, visibleAgentId?: string) {
     const where: any = {};
     if (agentId) where.agentId = agentId;
+    if (visibleAgentId) where.OR = [{ agentId: null }, { agentId: visibleAgentId }];
     if (status) where.status = status;
-
-    const sessions = await this.prisma.chatSession.findMany({
-      where,
-      include: {
-        student: {
-          include: {
-            user: { select: { id: true, email: true, firstName: true, lastName: true } },
-            studentSemesters: {
-              orderBy: [{ year: 'desc' }, { semester: 'desc' }],
-              take: 1,
-              include: { term: true },
-            },
+    const page = Number.isFinite(Number(pageInput)) ? Math.max(1, Math.floor(Number(pageInput))) : 1;
+    const pageSize = Number.isFinite(Number(pageSizeInput))
+      ? Math.min(100, Math.max(1, Math.floor(Number(pageSizeInput))))
+      : 25;
+    const [data, total] = await Promise.all([
+      this.prisma.chatSession.findMany({
+        where,
+        select: {
+          id: true,
+          studentId: true,
+          agentId: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          student: { select: { studentNumber: true } },
+          agent: { select: { id: true, firstName: true, lastName: true } },
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { senderRole: true, createdAt: true },
           },
         },
-        agent: { select: { id: true, email: true, firstName: true, lastName: true } },
-        messages: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-          include: {
-            sender: { select: { id: true, email: true, firstName: true, lastName: true } },
-          },
-        },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-
-    return sessions;
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.chatSession.count({ where }),
+    ]);
+    return { data, total, page, pageSize, hasMore: page * pageSize < total };
   }
 
-  async getVisibleSessions(userId: string, role: string, status?: string) {
-    if (['admin_staff', 'dean'].includes(role)) {
-      return this.getSessions(undefined, status);
+  async getVisibleSessions(userId: string, role: string, status?: string, page = 1, pageSize = 25) {
+    if (['admin_staff', 'registrar', 'dean'].includes(role)) {
+      return this.getSessions(undefined, status, page, pageSize);
     }
     if (role === 'live_agent') {
       // Live agents need both the unassigned queue and sessions already assigned to them.
       // The previous user-only filter made the unassigned queue invisible to the role that
       // is responsible for picking it up.
-      const sessions = await this.getSessions(undefined, status);
-      return sessions.filter((session: any) => !session.agentId || session.agentId === userId);
+      return this.getSessions(undefined, status, page, pageSize, userId);
     }
     const profile = await this.getStudentProfileForUser(userId);
     return profile ? this.getMySessions(profile.id) : [];
@@ -124,7 +126,7 @@ export class ChatSessionService {
     return session;
   }
 
-  async assignAgent(sessionId: string, agentId: string, role = 'admin_staff') {
+  async assignAgent(sessionId: string, agentId: string, role = 'registrar') {
     const session = await this.prisma.chatSession.findUnique({ where: { id: sessionId } });
 
     if (!session) {
@@ -134,8 +136,22 @@ export class ChatSessionService {
     if (session.status !== 'open') {
       throw new BadRequestException('Cannot assign agent to a closed session');
     }
-    if (!['admin_staff', 'dean', 'live_agent'].includes(role)) {
+    if (!['registrar', 'dean', 'live_agent'].includes(role)) {
       throw new ForbiddenException('Only authorized advisor roles can assign sessions');
+    }
+    if (role === 'live_agent' && session.agentId && session.agentId !== agentId) {
+      throw new ForbiddenException('This advisor session is assigned to another representative');
+    }
+
+    if (role === 'live_agent') {
+      const claimed = await this.prisma.chatSession.updateMany({
+        where: { id: sessionId, status: 'open', OR: [{ agentId: null }, { agentId }] },
+        data: { agentId },
+      });
+      if (claimed.count !== 1) {
+        throw new ForbiddenException('This advisor session was assigned to another representative');
+      }
+      return this.getSessionById(sessionId);
     }
 
     const updated = await this.prisma.chatSession.update({
@@ -158,6 +174,7 @@ export class ChatSessionService {
   async sendMessage(sessionId: string, senderId: string, content: string, senderRole: string) {
     const session = await this.prisma.chatSession.findUnique({
       where: { id: sessionId },
+      include: { student: { select: { userId: true } } },
     });
 
     if (!session) {
@@ -166,6 +183,11 @@ export class ChatSessionService {
 
     if (session.status === 'closed') {
       throw new BadRequestException('Cannot send message to a closed session');
+    }
+
+    this.assertAccess(session, senderId, senderRole);
+    if (senderRole === 'live_agent' && session.agentId !== senderId) {
+      throw new ForbiddenException('Assign this session to yourself before replying');
     }
 
     const message = await this.prisma.chatMessage.create({
@@ -262,7 +284,8 @@ export class ChatSessionService {
   }
 
   private assertAccess(session: any, userId: string, role: string) {
-    if (['admin_staff', 'dean', 'live_agent'].includes(role)) return;
+    if (['registrar', 'dean'].includes(role)) return;
+    if (role === 'live_agent' && (!session.agentId || session.agentId === userId)) return;
     if (role === 'student' && session.student?.userId === userId) return;
     throw new ForbiddenException('You are not authorized to access this advisor session');
   }

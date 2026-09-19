@@ -13,9 +13,11 @@ export interface DocumentRequestLineItem {
 }
 
 export interface PaymentChannels {
-  gcash: { label: string; number: string; accountName: string; note: string | null };
-  pnb: { label: string; accountName: string; accountNumber: string; note: string | null };
-  proofRecipient: { name: string; office: string; instruction: string };
+  configured: boolean;
+  instruction: string;
+  gcash: { label: string; number?: string; accountName?: string; note?: string | null } | null;
+  pnb: { label: string; accountName?: string; accountNumber?: string } | null;
+  proofRecipient: { name: string; office: string; instruction: string } | null;
 }
 
 export interface DocumentRequestItem {

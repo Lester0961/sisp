@@ -4,21 +4,28 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# Create SQLAlchemy engine
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
+# The development/mock configuration may run without a database. Production
+# sets REQUIRE_PGVECTOR=true and supplies a database URL.
+engine = (
+    create_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
+    if settings.database_url.strip()
+    else None
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) if engine else None
 
 Base = declarative_base()
 
 
 def get_db():
     """Dependency for FastAPI routes."""
+    if SessionLocal is None:
+        raise RuntimeError("DATABASE_URL is not configured")
     db = SessionLocal()
     try:
         yield db
@@ -28,6 +35,8 @@ def get_db():
 
 def check_db_connection() -> bool:
     """Check if database is reachable."""
+    if engine is None:
+        return False
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))

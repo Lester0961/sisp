@@ -18,6 +18,13 @@ export class CurriculumController {
     return this.curriculumService.getMyCurriculum(user.sub);
   }
 
+  // Server-computed curriculum progress (P4-06); the frontend only displays it.
+  @Get('me/progress')
+  @Roles('student')
+  async getMyProgress(@CurrentUser() user: JwtPayload) {
+    return this.curriculumService.getMyProgress(user.sub);
+  }
+
   @Public()
   @Get('programs')
   async listPrograms() {
@@ -25,7 +32,7 @@ export class CurriculumController {
   }
 
   @Get('by-program/:code')
-  @Roles('admin_staff', 'dean', 'sys_admin', 'faculty', 'student')
+  @Roles('registrar', 'dean', 'sys_admin', 'faculty', 'student')
   async getByProgram(
     @Param('code') code: string,
     @Query('effectiveYear', new ParseIntPipe({ optional: true })) effectiveYear?: number,

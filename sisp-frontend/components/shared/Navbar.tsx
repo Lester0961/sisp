@@ -16,6 +16,7 @@ import {
   Shield,
   Sparkles,
   Users,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,43 +31,44 @@ const roleNavs: Record<string, NavItem[]> = {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/enrollment', label: 'Enrollment', icon: BookOpen },
     { href: '/grades', label: 'Grades', icon: BookOpen },
+    { href: '/financials', label: 'Financial Information', icon: Wallet },
     { href: '/chat', label: 'ARIA', icon: Sparkles },
-    { href: '/requests', label: 'Documents', icon: FileText },
+    { href: '/requests', label: 'Service Requests', icon: FileText },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   faculty: [
-    { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
+    { href: '/faculty', label: 'Faculty Classes', icon: LayoutDashboard },
     { href: '/faculty/grades', label: 'Grade entry', icon: BookOpen },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   dean: [
-    { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
-    { href: '/admin/enrollments', label: 'Assignments', icon: Users },
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dean/advisees', label: 'Advisees', icon: Users },
     { href: '/dean/grades', label: 'Approvals', icon: BookOpen },
-    { href: '/dean/exceptions', label: 'Exceptions', icon: FileText },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
-  admin_staff: [
-    { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
-    { href: '/admin/users', label: 'Users', icon: Users },
+  registrar: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/enrollments', label: 'Assignments', icon: Users },
     { href: '/admin/grades', label: 'Grade review', icon: BookOpen },
-    { href: '/admin/requests', label: 'Payments', icon: FileText },
     { href: '/admin/escalations', label: 'Escalations', icon: Sparkles },
-    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
+    { href: '/admin/kb', label: 'Knowledge Base', icon: BookOpen },
+    { href: '/settings', label: 'Settings', icon: Settings },
+  ],
+  treasury: [
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/requests', label: 'Payments', icon: FileText },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   sys_admin: [
-    { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
-    { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
-    { href: '/admin/audit', label: 'Audit', icon: Shield },
+    { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/users', label: 'User Management', icon: Users },
+    { href: '/admin/kb', label: 'Knowledge Base', icon: BookOpen },
+    { href: '/admin/audit', label: 'Audit Logs', icon: Shield },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   live_agent: [
     { href: '/live-agent', label: 'Queue', icon: MessageSquare },
-    { href: '/admin/users', label: 'Student records', icon: Users },
-    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
 };

@@ -122,7 +122,7 @@ async function main() {
           });
         }
       }
-    });
+    }, { timeout: 30000 });
     console.log(`[ok] ${p.code}: ${p.courses.length} rows committed`);
   }
 

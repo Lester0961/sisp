@@ -31,7 +31,8 @@ export default function ForcePasswordChangePage() {
 
   const redirectAfterChange = () => {
     switch (user?.role) {
-      case 'admin_staff':
+      case 'registrar':
+      case 'treasury':
       case 'sys_admin':
         router.push('/admin/dashboard');
         break;
@@ -39,7 +40,7 @@ export default function ForcePasswordChangePage() {
         router.push('/dean/grades');
         break;
       case 'faculty':
-        router.push('/faculty/grades');
+        router.push('/faculty');
         break;
       case 'live_agent':
         router.push('/live-agent');

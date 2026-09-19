@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminStore } from '@/stores/adminStore';
+import { curriculaApi, Program } from '@/lib/api/curricula';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Separator } from '@/components/ui/separator';
@@ -48,8 +49,9 @@ export default function AdminUsersPage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [studentNumber, setStudentNumber] = useState('');
-  const [programId, setProgramId] = useState('mock-program-id'); // default BSCS
-  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [programId, setProgramId] = useState('');
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [programsLoading, setProgramsLoading] = useState(false);
   const [creating, setCreating] = useState(false);
 
   // Success details state
@@ -63,21 +65,34 @@ export default function AdminUsersPage() {
     fetchUsers(page, 5);
   }, [page, fetchUsers]);
 
+  useEffect(() => {
+    let active = true;
+    setProgramsLoading(true);
+    void curriculaApi.getPrograms()
+      .then((items) => {
+        if (!active) return;
+        setPrograms(items);
+        setProgramId(items[0]?.id || '');
+      })
+      .catch(() => {
+        if (active) toast.error('Could not load academic programs. Refresh and try again.');
+      })
+      .finally(() => {
+        if (active) setProgramsLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !firstName || !lastName) {
       toast.error('Please fill out all required fields');
       return;
     }
-    if (roleName === 'student' && !studentNumber) {
-      toast.error('Student ID number is required');
+    if (roleName === 'student' && (!studentNumber || !programId)) {
+      toast.error('Student ID number and an existing academic program are required');
       return;
     }
-    if (roleName !== 'student' && !temporaryPassword) {
-      toast.error('Temporary password is required for staff accounts');
-      return;
-    }
-
     setCreating(true);
     try {
       const res = await createUser({
@@ -87,13 +102,12 @@ export default function AdminUsersPage() {
         roleName,
         studentNumber: roleName === 'student' ? studentNumber : undefined,
         programId: roleName === 'student' ? programId : undefined,
-        temporaryPassword: roleName !== 'student' ? temporaryPassword : undefined,
       });
 
       // Show success modal credentials
       setCreatedCredentials({
         email,
-        tempPass: res.temporaryPassword || temporaryPassword,
+        tempPass: res.temporaryPassword || '',
         role: roleName,
       });
 
@@ -104,7 +118,6 @@ export default function AdminUsersPage() {
       setFirstName('');
       setLastName('');
       setStudentNumber('');
-      setTemporaryPassword('');
     } catch (err: unknown) {
       const errMsg = (err as any).response?.data?.message ?? 'Failed to create user account';
       toast.error(errMsg);
@@ -156,7 +169,8 @@ export default function AdminUsersPage() {
     { value: 'student', label: 'Student' },
     { value: 'faculty', label: 'Faculty' },
     { value: 'dean', label: 'Academic Dean' },
-    { value: 'admin_staff', label: 'Admin Staff' },
+    { value: 'registrar', label: 'Registrar' },
+    { value: 'treasury', label: 'Treasury / Accounting' },
     { value: 'live_agent', label: 'Live Agent' },
     { value: 'sys_admin', label: 'System Administrator' },
   ];
@@ -350,7 +364,8 @@ export default function AdminUsersPage() {
                   <option value="student">Student</option>
                   <option value="faculty">Faculty Member</option>
                   <option value="dean">Academic Dean</option>
-                  <option value="admin_staff">Admin Staff</option>
+                  <option value="registrar">Registrar</option>
+                  <option value="treasury">Treasury / Accounting</option>
                   <option value="live_agent">Live Agent</option>
                   <option value="sys_admin">System Administrator</option>
                 </select>
@@ -415,42 +430,27 @@ export default function AdminUsersPage() {
                       <select
                         value={programId}
                         onChange={(e) => setProgramId(e.target.value)}
+                        required
+                        disabled={programsLoading || programs.length === 0}
                         className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-2 text-xs text-slate-850 focus:outline-none transition"
                       >
-                        <option value="mock-program-id">BSCS (Computer Science)</option>
-                        <option value="mock-program-id-it">BSIT (Information Technology)</option>
+                        <option value="" disabled>{programsLoading ? 'Loading programs…' : 'Select an academic program'}</option>
+                        {programs.map((program) => (
+                          <option key={program.id} value={program.id}>{program.code} — {program.name}</option>
+                        ))}
                       </select>
+                      {!programsLoading && programs.length === 0 && (
+                        <p className="text-xs text-rose-700" role="alert">No academic programs are available. A student account cannot be created until the program list loads.</p>
+                      )}
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-200/50 flex flex-col gap-1 text-[10px] text-slate-500 font-medium">
-                    <span>Generated Temporary Password Preview:</span>
-                    <strong className="text-indigo-600 font-black tracking-wider text-xs">
-                      {lastName.trim() && studentNumber.trim().length >= 4
-                        ? `${lastName.trim().replace(/\s+/g, '')}${studentNumber.trim().substring(studentNumber.trim().length - 4)}`
-                        : 'Surname[Last4]'}
-                    </strong>
-                  </div>
                 </div>
               )}
 
-              {/* Staff specific fields */}
-              {roleName !== 'student' && (
-                <div className="space-y-2 p-4 bg-slate-50 border border-slate-100 rounded-2xl animate-in fade-in duration-200">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Temporary Password</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Input temporary password"
-                      value={temporaryPassword}
-                      onChange={(e) => setTemporaryPassword(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs text-slate-850 transition focus:outline-none font-mono"
-                    />
-                  </div>
-                  <span className="block text-[8px] text-slate-400">Must be at least 8 characters. The user will be forced to change this upon their first login.</span>
-                </div>
-              )}
+              <p className="text-xs text-slate-500">
+                A random one-time password will be generated and shown once after account creation. The user must replace it at first login.
+              </p>
 
               <Separator className="bg-slate-100 pt-1" />
 

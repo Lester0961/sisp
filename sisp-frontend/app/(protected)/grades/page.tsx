@@ -11,31 +11,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
-import { Loader2, BookOpen, TrendingUp, AlertCircle, CalendarDays, CheckCircle2, LockKeyhole } from 'lucide-react';
-import { notificationsApi } from '@/lib/api/notifications';
-import { useEffect as useEffectNotif } from 'react';
-
-function getGradeColor(grade: number | null): string {
-  if (grade === null) return 'text-muted-foreground';
-  if (grade >= 90) return 'text-green-600 font-bold';
-  if (grade >= 80) return 'text-blue-600 font-bold';
-  if (grade >= 75) return 'text-yellow-600 font-bold';
-  return 'text-destructive font-bold';
-}
-
-function getGradeLabel(grade: number | null): string {
-  if (grade === null) return 'N/A';
-  if (grade >= 90) return 'Excellent';
-  if (grade >= 80) return 'Very Good';
-  if (grade >= 75) return 'Passing';
-  return 'Failed';
-}
+import { Loader2, BookOpen, Layers, AlertCircle, CalendarDays, CheckCircle2, LockKeyhole } from 'lucide-react';
 
 export default function GradesPage() {
   const {
     grades,
     gradesMessage,
+    gradesError,
     isLoadingGrades,
     fetchGrades,
     gradeTerms,
@@ -47,20 +31,6 @@ export default function GradesPage() {
   useEffect(() => {
     if (grades.length === 0 && gradeTerms.length === 0 && !isLoadingGrades) void fetchGrades();
   }, [grades.length, gradeTerms.length, isLoadingGrades, fetchGrades]);
-
-  useEffectNotif(() => {
-    notificationsApi
-      .getUnreadCount()
-      .catch(() => {});
-  }, []);
-
-  const gpa =
-    grades.length > 0
-      ? (
-          grades.reduce((sum, g) => sum + (g.finalGrade ?? 0), 0) /
-          grades.length
-        ).toFixed(2)
-      : null;
 
   const totalUnits = grades.reduce(
     (sum, g) => sum + (g.enrollment?.course?.units ?? 0),
@@ -89,6 +59,12 @@ export default function GradesPage() {
         {isLoadingGrades ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-[#1e3a8a]" />
+          </div>
+        ) : gradesError ? (
+          <div role="alert" className="portal-surface portal-empty">
+            <AlertCircle className="size-8 text-[#b42318]" />
+            <div><h2 className="font-semibold text-[#102f49]">Grades unavailable</h2><p className="mt-1 text-sm text-[#587387]">{gradesError}</p></div>
+            <Button variant="outline" size="sm" onClick={() => void fetchGrades()}>Try again</Button>
           </div>
         ) : (
           <div className="space-y-6">
@@ -149,8 +125,9 @@ export default function GradesPage() {
                 <p className="mt-2 text-2xl font-semibold tracking-tight text-[#102f49]">{totalUnits}</p>
               </div>
               <div className="bg-[#f1f6fb] p-4 sm:p-5">
-                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0a439b]"><TrendingUp className="size-3.5" /> Average</p>
-                <p className="mt-2 text-2xl font-semibold tracking-tight text-[#0a439b]">{gpa ?? 'N/A'}</p>
+                <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0a439b]"><Layers className="size-3.5" /> Terms on record</p>
+                <p className="mt-2 text-2xl font-semibold tracking-tight text-[#0a439b]">{gradeTerms.length}</p>
+                <p className="mt-1 text-[10px] text-[#587387]">Official GPA is issued by the Registrar, not computed here.</p>
               </div>
             </section>
 
@@ -184,7 +161,7 @@ export default function GradesPage() {
                                 {grade.enrollment.course.units} UNITS
                               </Badge>
                               <Badge className="text-[9px] h-4 px-1.5 rounded bg-emerald-50 text-emerald-600 border-emerald-200">
-                                Dean Approved
+                                {grade.status === 'approved' ? 'Published' : grade.status ?? 'Posted'}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 font-medium mt-0.5 leading-snug pr-4">
@@ -193,15 +170,10 @@ export default function GradesPage() {
                           </div>
                           
                           <div className="text-right shrink-0">
-                            <div className={`text-xl ${getGradeColor(grade.finalGrade)}`}>
+                            <div className="text-xl font-semibold text-[#102f49]">
                               {grade.finalGrade?.toFixed(2) ?? 'Not posted'}
                             </div>
-                            <Badge
-                              variant={grade.finalGrade !== null && grade.finalGrade >= 75 ? 'secondary' : 'destructive'}
-                              className={`mt-1 text-[9px] px-1.5 py-0 rounded ${grade.finalGrade !== null && grade.finalGrade >= 75 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : ''}`}
-                            >
-                              {getGradeLabel(grade.finalGrade)}
-                            </Badge>
+                            <p className="mt-1 text-[9px] text-[#587387]">Recorded final grade</p>
                           </div>
                         </div>
 

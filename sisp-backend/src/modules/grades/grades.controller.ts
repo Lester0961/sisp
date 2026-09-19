@@ -5,6 +5,7 @@ import { UpdateGradeDto } from './dto/update-grade.dto';
 import { BulkGradeDto } from './dto/bulk-grade.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 @Controller('grades')
@@ -20,7 +21,7 @@ export class GradesController {
 
   // Faculty/Admin views all grades
   @Get()
-  @Roles('faculty', 'admin_staff', 'dean')
+  @Roles('faculty', 'registrar', 'dean')
   async getAllGrades(
     @CurrentUser() user: JwtPayload,
     @Query('studentId') studentId?: string,
@@ -83,7 +84,7 @@ export class GradesController {
 
   // Registrar publishes dean-approved grade
   @Post(':id/approve')
-  @Roles('admin_staff')
+  @RequirePermissions('student_record.update')
   async approveGrade(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.gradesService.approveGrade(user.sub, id);
   }
@@ -99,9 +100,10 @@ export class GradesController {
     return this.gradesService.rejectGrade(user.sub, id, body.remarks);
   }
 
-  // Legacy toggle visibility (kept for backward compatibility but restricted)
+  // Legacy toggle visibility (kept for backward compatibility but restricted
+  // to the role that owns record publication; deans use post/reject instead).
   @Patch(':id/visibility')
-  @Roles('admin_staff', 'dean')
+  @RequirePermissions('student_record.update')
   async toggleVisibility(@Param('id') id: string, @Body() body: { isVisible: boolean }) {
     return this.gradesService.toggleVisibility(id, body.isVisible);
   }

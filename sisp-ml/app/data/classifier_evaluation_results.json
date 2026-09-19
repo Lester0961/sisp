@@ -1,0 +1,109 @@
+{
+  "model_version": "v6",
+  "evaluation_samples": 15,
+  "training_samples": 60,
+  "test_accuracy": 0.6666666666666666,
+  "labels": [
+    "document_request",
+    "enrollment_inquiry",
+    "general_inquiry",
+    "grade_inquiry",
+    "payment_inquiry"
+  ],
+  "confusion_matrix": [
+    [
+      2,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      3,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      3,
+      0,
+      0
+    ],
+    [
+      0,
+      1,
+      2,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      0,
+      2
+    ]
+  ],
+  "per_class": {
+    "document_request": {
+      "precision": 1.0,
+      "recall": 0.6666666666666666,
+      "f1": 0.8,
+      "support": 3
+    },
+    "enrollment_inquiry": {
+      "precision": 0.6,
+      "recall": 1.0,
+      "f1": 0.75,
+      "support": 3
+    },
+    "general_inquiry": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "f1": 0.6666666666666666,
+      "support": 3
+    },
+    "grade_inquiry": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 3
+    },
+    "payment_inquiry": {
+      "precision": 1.0,
+      "recall": 0.6666666666666666,
+      "f1": 0.8,
+      "support": 3
+    }
+  },
+  "misclassifications": [
+    {
+      "text": "Has my instructor posted the result for biology yet?",
+      "expected": "grade_inquiry",
+      "predicted": "general_inquiry"
+    },
+    {
+      "text": "I can't find the assessment marks in my student account.",
+      "expected": "grade_inquiry",
+      "predicted": "general_inquiry"
+    },
+    {
+      "text": "Where can I review the scores recorded for my classes?",
+      "expected": "grade_inquiry",
+      "predicted": "enrollment_inquiry"
+    },
+    {
+      "text": "How do I settle the amount shown on my school account?",
+      "expected": "payment_inquiry",
+      "predicted": "general_inquiry"
+    },
+    {
+      "text": "How can I obtain proof that I am enrolled this term?",
+      "expected": "document_request",
+      "predicted": "enrollment_inquiry"
+    }
+  ]
+}

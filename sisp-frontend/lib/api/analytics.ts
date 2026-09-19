@@ -11,16 +11,8 @@ export interface EnrollmentStatsResponse {
   totalEnrolled: number;
 }
 
-export interface GpaDistributionResponse {
-  distribution: {
-    [key: string]: number;
-  };
-  passFailRates: {
-    code: string;
-    title: string;
-    pass: number;
-    fail: number;
-  }[];
+export interface PublishedGradeCountResponse {
+  publishedGradeCount: number;
 }
 
 export interface RequestVolumeStat {
@@ -32,36 +24,31 @@ export interface RequestVolumeStat {
 export interface ChatbotAnalyticsResponse {
   totalLogs: number;
   escalatedCount: number;
-  escalationRate: number;
+  escalationRate: number | null;
   intentDistribution: {
     intent: string;
     count: number;
-    avgConfidence: number;
+    avgConfidence: number | null;
   }[];
 }
 
 export interface MonthlyReportResponse {
-  reportingOfficer: string;
-  reportPeriod: string;
+  reportPeriod: { start: string; endExclusive: string };
   generatedAt: string;
   summary: {
     totalStudentInquiries: number;
-    totalEnrolledStudents: number;
+    totalStudentProfiles: number;
     totalDocumentRequests: number;
+    escalationsCreated: number;
     escalationsResolved: number;
     pendingEscalations: number;
-    inquiryResolutionRate: number;
+    escalationResolutionRate: number | null;
   };
   topStudentConcerns?: {
-    category: string;
-    count: number;
+    topic: string;
+    inquiryCount: number;
+    confidence: number | null;
   }[];
-  departmentWorkload: {
-    department: string;
-    primaryTasks: string;
-    status: string;
-  }[];
-  operationalHighlights: string[];
 }
 
 export const analyticsApi = {
@@ -75,7 +62,7 @@ export const analyticsApi = {
     return response.data;
   },
 
-  getGpaDistribution: async (): Promise<GpaDistributionResponse> => {
+  getPublishedGradeCount: async (): Promise<PublishedGradeCountResponse> => {
     const response = await apiClient.get('/analytics/grades');
     return response.data;
   },

@@ -46,6 +46,11 @@ export const enrollmentsApi = {
     return response.data;
   },
 
+  getMySchedule: async () => {
+    const response = await apiClient.get('/enrollments/schedule');
+    return response.data;
+  },
+
   getCompletedCourseIds: async (): Promise<string[]> => {
     const response = await apiClient.get('/enrollments/completed-ids');
     return response.data;

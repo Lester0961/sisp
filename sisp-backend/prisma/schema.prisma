@@ -83,6 +83,13 @@ model User {
   assignedChatSessions ChatSession[] @relation("SessionAssignedTo")
   sentChatMessages     ChatMessage[]
 
+  // Phase 3 supporting structures
+  instructedSections     ClassSection[]        @relation("SectionInstructor")
+  paymentVerifications   PaymentTransaction[]  @relation("PaymentVerifiedBy")
+  adviserAssignments     AdviserAssignment[]   @relation("AdviserAssignments")
+  advisingConcerns       AdvisingConcern[]     @relation("ConcernAdviser")
+  enrollmentHistoryChanges EnrollmentHistory[] @relation("HistoryChangedBy")
+
   @@map("users")
 }
 
@@ -92,12 +99,18 @@ model User {
 
 model AuditLog {
   id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  user       User     @relation(fields: [userId], references: [id])
+  // Nullable + SetNull: audit history survives account removal/deactivation.
+  userId     String?  @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorEmail String?  @map("actor_email")
+  actorRole  String?  @map("actor_role")
   action     String
   resource   String
   resourceId String?  @map("resource_id")
   ipAddress  String?  @map("ip_address")
+  // Optional transition snapshot for status/workflow changes (P7-04).
+  oldValue   String?  @map("old_value")
+  newValue   String?  @map("new_value")
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@map("audit_logs")
@@ -146,6 +159,11 @@ model StudentProfile {
   chatSessions      ChatSession[]
   admissionApplication AdmissionApplication?
 
+  // Phase 3 supporting structures
+  paymentTransactions PaymentTransaction[]
+  adviserAssignments  AdviserAssignment[]
+  advisingConcerns    AdvisingConcern[]
+
   @@map("student_profiles")
 }
 
@@ -168,6 +186,12 @@ model AcademicTerm {
 
   studentSemesters StudentSemester[]
   enrollments      Enrollment[]
+
+  // Phase 3 supporting structures
+  classSections       ClassSection[]
+  paymentTransactions PaymentTransaction[]
+  adviserAssignments  AdviserAssignment[]
+  enrollmentHistory   EnrollmentHistory[]
 
   @@unique([academicYear, termNumber])
   @@index([academicYear, termNumber])
@@ -221,6 +245,8 @@ model Course {
   enrollments       Enrollment[]
   prerequisites     CoursePrerequisite[] @relation("CoursePrereqs")
   requiredBy        CoursePrerequisite[] @relation("PrereqRequiredBy")
+  classSections     ClassSection[]
+  enrollmentHistory EnrollmentHistory[]
 
   @@unique([code, title])
   @@index([code])
@@ -387,10 +413,23 @@ model EnrollmentHistory {
   id        String         @id @default(uuid())
   studentId String         @map("student_id")
   student   StudentProfile @relation(fields: [studentId], references: [id])
+  // Legacy term label retained for compatibility with the printed concept.
   term      String
-  status    String
-  createdAt DateTime       @default(now()) @map("created_at")
+  // Phase 3 enrichment (P3-03): structured references + transition audit.
+  enrollmentId   String?        @map("enrollment_id")
+  enrollment     Enrollment?    @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  courseId       String?        @map("course_id")
+  course         Course?        @relation(fields: [courseId], references: [id])
+  academicTermId String?        @map("academic_term_id")
+  academicTerm   AcademicTerm?  @relation(fields: [academicTermId], references: [id])
+  academicYear   String?        @map("academic_year")
+  previousStatus String?        @map("previous_status")
+  status         String
+  changedById    String?        @map("changed_by_id")
+  changedBy      User?          @relation("HistoryChangedBy", fields: [changedById], references: [id])
+  createdAt      DateTime       @default(now()) @map("created_at")
 
+  @@index([studentId, createdAt])
   @@map("enrollment_history")
 }
 
@@ -408,11 +447,18 @@ model Enrollment {
   year         String? // e.g. "2025-2026"
   instructorId String?        @map("instructor_id")
   instructor   User?          @relation("FacultyEnrollments", fields: [instructorId], references: [id])
+  // Phase 3 (P3-04): gradual move from free-text section to a scheduled
+  // section. Legacy `section` text is preserved until data is stable.
+  classSectionId String?      @map("class_section_id")
+  classSection   ClassSection? @relation(fields: [classSectionId], references: [id])
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
 
-  grade Grade?
+  grade   Grade?
+  history EnrollmentHistory[]
 
+  // One enrollment identity per student/course/term (P3-02).
+  @@unique([studentId, courseId, termId])
   @@map("enrollments")
 }
 
@@ -613,7 +659,7 @@ model ChatMessage {
   session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   senderId   String      @map("sender_id")
   sender     User        @relation(fields: [senderId], references: [id])
-  senderRole String      @map("sender_role") // student | live_agent | admin_staff | dean
+  senderRole String      @map("sender_role") // student | live_agent | registrar | dean
   content    String
   createdAt  DateTime    @default(now()) @map("created_at")
 
@@ -631,4 +677,147 @@ model ChatDailyUsage {
 
   @@unique([userId, usageDate])
   @@map("chat_daily_usage")
+}
+
+// ============================================================
+// PHASE 3 SUPPORTING STRUCTURES
+// Additive implementation-support entities required by the written
+// requirements (schedule access, payment history, adviser assignment,
+// advising concerns, durable knowledge base). See DEC-004.
+// ============================================================
+
+// Course schedule (P3-04). Values must come from institutional data
+// (DEC-010); no defaults are invented.
+model ClassSection {
+  id           String       @id @default(uuid())
+  courseId     String       @map("course_id")
+  course       Course       @relation(fields: [courseId], references: [id])
+  termId       String       @map("academic_term_id")
+  term         AcademicTerm @relation(fields: [termId], references: [id])
+  sectionCode  String       @map("section_code")
+  instructorId String?      @map("instructor_id")
+  instructor   User?        @relation("SectionInstructor", fields: [instructorId], references: [id])
+  status       String       @default("active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  schedules  ClassSchedule[]
+  enrollments Enrollment[]
+
+  @@unique([courseId, termId, sectionCode])
+  @@index([termId])
+  @@map("class_sections")
+}
+
+model ClassSchedule {
+  id             String       @id @default(uuid())
+  classSectionId String       @map("class_section_id")
+  classSection   ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  dayOfWeek      String       @map("day_of_week")
+  startTime      DateTime?    @map("start_time") @db.Time
+  endTime        DateTime?    @map("end_time") @db.Time
+  room           String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([classSectionId, dayOfWeek, startTime])
+  @@map("class_schedules")
+}
+
+// Payment transaction ledger (P3-05). Money remains Decimal; no gateway.
+model PaymentTransaction {
+  id              String          @id @default(uuid())
+  studentId       String          @map("student_id")
+  student         StudentProfile  @relation(fields: [studentId], references: [id])
+  academicTermId  String?         @map("academic_term_id")
+  academicTerm    AcademicTerm?   @relation(fields: [academicTermId], references: [id])
+  amount          Decimal         @db.Decimal(10, 2)
+  paymentMethod   String?         @map("payment_method")
+  referenceNumber String?         @map("reference_number")
+  proofUrl        String?         @map("proof_url")
+  status          String          @default("pending") // pending | verified | rejected | void
+  verifiedById    String?         @map("verified_by_id")
+  verifiedBy      User?           @relation("PaymentVerifiedBy", fields: [verifiedById], references: [id])
+  paidAt          DateTime?       @map("paid_at")
+  verifiedAt      DateTime?       @map("verified_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([studentId, academicTermId])
+  @@map("payment_transactions")
+}
+
+// Adviser assignment (P3-06) scopes Dean/Adviser review to advisees.
+model AdviserAssignment {
+  id           String          @id @default(uuid())
+  adviserId    String          @map("adviser_user_id")
+  adviser      User            @relation("AdviserAssignments", fields: [adviserId], references: [id])
+  studentId    String          @map("student_profile_id")
+  student      StudentProfile  @relation(fields: [studentId], references: [id])
+  academicTermId String?       @map("academic_term_id")
+  academicTerm AcademicTerm?   @relation(fields: [academicTermId], references: [id])
+  academicYear String?         @map("academic_year")
+  status       String          @default("active")
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  @@unique([adviserId, studentId, academicTermId])
+  @@index([studentId])
+  @@map("adviser_assignments")
+}
+
+// Advising concerns (P3-07) replace the broken Exceptions placeholder.
+model AdvisingConcern {
+  id         String          @id @default(uuid())
+  studentId  String          @map("student_profile_id")
+  student    StudentProfile  @relation(fields: [studentId], references: [id])
+  adviserId  String?         @map("adviser_user_id")
+  adviser    User?           @relation("ConcernAdviser", fields: [adviserId], references: [id])
+  category   String
+  summary    String
+  status     String          @default("open") // open | in_review | resolved
+  notes      String?
+  resolution String?
+  createdAt  DateTime        @default(now()) @map("created_at")
+  resolvedAt DateTime?       @map("resolved_at")
+
+  @@index([studentId, status])
+  @@map("advising_concerns")
+}
+
+// Durable knowledge base (P3-08). The ML service re-indexes from these rows
+// in Phase 11. The embedding column is a pgvector type managed by raw SQL.
+model KnowledgeDocument {
+  id            String    @id @default(uuid())
+  filename      String    @unique
+  title         String
+  category      String
+  content       String
+  version       String?
+  effectiveDate DateTime? @map("effective_date") @db.Date
+  isActive      Boolean   @default(true) @map("is_active")
+  indexStatus   String    @default("pending") @map("index_status")
+  indexError    String?   @map("index_error")
+  indexedAt     DateTime? @map("indexed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  chunks KnowledgeChunk[]
+
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id             String            @id @default(uuid())
+  documentId     String            @map("document_id")
+  document       KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex     Int               @map("chunk_index")
+  content        String
+  category       String?
+  // pgvector column; not exposed through the Prisma Client.
+  embedding      Unsupported("vector(384)")?
+  embeddingModel String?           @map("embedding_model")
+  embeddedAt     DateTime?         @map("embedded_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  @@unique([documentId, chunkIndex])
+  @@map("knowledge_chunks")
 }

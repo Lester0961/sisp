@@ -40,6 +40,16 @@ def test_language_and_scope_routing():
     }
 
 
+def test_unsupported_academic_policy_escalates_without_unverified_sources():
+    from app.services.chat_service import chat_service
+
+    result = asyncio.run(chat_service.process_query("What is the school's academic probation rule?"))
+
+    assert result["escalate"] is True
+    assert result["route"] == "live_advisor"
+    assert result["sources"] == []
+
+
 class FakeProvider:
     configured = True
 

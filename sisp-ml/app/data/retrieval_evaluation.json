@@ -1,0 +1,9 @@
+[
+  {"text": "Which academic programs are included in the RMC program catalog?", "expected_sources": ["program_catalog.txt"]},
+  {"text": "Where is the BSCS curriculum course sequence?", "expected_sources": ["program_catalog.txt", "curriculum_BSCS_2024.txt"]},
+  {"text": "What courses appear in the Bachelor of Science in Computer Science curriculum?", "expected_sources": ["curriculum_BSCS_2024.txt"]},
+  {"text": "What is the school GWA probation threshold?", "expected_sources": []},
+  {"text": "How much is the TOR request fee?", "expected_sources": []},
+  {"text": "What are the regular enrollment late fees?", "expected_sources": []},
+  {"text": "How do I renew a campus parking permit?", "expected_sources": []}
+]

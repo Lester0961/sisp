@@ -1,8 +1,9 @@
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.security import require_ml_secret
 from app.services.chat_service import chat_service
 
 
@@ -45,7 +46,7 @@ async def chat_health():
 
 
 @router.post("", response_model=ChatResponse)
-async def chat_query(payload: ChatRequest):
+async def chat_query(payload: ChatRequest, _auth: None = Depends(require_ml_secret)):
     try:
         history_dicts = [
             {"role": message.role, "content": message.content}

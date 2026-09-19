@@ -3,7 +3,7 @@ import { adminApi, UserProfile, ListUsersResponse } from '@/lib/api/admin';
 import {
   analyticsApi,
   EnrollmentStatsResponse,
-  GpaDistributionResponse,
+  PublishedGradeCountResponse,
   RequestVolumeStat,
   ChatbotAnalyticsResponse,
 } from '@/lib/api/analytics';
@@ -21,7 +21,7 @@ interface AdminState {
     totalRequests: number;
   } | null;
   enrollmentStats: EnrollmentStatsResponse | null;
-  gpaDistribution: GpaDistributionResponse | null;
+  publishedGradeCount: PublishedGradeCountResponse | null;
   requestVolume: RequestVolumeStat[];
   chatbotAnalytics: ChatbotAnalyticsResponse | null;
   isLoading: boolean;
@@ -33,10 +33,9 @@ interface AdminState {
   deactivateUser: (userId: string) => Promise<void>;
   fetchDashboardStats: () => Promise<void>;
   fetchEnrollmentStats: () => Promise<void>;
-  fetchGpaDistribution: () => Promise<void>;
+  fetchPublishedGradeCount: () => Promise<void>;
   fetchRequestVolume: () => Promise<void>;
   fetchChatbotAnalytics: () => Promise<void>;
-  approveDeanException: (exceptionId: string, decision: 'approved' | 'rejected') => Promise<void>;
   downloadEnrollmentReport: () => Promise<void>;
   downloadGradeTranscript: (studentId: string) => Promise<void>;
   createUser: (data: any) => Promise<{ user: UserProfile; temporaryPassword?: string }>;
@@ -51,7 +50,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   limit: 10,
   dashboardStats: null,
   enrollmentStats: null,
-  gpaDistribution: null,
+  publishedGradeCount: null,
   requestVolume: [],
   chatbotAnalytics: null,
   isLoading: false,
@@ -122,13 +121,13 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
-  fetchGpaDistribution: async () => {
+  fetchPublishedGradeCount: async () => {
     set({ isLoading: true, error: null });
     try {
-      const stats = await analyticsApi.getGpaDistribution();
-      set({ gpaDistribution: stats, isLoading: false });
+      const stats = await analyticsApi.getPublishedGradeCount();
+      set({ publishedGradeCount: stats, isLoading: false });
     } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to fetch GPA distribution.', isLoading: false });
+      set({ error: err.response?.data?.message || 'Failed to fetch published grade count.', isLoading: false });
     }
   },
 
@@ -149,17 +148,6 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
       set({ chatbotAnalytics: data, isLoading: false });
     } catch (err: any) {
       set({ error: err.response?.data?.message || 'Failed to fetch chatbot analytics.', isLoading: false });
-    }
-  },
-
-  approveDeanException: async (exceptionId: string, decision: 'approved' | 'rejected') => {
-    set({ isLoading: true, error: null });
-    try {
-      await adminApi.approveException(exceptionId, decision);
-      set({ isLoading: false });
-    } catch (err: any) {
-      set({ error: err.response?.data?.message || 'Failed to update exception.', isLoading: false });
-      throw err;
     }
   },
 

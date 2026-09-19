@@ -1,12 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsIn, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsIn, IsUUID, MaxLength } from 'class-validator';
 
 export class SendNotificationDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(120)
   title: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(500)
   message: string;
 
   @IsOptional()
@@ -15,7 +17,7 @@ export class SendNotificationDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['student', 'faculty', 'admin_staff', 'dean', 'all'])
+  @IsIn(['student', 'faculty', 'dean', 'registrar', 'treasury', 'live_agent', 'all'])
   targetRole?: string;
 
   @IsOptional()

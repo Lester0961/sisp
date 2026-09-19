@@ -17,6 +17,9 @@ export default function DeanGradesPage() {
   useAuth();
   const [grades, setGrades] = useState<GradeItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [termsLoading, setTermsLoading] = useState(true);
+  const [termsError, setTermsError] = useState(false);
   const [search, setSearch] = useState('');
   const [actionId, setActionId] = useState<string | null>(null);
   const [rejectRemarks, setRejectRemarks] = useState<Record<string, string>>({});
@@ -25,24 +28,37 @@ export default function DeanGradesPage() {
 
   const loadGrades = async (termId = selectedTermId ?? undefined) => {
     setLoading(true);
+    setLoadError(false);
     try {
       const data = await gradesApi.getAllGrades(undefined, undefined, 'submitted', termId);
       setGrades(Array.isArray(data) ? data : (data as { data?: GradeItem[] })?.data ?? []);
     } catch {
+      setLoadError(true);
       toast.error('Unable to load the grade approval queue.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    void (async () => {
-      const availableTerms = await academicTermsApi.list().catch(() => []);
+  const loadTerms = async () => {
+    setTermsLoading(true);
+    setTermsError(false);
+    try {
+      const availableTerms = await academicTermsApi.list();
       setTerms(availableTerms);
       const current = availableTerms.find((term) => term.isCurrent) ?? availableTerms[0];
       setSelectedTermId(current?.id ?? null);
-      await loadGrades(current?.id);
-    })();
+      if (current) await loadGrades(current.id);
+    } catch {
+      setTermsError(true);
+    } finally {
+      setTermsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadTerms();
   }, []);
 
   const handleApprove = async (gradeId: string) => {
@@ -105,8 +121,10 @@ export default function DeanGradesPage() {
         <section className="portal-surface mb-5 overflow-hidden" aria-label="Dean approval term selector">
           <div className="border-b border-[#e8f0f5] px-4 py-3 sm:px-5"><p className="text-sm font-semibold text-[#102f49]">Approval term</p><p className="text-xs text-[#587387]">Review faculty submissions one academic term at a time.</p></div>
           <div className="flex gap-2 overflow-x-auto p-3 sm:p-4">
-            {terms.map((term) => <button key={term.id} type="button" onClick={() => { setSelectedTermId(term.id); void loadGrades(term.id); }} className={`min-w-[8rem] rounded-xl border px-3 py-2.5 text-left text-xs transition ${selectedTermId === term.id ? 'border-[#0a439b] bg-[#f1f6fb] text-[#0a439b]' : 'border-[#dce7ef] text-[#587387] hover:border-[#9bc2df]'}`}><span className="block font-semibold text-[#102f49]">{term.label}</span><span className="mt-1 block">{term.academicYear}</span></button>)}
-            {!terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">Academic terms are not configured yet.</p> : null}
+            {terms.map((term) => <button key={term.id} type="button" aria-pressed={selectedTermId === term.id} onClick={() => { setSelectedTermId(term.id); void loadGrades(term.id); }} className={`min-w-[8rem] rounded-xl border px-3 py-2.5 text-left text-xs transition ${selectedTermId === term.id ? 'border-[#0a439b] bg-[#f1f6fb] text-[#0a439b]' : 'border-[#dce7ef] text-[#587387] hover:border-[#9bc2df]'}`}><span className="block font-semibold text-[#102f49]">{term.label}</span><span className="mt-1 block">{term.academicYear}</span></button>)}
+            {termsLoading ? <p className="px-1 py-2 text-xs text-[#587387]">Loading academic terms…</p> : null}
+            {termsError ? <p role="alert" className="px-1 py-2 text-xs text-red-700">Academic terms could not be loaded. <button type="button" onClick={() => void loadTerms()} className="underline">Retry</button></p> : null}
+            {!termsLoading && !termsError && !terms.length ? <p className="px-1 py-2 text-xs text-[#a15c05]">No academic terms are available.</p> : null}
           </div>
         </section>
 
@@ -115,8 +133,12 @@ export default function DeanGradesPage() {
           <div className="relative"><Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-[#6c879a]" strokeWidth={1.8} /><input id="grade-search" type="search" placeholder="Search student, student number, or course" value={search} onChange={(event) => setSearch(event.target.value)} className="h-11 w-full rounded-xl border border-[#cbdde9] bg-[#fbfdfe] py-2 pl-10 pr-4 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10" /></div>
         </section>
 
-        {loading ? (
+        {termsLoading || loading ? (
           <section className="space-y-3"><div className="portal-skeleton h-52" /><div className="portal-skeleton h-52" /></section>
+        ) : termsError ? null : loadError ? (
+          <section role="alert" className="portal-surface border-red-200 p-5 text-sm text-red-800">Grade approvals could not be loaded. <button type="button" onClick={() => void loadGrades()} className="ml-2 underline">Retry</button></section>
+        ) : !terms.length ? (
+          <section className="portal-surface portal-empty"><FileCheck className="size-8 text-[#a15c05]" strokeWidth={1.8} /><div><h2 className="font-semibold text-[#102f49]">No academic terms available</h2><p className="mt-1 text-sm text-[#587387]">Grade approvals require an academic term.</p></div></section>
         ) : filteredGrades.length ? (
           <section className="grid gap-4 lg:grid-cols-2">
             {filteredGrades.map((grade) => {

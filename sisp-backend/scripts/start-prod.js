@@ -1,56 +1,58 @@
+/**
+ * Production startup (Phase 1 — P1-03/P1-04/P1-06).
+ *
+ * Guarantees:
+ *  - validates required environment variables (names only in errors);
+ *  - applies reviewed Prisma migrations via `prisma migrate deploy`;
+ *  - never recreates/reseeds accounts and never uses `prisma db push`;
+ *  - starts the compiled NestJS server only after the steps above succeed.
+ *
+ * If `migrate deploy` fails because the live database was previously created
+ * with `db push`, baseline the already-present migrations once with
+ * `npx prisma migrate resolve --applied <migration-name>` before deploying
+ * again. See docs/thesis-alignment/DECISION_LOG.md (DEC-011).
+ */
 const { spawnSync } = require('child_process');
-const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcryptjs');
 
-async function ensureSysadmin() {
-  console.log('--- ENSURING SYSADMIN ACCOUNT ---');
-  try {
-    const prisma = new PrismaClient();
-    const hash = await bcrypt.hash('local-demo-only', 10);
-    
-    // First ensure the role exists
-    await prisma.role.upsert({
-      where: { name: 'sys_admin' },
-      update: {},
-      create: { id: 'role-id-sys_admin', name: 'sys_admin', description: 'System Administrator', permissions: {} }
-    });
-    
-    // Then upsert the user
-    await prisma.user.upsert({
-      where: { email: 'sysadmin@rmc.edu.ph' },
-      update: { passwordHash: hash, isActive: true },
-      create: {
-        id: 'mock-sysadmin-id',
-        email: 'sysadmin@rmc.edu.ph',
-        passwordHash: hash,
-        firstName: 'System',
-        lastName: 'Administrator',
-        roleId: 'role-id-sys_admin',
-        isActive: true,
-      }
-    });
-    console.log('Sysadmin account guaranteed to exist with default password.');
-    await prisma.$disconnect();
-  } catch (err) {
-    console.error('Failed to ensure sysadmin:', err);
+const REQUIRED_ENV = [
+  'DATABASE_URL',
+  'JWT_SECRET',
+  'JWT_REFRESH_SECRET',
+  'ML_SERVICE_URL',
+  'ML_SECRET_TOKEN',
+];
+
+function fail(message) {
+  console.error(`[start-prod] ${message}`);
+  process.exit(1);
+}
+
+function validateEnv() {
+  const missing = REQUIRED_ENV.filter((key) => !process.env[key] || !process.env[key].trim());
+  if (missing.length > 0) {
+    fail(`Missing required environment variable(s): ${missing.join(', ')}`);
   }
 }
 
-async function main() {
-  console.log('--- RUNNING DB PUSH ---');
-  spawnSync('npx', ['prisma', 'db', 'push', '--accept-data-loss'], { stdio: 'inherit' });
-  
-  console.log('--- RUNNING DB SEED ---');
-  spawnSync('npx', ['prisma', 'db', 'seed'], { stdio: 'inherit' });
-  
-  console.log('--- RUNNING CURRICULA SEED ---');
-  spawnSync('node', ['prisma/seed-curricula.js', '--apply'], { stdio: 'inherit' });
-  
-  await ensureSysadmin();
-  
-  console.log('--- STARTING SERVER ---');
-  const server = spawnSync('node', ['dist/main.js'], { stdio: 'inherit' });
-  process.exit(server.status !== null ? server.status : 1);
+function run(command, args) {
+  const executable = process.platform === 'win32' ? `${command}.cmd` : command;
+  const result = spawnSync(executable, args, { stdio: 'inherit' });
+  if (result.error) {
+    fail(`Failed to run ${command}: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    fail(`${command} ${args.join(' ')} exited with code ${result.status}`);
+  }
+}
+
+function main() {
+  validateEnv();
+
+  console.log('[start-prod] Applying reviewed database migrations (prisma migrate deploy)...');
+  run('npx', ['prisma', 'migrate', 'deploy']);
+
+  console.log('[start-prod] Starting SISP backend...');
+  run('node', ['dist/main.js']);
 }
 
 main();

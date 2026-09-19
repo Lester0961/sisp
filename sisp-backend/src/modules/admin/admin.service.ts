@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { DocumentsService } from '../documents/documents.service';
+import { UpdateUserDto } from '../users/dto/update-user.dto';
+import { CANONICAL_ROLE_NAMES } from '../../common/authz/rbac';
 import * as bcrypt from 'bcryptjs';
+import { randomBytes } from 'node:crypto';
 
 const userSafeSelect = {
   id: true,
@@ -29,10 +31,7 @@ const userSafeSelect = {
 
 @Injectable()
 export class AdminService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly documentsService: DocumentsService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async getDashboardStats() {
     const [totalUsers, totalStudents, totalFaculty, totalRequests] = await Promise.all([
@@ -54,17 +53,7 @@ export class AdminService {
     };
   }
 
-  async approveException(exceptionId: string, decision: 'approved' | 'rejected', adminId: string) {
-    const updated = await this.documentsService.updateRequestStatus(exceptionId, {
-      status: decision,
-      remarks: `Exception resolved by admin ${adminId}`,
-    });
 
-    return {
-      message: `Exception ${decision} successfully`,
-      data: updated.data,
-    };
-  }
 
   async listUsers(page: number = 1, limit: number = 10, roleName?: string) {
     const skip = (page - 1) * limit;
@@ -85,7 +74,97 @@ export class AdminService {
     return { data, total };
   }
 
-  async updateUserRole(userId: string, roleName: string) {
+  // ── Privilege-escalation and protected-account safeguards (P2-05) ─────
+
+  private assertCanonicalRole(roleName: string): void {
+    if (!(CANONICAL_ROLE_NAMES as readonly string[]).includes(roleName)) {
+      throw new BadRequestException(`Role '${roleName}' is not a recognized system role`);
+    }
+  }
+
+  private async getTargetUser(userId: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { role: true },
+    });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    return user;
+  }
+
+  private async assertNotLastActiveSysAdmin(target: any, nextRoleName?: string): Promise<void> {
+    if (target?.role?.name !== 'sys_admin') return;
+    if (nextRoleName === 'sys_admin') return;
+    if (target.isActive === false) return;
+
+    const activeSysAdmins = await this.prisma.user.count({
+      where: { isActive: true, role: { name: 'sys_admin' } },
+    });
+    if (activeSysAdmins <= 1) {
+      throw new BadRequestException(
+        'The last active system administrator cannot be demoted, deactivated, or deleted.',
+      );
+    }
+  }
+
+  async updateUser(userId: string, dto: UpdateUserDto, actorId: string) {
+    const target = await this.getTargetUser(userId);
+    const isSelf = userId === actorId;
+    const roleChanging =
+      dto.roleName !== undefined && dto.roleName !== target.role?.name;
+
+    if (roleChanging) {
+      this.assertCanonicalRole(dto.roleName!);
+      if (isSelf) {
+        throw new BadRequestException('You cannot change your own role.');
+      }
+      await this.assertNotLastActiveSysAdmin(target, dto.roleName);
+    }
+
+    if (dto.isActive === false && target.isActive) {
+      if (isSelf) {
+        throw new BadRequestException('You cannot deactivate your own account.');
+      }
+      await this.assertNotLastActiveSysAdmin(target);
+    }
+
+    const updateData: { roleId?: string; isActive?: boolean } = {};
+    if (dto.roleName !== undefined) {
+      const role = await this.prisma.role.findUnique({ where: { name: dto.roleName } });
+      if (!role) {
+        throw new NotFoundException(`Role '${dto.roleName}' not found`);
+      }
+      updateData.roleId = role.id;
+    }
+    if (dto.isActive !== undefined) {
+      updateData.isActive = dto.isActive;
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: userSafeSelect,
+    });
+
+    return { message: 'User updated successfully', data: updated };
+  }
+
+  async updateUserRole(userId: string, roleName: string, actorId: string) {
+    this.assertCanonicalRole(roleName);
+
+    const target = await this.getTargetUser(userId);
+
+    if (userId === actorId) {
+      throw new BadRequestException('You cannot change your own role.');
+    }
+
+    if (target.role?.name === roleName) {
+      return this.prisma.user.findUnique({ where: { id: userId }, select: userSafeSelect });
+    }
+
+    await this.assertNotLastActiveSysAdmin(target, roleName);
+
     // Look up the role by name to get the actual UUID
     const role = await this.prisma.role.findUnique({
       where: { name: roleName },
@@ -102,7 +181,15 @@ export class AdminService {
     });
   }
 
-  async deactivateUser(userId: string) {
+  async deactivateUser(userId: string, actorId: string) {
+    const target = await this.getTargetUser(userId);
+
+    if (userId === actorId) {
+      throw new BadRequestException('You cannot deactivate your own account.');
+    }
+
+    await this.assertNotLastActiveSysAdmin(target);
+
     return this.prisma.user.update({
       where: { id: userId },
       data: { isActive: false },
@@ -111,6 +198,9 @@ export class AdminService {
   }
 
   async createUser(dto: CreateUserDto) {
+    // Guard against invalid role states even if the DTO allow-list changes.
+    this.assertCanonicalRole(dto.roleName);
+
     // Check if email already exists
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -129,26 +219,28 @@ export class AdminService {
       throw new NotFoundException(`Role '${dto.roleName}' not found`);
     }
 
-    let temporaryPassword = '';
-    let passwordHash = '';
-
     if (dto.roleName === 'student') {
       if (!dto.studentNumber) {
         throw new BadRequestException('Student ID number is required');
       }
-      // Surname then last 4 digits of student number
-      const surnameClean = dto.lastName.trim().replace(/\s+/g, '');
-      const studentNumClean = dto.studentNumber.trim();
-      const last4 = studentNumClean.substring(studentNumClean.length - 4);
-      temporaryPassword = `${surnameClean}${last4}`;
-    } else {
-      if (!dto.temporaryPassword) {
-        throw new BadRequestException('Temporary password is required for staff accounts');
+      if (!dto.programId) {
+        throw new BadRequestException('Select an existing academic program for the student');
       }
-      temporaryPassword = dto.temporaryPassword;
+      const program = await this.prisma.program.findUnique({ where: { id: dto.programId } });
+      if (!program) {
+        throw new BadRequestException('The selected academic program was not found');
+      }
     }
 
-    passwordHash = await bcrypt.hash(temporaryPassword, 12);
+    if (dto.roleName === 'student' && !dto.studentNumber) {
+      throw new BadRequestException('Student ID number is required');
+    }
+
+    // Generate a one-time secret with guaranteed mixed character classes.
+    // It is returned only by this permission-protected create operation;
+    // the account must replace it before accessing other protected routes.
+    const temporaryPassword = `Aa1-${randomBytes(24).toString('hex')}`;
+    const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
     // Create the user
     const user = await this.prisma.user.create({
@@ -159,7 +251,7 @@ export class AdminService {
         lastName: dto.lastName,
         roleId: role.id,
         isActive: true,
-        mustChangePassword: false, // Disabled for demo since no UI exists yet
+        mustChangePassword: true,
       },
       include: {
         role: true,
@@ -168,15 +260,11 @@ export class AdminService {
 
     // Create student profile if student
     if (dto.roleName === 'student') {
-      const programId = dto.programId || (await this.prisma.program.findFirst())?.id;
-      if (!programId) {
-        throw new BadRequestException('No program ID found in database to associate student with');
-      }
       await this.prisma.studentProfile.create({
         data: {
           userId: user.id,
           studentNumber: dto.studentNumber!,
-          programId,
+          programId: dto.programId!,
           yearLevel: 1,
           accountBalance: {
             create: {
@@ -201,7 +289,18 @@ export class AdminService {
     };
   }
 
-  async deleteUser(userId: string) {
+  async deleteUser(userId: string, actorId: string) {
+    if (userId === actorId) {
+      throw new BadRequestException('You cannot delete your own account.');
+    }
+
+    const target = await this.getTargetUser(userId);
+    if (target.role?.name === 'sys_admin') {
+      throw new BadRequestException(
+        'System administrator accounts cannot be deleted. Reassign the role first.',
+      );
+    }
+
     // Find if the user exists
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -281,10 +380,9 @@ export class AdminService {
         where: { userId },
       });
 
-      // Delete audit logs
-      await tx.auditLog.deleteMany({
-        where: { userId },
-      });
+      // Audit logs are intentionally preserved (P3-09). The audit FK uses
+      // ON DELETE SET NULL and rows carry actor email/role snapshots, so the
+      // system-activity trail survives account removal.
 
       // Finally, hard delete the user
       await tx.user.delete({
@@ -293,26 +391,5 @@ export class AdminService {
     });
 
     return { message: 'User account hard-deleted successfully' };
-  }
-
-  async wipeDemoUsers() {
-    try {
-      const keepEmails = ['sysadmin@rmc.edu.ph', 'lesterius@gmail.com'];
-      const usersToKeep = await this.prisma.user.findMany({
-        where: { email: { in: keepEmails } }
-      });
-      const keepIds = usersToKeep.map(u => u.id);
-      
-      const allUsers = await this.prisma.user.findMany();
-      for (const user of allUsers) {
-        if (!keepIds.includes(user.id)) {
-           await this.deleteUser(user.id).catch(e => console.error(e));
-        }
-      }
-      return { message: 'Demo users wiped successfully.' };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
   }
 }

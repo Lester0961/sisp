@@ -1,39 +1,36 @@
-import sys
-import os
+"""Read-only verification for the migration-managed ARIA vector schema.
 
-# Add parent directory to path so app module can be found
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+Schema creation belongs to reviewed Prisma migrations. This utility must not
+issue DDL or create the legacy ``VectorEmbeddings`` table.
+"""
 
 from sqlalchemy import text
-from app.database import engine
 
-def init_vector_db():
-    print("Connecting to database to initialize pgvector and VectorEmbeddings table...")
-    try:
-        with engine.connect() as conn:
-            # Enable pgvector extension
-            print("Enabling pgvector extension if not exists...")
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-            
-            # Create VectorEmbeddings table
-            print("Creating VectorEmbeddings table if not exists...")
-            create_table_query = """
-            CREATE TABLE IF NOT EXISTS "VectorEmbeddings" (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                content TEXT NOT NULL,
-                embedding vector(384) NOT NULL,
-                source VARCHAR(255),
-                category VARCHAR(100),
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-            );
-            """
-            conn.execute(text(create_table_query))
-            conn.commit()
-            print("Database successfully initialized!")
-            return True
-    except Exception as e:
-        print(f"Failed to initialize database: {e}")
+from app.database import check_db_connection, engine
+
+
+def check_knowledge_schema() -> bool:
+    if engine is None or not check_db_connection():
+        print("Database is unavailable; apply the reviewed Prisma migrations before checking ARIA pgvector.")
         return False
 
+    try:
+        with engine.connect() as connection:
+            result = connection.execute(text("""
+                SELECT
+                    to_regclass('public.knowledge_documents') IS NOT NULL
+                    AND to_regclass('public.knowledge_chunks') IS NOT NULL
+                    AND EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector')
+            """)).scalar_one()
+        if not result:
+            print("Reviewed Phase 3 ARIA pgvector structures are missing; no schema changes were attempted.")
+            return False
+        print("Reviewed Phase 3 ARIA pgvector structures are present.")
+        return True
+    except Exception as exc:
+        print(f"Read-only ARIA pgvector schema check failed: {exc}")
+        return False
+
+
 if __name__ == "__main__":
-    init_vector_db()
+    raise SystemExit(0 if check_knowledge_schema() else 1)
