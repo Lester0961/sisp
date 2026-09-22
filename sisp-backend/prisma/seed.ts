@@ -75,7 +75,24 @@ async function main() {
     });
   }
 
-  console.log('Reference seed complete: roles, permissions, six approved document types, and three archived academic terms. No accounts or demo records created.');
+  // Institutional admission requirements referenced by the admission flow.
+  const requirementDefinitions = [
+    { id: '20000000-0000-4000-8000-000000000001', code: 'FORM_137', title: 'High School Report Card (Form 138 / SF9)', applicantType: 'freshman', isRequired: true, sortOrder: 10 },
+    { id: '20000000-0000-4000-8000-000000000002', code: 'GOOD_MORAL', title: 'Certificate of Good Moral Character', applicantType: null, isRequired: true, sortOrder: 20 },
+    { id: '20000000-0000-4000-8000-000000000003', code: 'PSA_BIRTH', title: 'PSA Birth Certificate', applicantType: null, isRequired: true, sortOrder: 30 },
+    { id: '20000000-0000-4000-8000-000000000004', code: 'ID_PHOTO', title: '2x2 Recent Colored Photo', applicantType: null, isRequired: true, sortOrder: 40 },
+    { id: '20000000-0000-4000-8000-000000000005', code: 'HONORABLE_DISMISSAL', title: 'Honorable Dismissal / Transfer Credential', applicantType: 'transferee', isRequired: true, sortOrder: 50 },
+  ];
+  for (const definition of requirementDefinitions) {
+    const { id, code, ...data } = definition;
+    await prisma.admissionRequirementDefinition.upsert({
+      where: { code },
+      update: data,
+      create: { id, code, ...data },
+    });
+  }
+
+  console.log('Reference seed complete: roles, permissions, six approved document types, admission requirements, and three archived academic terms. No accounts or demo records created.');
 }
 
 main()
