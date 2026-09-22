@@ -297,6 +297,8 @@ export class StudentsService {
           select: {
             id: true,
             email: true,
+            firstName: true,
+            lastName: true,
             isActive: true,
           },
         },
