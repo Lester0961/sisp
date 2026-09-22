@@ -50,11 +50,12 @@ describe('GradesService', () => {
 
     await service.approveGrade('registrar-1', 'grade-1');
 
-    expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
-      'student-user-1',
-      'Grade Published',
-      'A grade has been published to your student record.',
-    );
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        'student-user-1',
+        'Grade Published',
+        'A grade has been published to your student record.',
+        { email: true },
+      );
   });
 
   it('sends a generic notice when grade visibility changes', async () => {

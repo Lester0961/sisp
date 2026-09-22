@@ -42,8 +42,13 @@ export class EnrollmentService {
     const term = dto.termId
       ? await this.prisma.academicTerm.findUnique({ where: { id: dto.termId } })
       : await this.prisma.academicTerm.findFirst({ where: { isCurrent: true } });
-    if (dto.termId && !term) {
-      throw new NotFoundException(`Academic term ${dto.termId} not found`);
+    if (!term) {
+      throw new BadRequestException(
+        'No active academic term is configured. Please contact the Registrar before enrolling.',
+      );
+    }
+    if (term.status === 'closed') {
+      throw new BadRequestException('Enrollment for this academic term is already closed.');
     }
 
     // Optional scheduled section (P5-07). A section must belong to the same

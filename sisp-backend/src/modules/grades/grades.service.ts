@@ -75,9 +75,54 @@ export class GradesService {
     });
 
     if (existing) {
-      throw new ConflictException(
-        'A grade record already exists for this enrollment. Use PATCH to update.',
-      );
+      // Enrollment automatically creates an empty draft placeholder row. The
+      // first real encoding fills that row instead of failing, so bulk grade
+      // entry works for normal enrollments. Any row with actual content,
+      // workflow state, or visibility is protected.
+      const isPlaceholder =
+        existing.status === 'draft' &&
+        existing.prelim === null &&
+        existing.midterm === null &&
+        existing.finals === null &&
+        existing.finalGrade === null &&
+        existing.isVisible === false &&
+        !existing.submittedById &&
+        !existing.postedById &&
+        !existing.approvedById;
+      if (!isPlaceholder) {
+        throw new ConflictException(
+          'A grade record already exists for this enrollment. Use PATCH to update.',
+        );
+      }
+
+      const placeholderFinal = this.computeFinalGrade(dto.prelim, dto.midterm, dto.finals);
+      const filled = await this.prisma.grade.update({
+        where: { enrollmentId: dto.enrollmentId },
+        data: {
+          prelim: dto.prelim,
+          midterm: dto.midterm,
+          finals: dto.finals,
+          finalGrade: placeholderFinal,
+          status: 'draft',
+        },
+        include: {
+          enrollment: {
+            include: {
+              student: { include: { user: { select: { email: true } } } },
+              course: { select: { code: true, title: true } },
+            },
+          },
+        },
+      });
+
+      await this.recordGradeAudit(facultyId, 'GRADE_ENCODED', filled.id, null, {
+        prelim: dto.prelim,
+        midterm: dto.midterm,
+        finals: dto.finals,
+        finalGrade: placeholderFinal,
+      });
+
+      return { message: 'Grade created successfully', data: filled };
     }
 
     const finalGrade = this.computeFinalGrade(dto.prelim, dto.midterm, dto.finals);
@@ -104,6 +149,13 @@ export class GradesService {
           },
         },
       },
+    });
+
+    await this.recordGradeAudit(facultyId, 'GRADE_ENCODED', grade.id, null, {
+      prelim: dto.prelim,
+      midterm: dto.midterm,
+      finals: dto.finals,
+      finalGrade,
     });
 
     return {
@@ -208,12 +260,13 @@ export class GradesService {
       },
     });
 
+    await this.recordGradeAudit(facultyId, 'GRADE_SUBMITTED', updated.id, grade.status, 'submitted');
+
     return {
       message: 'Grade submitted to the dean for approval',
       data: updated,
     };
   }
-
   async postGrade(deanId: string, gradeId: string) {
     const grade = await this.prisma.grade.findUnique({
       where: { id: gradeId },
@@ -247,6 +300,8 @@ export class GradesService {
         postedBy: { select: { firstName: true, lastName: true, email: true } },
       },
     });
+
+    await this.recordGradeAudit(deanId, 'GRADE_POSTED', updated.id, grade.status, 'posted');
 
     return {
       message: 'Grade approved by the dean and queued for registrar publication',
@@ -294,7 +349,10 @@ export class GradesService {
       updated.enrollment.student.user.id,
       'Grade Published',
       'A grade has been published to your student record.',
+      { email: true },
     );
+
+    await this.recordGradeAudit(registrarId, 'GRADE_APPROVED', updated.id, grade.status, 'approved');
 
     return {
       message: 'Grade published by the registrar',
@@ -335,6 +393,11 @@ export class GradesService {
         },
         rejectedBy: { select: { firstName: true, lastName: true, email: true } },
       },
+    });
+
+    await this.recordGradeAudit(deanId, 'GRADE_REJECTED', updated.id, grade.status, {
+      status: 'rejected',
+      remarks,
     });
 
     return {
@@ -592,6 +655,31 @@ export class GradesService {
       message: `Grade ${isVisible ? 'published' : 'hidden'} successfully`,
       data: updated,
     };
+  }
+
+  private async recordGradeAudit(
+    actorId: string,
+    action: string,
+    gradeId: string,
+    oldValue: unknown,
+    newValue: unknown,
+  ) {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: actorId,
+          action,
+          resource: 'grades',
+          resourceId: gradeId,
+          oldValue:
+            oldValue === null || oldValue === undefined ? null : JSON.stringify(oldValue),
+          newValue:
+            newValue === null || newValue === undefined ? null : JSON.stringify(newValue),
+        },
+      });
+    } catch {
+      // Audit logging is best-effort; never block the grade workflow.
+    }
   }
 
   async bulkCreateGrades(facultyId: string, dto: BulkGradeDto) {

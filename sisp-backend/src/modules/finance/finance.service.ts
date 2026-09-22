@@ -249,10 +249,12 @@ export class FinanceService {
         paymentMethod: dto.paymentMethod?.trim() || null,
         referenceNumber: dto.referenceNumber?.trim() || null,
         proofUrl: dto.proofUrl?.trim() || null,
-        status: 'verified',
-        verifiedById: actorId,
-        paidAt: dto.paidAt ? new Date(dto.paidAt) : new Date(),
-        verifiedAt: new Date(),
+        // Treasury staff encode payments on behalf of students, but every
+        // entry still passes the same verification lifecycle: a recorded
+        // payment is pending until a second Treasury action verifies it, so
+        // balance and clearance effects only apply after verification.
+        status: 'pending',
+        paidAt: dto.paidAt ? new Date(dto.paidAt) : null,
       },
       include: {
         academicTerm: { select: { code: true, label: true, academicYear: true } },
@@ -265,11 +267,11 @@ export class FinanceService {
     await this.notificationsService.sendToUser(
       student.user.id,
       'Payment Recorded',
-      'A payment has been recorded on your student account.',
+      'A payment has been recorded on your student account and is pending Treasury verification.',
     );
 
     return {
-      message: 'Payment recorded successfully',
+      message: 'Payment recorded and queued for Treasury verification',
       data: { ...transaction, amount: money(transaction.amount) },
       balance,
     };
@@ -312,6 +314,7 @@ export class FinanceService {
       dto.decision === 'verified'
         ? 'A payment has been verified and posted to your student account.'
         : 'A payment could not be verified. Please contact the Treasury Office.',
+      { email: true },
     );
 
     return {

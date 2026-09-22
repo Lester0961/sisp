@@ -93,11 +93,12 @@ describe('FinanceService (Phase 6, P6-02/P6-03)', () => {
         data: expect.objectContaining({ status: 'verified', verifiedById: 'treasury-1' }),
       }),
     );
-    expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
-      'user-1',
-      'Payment Verified',
-      'A payment has been verified and posted to your student account.',
-    );
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        'user-1',
+        'Payment Verified',
+        'A payment has been verified and posted to your student account.',
+        { email: true },
+      );
     expect(result.balance.balance).toBe(500);
   });
 
