@@ -20,7 +20,9 @@ pydantic-settings==2.7.0
 python-multipart==0.0.20
 
 # ML & NLP (pre-built wheels)
+# fastembed provides the same all-MiniLM-L6-v2 (384-dim) model via ONNX,
+# avoiding PyTorch/CUDA wheels on memory-limited Render instances.
+fastembed==0.8.0
 numpy==1.26.4
 joblib==1.4.2
 scikit-learn==1.9.1
-sentence-transformers==3.3.1

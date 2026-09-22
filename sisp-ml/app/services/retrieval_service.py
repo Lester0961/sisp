@@ -22,6 +22,31 @@ STUDENT_SERVICES_QUERY_CATEGORIES = frozenset({
     "examination_permit_policy",
 })
 
+class _FastEmbedAdapter:
+    """ONNX (fastembed) adapter exposing the SentenceTransformer encode API.
+
+    Render's small instances cannot carry PyTorch/CUDA wheels; fastembed serves
+    the same all-MiniLM-L6-v2 model (384 dimensions) through ONNX.
+    """
+
+    def __init__(self, model_name: str):
+        from fastembed import TextEmbedding
+
+        self._model = TextEmbedding(model_name=model_name)
+
+    def encode(self, texts, show_progress_bar: bool = False, normalize_embeddings: bool = False):
+        import numpy as np
+
+        single = isinstance(texts, str)
+        batch = [texts] if single else list(texts)
+        vectors = np.array(list(self._model.embed(batch)), dtype="float32")
+        if normalize_embeddings and vectors.size:
+            norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            vectors = vectors / norms
+        return vectors[0] if single else vectors
+
+
 class RetrievalService:
     def __init__(self):
         self.model = None
@@ -30,42 +55,61 @@ class RetrievalService:
         self.is_loaded = False
         self.model_load_attempted = False
         # Load the small local index synchronously, but defer the heavyweight
-        # sentence-transformer import/model download until after the API binds.
+        # embedding import/model download until after the API binds.
         self.load_local_index()
         self.load_text_documents()
 
     def load_model(self):
-        """Load the sentence-transformers embedding model."""
+        """Load the embedding model: sentence-transformers when available,
+        otherwise fastembed (ONNX) for memory-limited hosts."""
         if self.model_load_attempted:
             return
         self.model_load_attempted = True
+
         try:
             from sentence_transformers import SentenceTransformer
 
             print(f"[RETRIEVAL] Loading embedding model: {settings.embedding_model}...")
             self.model = SentenceTransformer(settings.embedding_model)
-            if self.text_documents:
-                fresh_documents = [item for item in self.text_documents if "embedding" not in item]
-                if fresh_documents:
-                    vectors = self.model.encode(
-                        [item["content"] for item in fresh_documents],
-                        show_progress_bar=False,
-                        normalize_embeddings=True,
-                    )
-                    for item, vector in zip(fresh_documents, vectors):
-                        item["embedding"] = vector
-                    existing_content = {
-                        re.sub(r"\W+", " ", item.get("content", "").casefold()).strip()
-                        for item in self.local_index
-                    }
-                    self.local_index.extend(
-                        item for item in fresh_documents
-                        if re.sub(r"\W+", " ", item.get("content", "").casefold()).strip()
-                        not in existing_content
-                    )
+        except Exception as first_error:
+            print(
+                f"[RETRIEVAL] sentence-transformers unavailable ({first_error}); "
+                "trying fastembed (ONNX)"
+            )
+            try:
+                self.model = _FastEmbedAdapter(settings.embedding_model)
+            except Exception as second_error:
+                print(f"[RETRIEVAL] [ERROR] Failed to load embedding model: {second_error}")
+                return
+
+        try:
+            self._embed_text_documents()
             print("[RETRIEVAL] Embedding model loaded successfully!")
         except Exception as e:
-            print(f"[RETRIEVAL] [ERROR] Failed to load embedding model: {e}")
+            print(f"[RETRIEVAL] [ERROR] Failed to embed local documents: {e}")
+
+    def _embed_text_documents(self):
+        if not self.text_documents:
+            return
+        fresh_documents = [item for item in self.text_documents if "embedding" not in item]
+        if not fresh_documents:
+            return
+        vectors = self.model.encode(
+            [item["content"] for item in fresh_documents],
+            show_progress_bar=False,
+            normalize_embeddings=True,
+        )
+        for item, vector in zip(fresh_documents, vectors):
+            item["embedding"] = vector
+        existing_content = {
+            re.sub(r"\W+", " ", item.get("content", "").casefold()).strip()
+            for item in self.local_index
+        }
+        self.local_index.extend(
+            item for item in fresh_documents
+            if re.sub(r"\W+", " ", item.get("content", "").casefold()).strip()
+            not in existing_content
+        )
 
     def load_text_documents(self):
         """Load explicitly approved factual sources for local fallback.
