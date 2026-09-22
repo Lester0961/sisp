@@ -32,7 +32,8 @@ class _FastEmbedAdapter:
     def __init__(self, model_name: str):
         from fastembed import TextEmbedding
 
-        self._model = TextEmbedding(model_name=model_name)
+        # Single-threaded ONNX keeps the free 512 MB instance inside memory.
+        self._model = TextEmbedding(model_name=model_name, threads=1)
 
     def encode(self, texts, show_progress_bar: bool = False, normalize_embeddings: bool = False):
         import numpy as np
@@ -60,7 +61,7 @@ class RetrievalService:
         # accurate and the first student question has no cold-start latency.
         self.load_local_index()
         self.load_text_documents()
-        if settings.require_pgvector:
+        if settings.require_pgvector and settings.embedding_eager_load:
             self.load_model()
 
     def load_model(self):

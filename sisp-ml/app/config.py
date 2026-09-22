@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     intent_min_margin: float = Field(default=0.15, ge=0.0, le=1.0)
     retrieval_similarity_threshold: float = Field(default=0.36, ge=0.0, le=1.0)
     require_pgvector: bool = False
+    # Load the embedding model at startup only when the host has headroom
+    # (Render's 512 MB free instance OOMs on eager ONNX load).
+    embedding_eager_load: bool = False
     advisory_supported_languages: str = "en,fil,ceb,ilo,hil,war"
 
     # ML Admin Secret
