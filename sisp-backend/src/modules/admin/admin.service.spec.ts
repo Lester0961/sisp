@@ -1,9 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, GoneException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 
-describe('AdminService — privilege safeguards (Phase 2, P2-05)', () => {
+describe('AdminService — privilege safeguards and Phase 1 account lifecycle', () => {
   let service: AdminService;
 
   const targetSysAdmin = {
@@ -29,10 +29,17 @@ describe('AdminService — privilege safeguards (Phase 2, P2-05)', () => {
     },
     role: { findUnique: jest.fn() },
   };
+  const mockPermissions = { invalidate: jest.fn() };
+  const mockSessions = { revokeAllForUser: jest.fn().mockResolvedValue(1) };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AdminService(mockPrisma as PrismaService);
+    mockSessions.revokeAllForUser.mockResolvedValue(1);
+    service = new AdminService(
+      mockPrisma as PrismaService,
+      mockPermissions as any,
+      mockSessions as any,
+    );
   });
 
   it('prevents changing your own role', async () => {
@@ -52,7 +59,7 @@ describe('AdminService — privilege safeguards (Phase 2, P2-05)', () => {
     expect(mockPrisma.user.update).not.toHaveBeenCalled();
   });
 
-  it('allows demoting a sysadmin when another active sysadmin exists', async () => {
+  it('allows demoting a sysadmin when another active sysadmin exists and invalidates caches', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(targetSysAdmin);
     mockPrisma.user.count.mockResolvedValue(2);
     mockPrisma.role.findUnique.mockResolvedValue({ id: 'r-dean', name: 'dean' });
@@ -60,12 +67,16 @@ describe('AdminService — privilege safeguards (Phase 2, P2-05)', () => {
 
     await service.updateUserRole('sys-1', 'dean', 'sys-2');
     expect(mockPrisma.user.update).toHaveBeenCalled();
+    expect(mockPermissions.invalidate).toHaveBeenCalledWith('sys_admin');
+    expect(mockPermissions.invalidate).toHaveBeenCalledWith('dean');
   });
 
-  it('rejects unrecognized roles', async () => {
-    await expect(
-      service.updateUserRole('reg-1', 'admin_staff', 'sys-1'),
-    ).rejects.toBeInstanceOf(BadRequestException);
+  it('rejects unrecognized and removed roles', async () => {
+    for (const roleName of ['admin_staff', 'live_agent', 'wizard']) {
+      await expect(
+        service.updateUserRole('reg-1', roleName, 'sys-1'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    }
   });
 
   it('prevents deactivating the last active system administrator', async () => {
@@ -83,17 +94,32 @@ describe('AdminService — privilege safeguards (Phase 2, P2-05)', () => {
     );
   });
 
-  it('protects system administrator accounts from hard deletion', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue(targetSysAdmin);
-    await expect(service.deleteUser('sys-1', 'sys-2')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+  it('revokes every active session when an account is deactivated', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(targetRegistrar);
+    mockPrisma.user.update.mockResolvedValue({ id: 'reg-1' });
+
+    await service.deactivateUser('reg-1', 'sys-1');
+
+    expect(mockSessions.revokeAllForUser).toHaveBeenCalledWith('reg-1', 'account_deactivated');
   });
 
-  it('prevents deleting your own account', async () => {
-    await expect(service.deleteUser('reg-1', 'reg-1')).rejects.toBeInstanceOf(
-      BadRequestException,
+  it('archives instead of deleting and revokes sessions', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(targetRegistrar);
+    mockPrisma.user.update.mockResolvedValue({ id: 'reg-1' });
+
+    await service.archiveUser('reg-1', 'sys-1');
+
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ isActive: false, archivedAt: expect.any(Date) }),
+      }),
     );
+    expect(mockSessions.revokeAllForUser).toHaveBeenCalledWith('reg-1', 'account_archived');
+  });
+
+  it('disables ordinary hard deletion', async () => {
+    await expect(service.deleteUser('reg-1', 'sys-2')).rejects.toBeInstanceOf(GoneException);
+    expect(mockPrisma.user.update).not.toHaveBeenCalled();
   });
 
   it('rejects invalid roles on account creation', async () => {
@@ -102,7 +128,13 @@ describe('AdminService — privilege safeguards (Phase 2, P2-05)', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('creates accounts with a random one-time password and forces a change at first login', async () => {
+  it('rejects creating student accounts through staff provisioning', async () => {
+    await expect(
+      service.createUser({ roleName: 'student' } as any),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('creates staff accounts with a random one-time password and forces a change at first login', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(null);
     mockPrisma.role.findUnique.mockResolvedValue({ id: 'r-fac', name: 'faculty' });
     mockPrisma.user.create.mockImplementation(async ({ data }: any) => ({
@@ -123,32 +155,5 @@ describe('AdminService — privilege safeguards (Phase 2, P2-05)', () => {
     expect(result.temporaryPassword).toMatch(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,64}$/);
     expect(result.temporaryPassword).not.toContain('Faculty');
     await expect(bcrypt.compare(result.temporaryPassword, createData.passwordHash)).resolves.toBe(true);
-  });
-
-  it('preserves audit logs when a user is deleted (P3-09)', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({
-      ...targetRegistrar,
-      studentProfile: null,
-    });
-
-    const auditDeleteMany = jest.fn();
-    const tx = {
-      grade: { deleteMany: jest.fn() },
-      enrollment: { deleteMany: jest.fn() },
-      documentRequest: { deleteMany: jest.fn() },
-      accountBalance: { deleteMany: jest.fn() },
-      studentProfile: { delete: jest.fn() },
-      chatLog: { findMany: jest.fn().mockResolvedValue([]), deleteMany: jest.fn() },
-      escalationQueue: { deleteMany: jest.fn() },
-      notification: { deleteMany: jest.fn() },
-      auditLog: { deleteMany: auditDeleteMany },
-      user: { delete: jest.fn() },
-    };
-    mockPrisma.$transaction = jest.fn(async (callback: any) => callback(tx));
-
-    await service.deleteUser('reg-1', 'sys-1');
-
-    expect(auditDeleteMany).not.toHaveBeenCalled();
-    expect(tx.user.delete).toHaveBeenCalledWith({ where: { id: 'reg-1' } });
   });
 });

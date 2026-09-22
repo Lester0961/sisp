@@ -17,7 +17,7 @@ export class SendNotificationDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['student', 'faculty', 'dean', 'registrar', 'treasury', 'live_agent', 'all'])
+  @IsIn(['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin', 'all'])
   targetRole?: string;
 
   @IsOptional()

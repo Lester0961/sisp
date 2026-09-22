@@ -9,18 +9,15 @@ describe('Thesis role-permission matrix (Table 3.10)', () => {
   const can = (role: string, permission: string): boolean =>
     (ROLE_PERMISSIONS as Record<string, string[]>)[role]?.includes(permission) ?? false;
 
-  it('defines all canonical portal roles plus the supporting live_agent role', () => {
-    expect([...CANONICAL_ROLE_NAMES]).toEqual(
-      expect.arrayContaining([
-        'student',
-        'faculty',
-        'dean',
-        'registrar',
-        'treasury',
-        'sys_admin',
-        'live_agent',
-      ]),
-    );
+  it('defines exactly the six institutional roles', () => {
+    expect([...CANONICAL_ROLE_NAMES]).toEqual([
+      'student',
+      'faculty',
+      'dean',
+      'registrar',
+      'treasury',
+      'sys_admin',
+    ]);
     expect(ROLE_PERMISSIONS.sys_admin).not.toContain('student_record.update');
   });
 
@@ -123,9 +120,5 @@ describe('Thesis role-permission matrix (Table 3.10)', () => {
       expect(can(role, 'role.manage')).toBe(false);
       expect(can(role, 'audit.read')).toBe(false);
     }
-  });
-
-  it('live_agent has no catalog permissions (ARIA escalation is role-gated)', () => {
-    expect(ROLE_PERMISSIONS.live_agent).toEqual([]);
   });
 });

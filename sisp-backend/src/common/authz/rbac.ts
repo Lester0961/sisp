@@ -18,7 +18,6 @@ export const CANONICAL_ROLE_NAMES = [
   'registrar',
   'treasury',
   'sys_admin',
-  'live_agent',
 ] as const;
 
 export type CanonicalRoleName = (typeof CANONICAL_ROLE_NAMES)[number];
@@ -125,7 +124,6 @@ export const ROLE_PERMISSIONS: Record<CanonicalRoleName, string[]> = {
     'escalation.respond',
     'escalation.resolve',
   ],
-  live_agent: [],
 };
 
 export function permissionKey(permission: PermissionDefinition): string {

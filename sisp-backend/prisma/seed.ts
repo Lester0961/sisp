@@ -9,7 +9,7 @@ import { PERMISSION_DEFINITIONS, ROLE_PERMISSIONS } from '../src/common/authz/rb
 const prisma = new PrismaClient();
 
 async function main() {
-  const roleNames = ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin', 'live_agent'] as const;
+  const roleNames = ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin'] as const;
   const roleIds = new Map<string, string>();
 
   for (const name of roleNames) {

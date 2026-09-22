@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ChatSessionService } from './chat-session.service';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { ChatSessionMessageDto } from './dto/chat-session-message.dto';
@@ -16,7 +17,7 @@ export class ChatSessionController {
   ) {}
 
   @Get()
-  @Roles('registrar', 'dean', 'live_agent')
+  @RequirePermissions('escalation.respond')
   async getSessions(
     @CurrentUser() user: JwtPayload,
     @Query('status') status?: string,
@@ -27,7 +28,7 @@ export class ChatSessionController {
   }
 
   @Get('assigned')
-  @Roles('registrar', 'dean', 'live_agent')
+  @RequirePermissions('escalation.respond')
   async getMyAssignedSessions(@CurrentUser() user: JwtPayload) {
     return this.sessionService.getSessions(user.sub, undefined);
   }
@@ -40,7 +41,7 @@ export class ChatSessionController {
   }
 
   @Get('eligible-assignees')
-  @Roles('registrar', 'dean')
+  @RequirePermissions('escalation.reassign')
   async getEligibleAssignees() {
     return this.sessionService.getEligibleAssignees();
   }
@@ -52,19 +53,19 @@ export class ChatSessionController {
   }
 
   @Get(':id')
-  @Roles('student', 'registrar', 'dean', 'live_agent')
+  @Roles('student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin')
   async getSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.sessionService.getAuthorizedSession(id, user.sub, user.role);
   }
 
   @Get(':id/messages')
-  @Roles('student', 'registrar', 'dean', 'live_agent')
+  @Roles('student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin')
   async getMessages(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.sessionService.getMessages(id, user.sub, user.role);
   }
 
   @Post(':id/messages')
-  @Roles('student', 'registrar', 'dean', 'live_agent')
+  @Roles('student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin')
   async sendMessage(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -76,7 +77,7 @@ export class ChatSessionController {
   }
 
   @Patch(':id/assign')
-  @Roles('registrar', 'dean', 'live_agent')
+  @RequirePermissions('escalation.respond')
   async assignAgent(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     const session = await this.sessionService.assignAgent(id, user.sub, user.role);
     this.chatGateway.emitSessionUpdated(id, session);
@@ -84,13 +85,19 @@ export class ChatSessionController {
   }
 
   @Patch(':id/reassign')
-  @Roles('registrar', 'dean')
+  @RequirePermissions('escalation.reassign')
   async reassignAgent(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body() body: ReassignChatSessionDto,
   ) {
-    const reassignment = await this.sessionService.reassignAgent(id, user.sub, body.assigneeId, user.role);
+    const reassignment = await this.sessionService.reassignAgent(
+      id,
+      user.sub,
+      body.assigneeId,
+      user.role,
+      body.note,
+    );
     if (reassignment.previousAgentId && reassignment.previousAgentId !== body.assigneeId) {
       await this.chatGateway.revokeUserFromSession(id, reassignment.previousAgentId);
     }
@@ -99,7 +106,7 @@ export class ChatSessionController {
   }
 
   @Patch(':id/close')
-  @Roles('registrar', 'dean', 'live_agent')
+  @RequirePermissions('escalation.resolve')
   async closeSession(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() body: ChatSessionCloseDto) {
     const session = await this.sessionService.closeSession(id, user.sub, user.role, body.resolution);
     this.chatGateway.emitSessionUpdated(id, session);

@@ -20,16 +20,13 @@ export class CreateUserDto {
   lastName: string;
 
   @IsString()
-  @IsIn(
-    ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin', 'live_agent'],
-    {
-      message:
-        'roleName must be one of: student, faculty, dean, registrar, treasury, sys_admin, live_agent',
-    },
-  )
+  @IsIn(['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'], {
+    message:
+      'roleName must be one of: faculty, dean, registrar, treasury, sys_admin (student accounts are created through admission and activation)',
+  })
   roleName: string;
 
-  // Student specific inputs
+  // Student specific inputs (accepted for compatibility; staff creation only)
   @IsString()
   @IsOptional()
   studentNumber?: string;

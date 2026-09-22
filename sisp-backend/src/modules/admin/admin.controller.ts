@@ -64,6 +64,24 @@ export class AdminController {
     return this.adminService.deactivateUser(id, actor.sub);
   }
 
+  @Post('users/:id/activate')
+  @RequirePermissions('user.manage')
+  async activateUser(@Param('id') id: string) {
+    return this.adminService.activateUser(id);
+  }
+
+  @Post('users/:id/archive')
+  @RequirePermissions('user.manage')
+  async archiveUser(@Param('id') id: string, @CurrentUser() actor: JwtPayload) {
+    return this.adminService.archiveUser(id, actor.sub);
+  }
+
+  @Post('users/:id/revoke-sessions')
+  @RequirePermissions('user.manage')
+  async revokeSessions(@Param('id') id: string) {
+    return this.adminService.revokeSessions(id);
+  }
+
   @Post('users/create')
   @RequirePermissions('user.manage')
   async createUser(@Body() dto: CreateUserDto) {

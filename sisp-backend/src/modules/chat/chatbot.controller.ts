@@ -35,16 +35,17 @@ export class ChatbotController {
 }
 
 @Controller('admin/escalations')
-@Roles('registrar', 'dean')
 export class ChatbotAdminController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
   @Get()
+  @RequirePermissions('escalation.view_dean_queue')
   async getEscalations(@CurrentUser() user: JwtPayload) {
     return this.chatbotService.getEscalations(user.sub);
   }
 
   @Patch(':id')
+  @RequirePermissions('escalation.resolve')
   async resolveEscalation(
     @Param('id') id: string,
     @Body() body: ResolveEscalationDto,

@@ -174,7 +174,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       { id: 'role-id-faculty', name: 'faculty', createdAt: new Date() },
       { id: 'role-id-student', name: 'student', createdAt: new Date() },
       { id: 'role-id-sys_admin', name: 'sys_admin', createdAt: new Date() },
-      { id: 'role-id-live_agent', name: 'live_agent', createdAt: new Date() },
     ];
 
     const roleById = (roleId: string) => roles.find((role) => role.id === roleId);
@@ -244,19 +243,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         createdAt: new Date(),
         updatedAt: new Date(),
         role: roleById('role-id-sys_admin'),
-      },
-      {
-        id: 'mock-live-agent-id',
-        email: 'agent@rmc.edu.ph',
-        passwordHash: mockPasswordHash,
-        firstName: 'Support',
-        lastName: 'Agent',
-        roleId: 'role-id-live_agent',
-        isActive: true,
-        mustChangePassword: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        role: roleById('role-id-live_agent'),
       },
       {
         id: 'mock-treasury-id',

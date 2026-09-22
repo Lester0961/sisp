@@ -3,6 +3,14 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
+/**
+ * Phase 1: human escalation is handled by existing institutional staff
+ * accounts. There is no live_agent role; eligibility is the
+ * `escalation.respond` permission (enforced by the controller/guard), and this
+ * constant keeps service-level checks aligned with the six-role model.
+ */
+const STAFF_ROLES = ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'];
+
 @Injectable()
 export class ChatSessionService {
   constructor(
@@ -88,10 +96,13 @@ export class ChatSessionService {
   }
 
   async getVisibleSessions(userId: string, role: string, status?: string, page = 1, pageSize = 25) {
-    if (['registrar', 'dean', 'live_agent'].includes(role)) {
-      // Staff see a privacy-minimized queue and their own assigned cases. Only
-      // assigned staff may load conversation details.
-      return this.getSessions(undefined, status, page, pageSize, userId);
+    if (STAFF_ROLES.includes(role)) {
+      // The Dean sees the initial escalation queue plus their own cases; other
+      // staff see only tickets assigned to them (privacy-minimized queue).
+      if (role === 'dean') {
+        return this.getSessions(undefined, status, page, pageSize, userId);
+      }
+      return this.getSessions(userId, status, page, pageSize);
     }
     const profile = await this.getStudentProfileForUser(userId);
     return profile ? this.getMySessions(profile.id) : [];
@@ -145,8 +156,8 @@ export class ChatSessionService {
     if (session.status !== 'open') {
       throw new BadRequestException('Cannot assign agent to a closed session');
     }
-    if (!['registrar', 'dean', 'live_agent'].includes(role)) {
-      throw new ForbiddenException('Only authorized advisor roles can assign sessions');
+    if (!STAFF_ROLES.includes(role)) {
+      throw new ForbiddenException('Only authorized staff can assign sessions');
     }
     if (session.agentId && session.agentId !== agentId) {
       throw new ForbiddenException('This advisor session is assigned to another representative');
@@ -178,12 +189,13 @@ export class ChatSessionService {
     return this.getSessionById(sessionId);
   }
 
-  async reassignAgent(sessionId: string, managerId: string, targetId: string, role: string) {
+  async reassignAgent(sessionId: string, managerId: string, targetId: string, role: string, routingNote?: string) {
     const manager = await this.prisma.user.findUnique({ where: { id: managerId }, select: { isActive: true, role: { select: { name: true } } } });
     if (!manager?.isActive) throw new ForbiddenException('Active manager account required');
     role = manager.role?.name || role;
-    if (!['registrar', 'dean'].includes(role)) {
-      throw new ForbiddenException('Only a Dean or Registrar can reassign an advisor concern');
+    // Forwarding is the Dean's routing authority (Phase 1).
+    if (role !== 'dean') {
+      throw new ForbiddenException('Only the Dean can forward/reassign an escalation');
     }
     const session = await this.prisma.chatSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException(`Chat session ${sessionId} not found`);
@@ -196,9 +208,11 @@ export class ChatSessionService {
       where: { id: targetId },
       include: { role: true },
     });
-    if (!target?.isActive || !['dean', 'registrar', 'live_agent'].includes(target.role?.name)) {
-      throw new BadRequestException('Choose an active Dean, Registrar, or Live Agent');
+    if (!target?.isActive || !STAFF_ROLES.includes(target.role?.name ?? '')) {
+      throw new BadRequestException('Choose an active staff member (faculty, dean, registrar, treasury, or system administrator)');
     }
+
+    const cleanNote = typeof routingNote === 'string' && routingNote.trim() ? routingNote.trim().slice(0, 500) : null;
 
     await this.prisma.$transaction(async (tx: any) => {
       const movedSession = await tx.chatSession.updateMany({
@@ -208,10 +222,10 @@ export class ChatSessionService {
       if (movedSession.count !== 1) throw new ConflictException('The assigned representative changed; refresh and retry');
       const movedQueue = await tx.escalationQueue.updateMany({
         where: { chatId: session.escalationId, status: 'in_progress', assignedTo: session.agentId },
-        data: { assignedTo: targetId, updatedAt: new Date() },
+        data: { assignedTo: targetId, updatedAt: new Date(), ...(cleanNote ? { routingNote: cleanNote } : {}) },
       });
       if (movedQueue.count !== 1) throw new ConflictException('The escalation assignment changed; refresh and retry');
-      await tx.auditLog.create({ data: { userId: managerId, action: 'CHAT_SESSION_REASSIGNED', resource: 'chat_sessions', resourceId: sessionId, oldValue: session.agentId, newValue: targetId, ipAddress: null } });
+      await tx.auditLog.create({ data: { userId: managerId, action: 'CHAT_SESSION_REASSIGNED', resource: 'chat_sessions', resourceId: sessionId, oldValue: session.agentId, newValue: JSON.stringify({ assigneeId: targetId, note: cleanNote }) } });
     });
 
     return { session: await this.getSessionById(sessionId), previousAgentId: session.agentId };
@@ -267,8 +281,8 @@ export class ChatSessionService {
     const cleanResolution = typeof resolution === 'string' ? resolution.trim() : '';
     if (!cleanResolution) throw new BadRequestException('A resolution is required before closing a concern');
     if (cleanResolution.length > 2000) throw new BadRequestException('Resolution must be 2000 characters or fewer');
-    if (!['registrar', 'dean', 'live_agent'].includes(role)) {
-      throw new ForbiddenException('Only an authorized advisor can resolve a concern');
+    if (!STAFF_ROLES.includes(role)) {
+      throw new ForbiddenException('Only authorized staff can resolve a concern');
     }
 
     const result = await this.prisma.$transaction(async (tx: any) => {
@@ -370,14 +384,14 @@ export class ChatSessionService {
 
   async getEligibleAssignees() {
     return this.prisma.user.findMany({
-      where: { isActive: true, role: { name: { in: ['dean', 'registrar', 'live_agent'] } } },
+      where: { isActive: true, role: { name: { in: STAFF_ROLES } } },
       select: { id: true, firstName: true, lastName: true, role: { select: { name: true } } },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
   }
 
   private assertAccess(session: any, userId: string, role: string) {
-    if (['registrar', 'dean', 'live_agent'].includes(role) && session.agentId === userId) return;
+    if (STAFF_ROLES.includes(role) && session.agentId === userId) return;
     if (role === 'student' && session.student?.userId === userId) return;
     throw new ForbiddenException('You are not authorized to access this advisor session');
   }

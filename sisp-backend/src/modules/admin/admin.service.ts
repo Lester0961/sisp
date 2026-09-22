@@ -3,13 +3,18 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  GoneException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PermissionService } from '../../common/authz/permission.service';
+import { SessionService } from '../auth/session.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { CANONICAL_ROLE_NAMES } from '../../common/authz/rbac';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
+
+const STAFF_ROLE_NAMES = ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'];
 
 const userSafeSelect = {
   id: true,
@@ -31,7 +36,11 @@ const userSafeSelect = {
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly permissionService: PermissionService,
+    private readonly sessionService: SessionService,
+  ) {}
 
   async getDashboardStats() {
     const [totalUsers, totalStudents, totalFaculty, totalRequests] = await Promise.all([
@@ -165,7 +174,6 @@ export class AdminService {
 
     await this.assertNotLastActiveSysAdmin(target, roleName);
 
-    // Look up the role by name to get the actual UUID
     const role = await this.prisma.role.findUnique({
       where: { name: roleName },
     });
@@ -174,11 +182,18 @@ export class AdminService {
       throw new NotFoundException(`Role '${roleName}' not found`);
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { roleId: role.id },
       select: userSafeSelect,
     });
+
+    // Role changes take effect immediately for new requests; drop the cache so
+    // permission checks reflect the new mapping.
+    this.permissionService.invalidate(target.role?.name ?? '');
+    this.permissionService.invalidate(roleName);
+
+    return updated;
   }
 
   async deactivateUser(userId: string, actorId: string) {
@@ -190,16 +205,66 @@ export class AdminService {
 
     await this.assertNotLastActiveSysAdmin(target);
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { isActive: false },
       select: userSafeSelect,
     });
+
+    // Deactivation must end every active session immediately.
+    await this.sessionService.revokeAllForUser(userId, 'account_deactivated');
+
+    return updated;
+  }
+
+  async activateUser(userId: string) {
+    const target = await this.getTargetUser(userId);
+    if (target.archivedAt) {
+      throw new BadRequestException(
+        'This account is archived. Clear the archive flag before reactivating.',
+      );
+    }
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: true },
+      select: userSafeSelect,
+    });
+  }
+
+  async archiveUser(userId: string, actorId: string) {
+    const target = await this.getTargetUser(userId);
+    if (userId === actorId) {
+      throw new BadRequestException('You cannot archive your own account.');
+    }
+    await this.assertNotLastActiveSysAdmin(target);
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: false, archivedAt: new Date() },
+      select: userSafeSelect,
+    });
+    await this.sessionService.revokeAllForUser(userId, 'account_archived');
+    return updated;
+  }
+
+  async revokeSessions(userId: string) {
+    const target = await this.getTargetUser(userId);
+    if (!target) throw new NotFoundException(`User with ID ${userId} not found`);
+    const revoked = await this.sessionService.revokeAllForUser(userId, 'admin_revoke');
+    return { message: 'Active sessions revoked', revoked };
   }
 
   async createUser(dto: CreateUserDto) {
     // Guard against invalid role states even if the DTO allow-list changes.
     this.assertCanonicalRole(dto.roleName);
+
+    // Phase 1: this endpoint provisions institutional STAFF accounts only.
+    // Student accounts are created through admission approval and activation.
+    if (!STAFF_ROLE_NAMES.includes(dto.roleName)) {
+      throw new BadRequestException(
+        'Staff accounts only. Student accounts are created through the admission and activation flow.',
+      );
+    }
 
     // Check if email already exists
     const existing = await this.prisma.user.findUnique({
@@ -217,23 +282,6 @@ export class AdminService {
 
     if (!role) {
       throw new NotFoundException(`Role '${dto.roleName}' not found`);
-    }
-
-    if (dto.roleName === 'student') {
-      if (!dto.studentNumber) {
-        throw new BadRequestException('Student ID number is required');
-      }
-      if (!dto.programId) {
-        throw new BadRequestException('Select an existing academic program for the student');
-      }
-      const program = await this.prisma.program.findUnique({ where: { id: dto.programId } });
-      if (!program) {
-        throw new BadRequestException('The selected academic program was not found');
-      }
-    }
-
-    if (dto.roleName === 'student' && !dto.studentNumber) {
-      throw new BadRequestException('Student ID number is required');
     }
 
     // Generate a one-time secret with guaranteed mixed character classes.
@@ -258,24 +306,6 @@ export class AdminService {
       },
     });
 
-    // Create student profile if student
-    if (dto.roleName === 'student') {
-      await this.prisma.studentProfile.create({
-        data: {
-          userId: user.id,
-          studentNumber: dto.studentNumber!,
-          programId: dto.programId!,
-          yearLevel: 1,
-          accountBalance: {
-            create: {
-              balance: 0,
-              status: 'good_standing',
-            },
-          },
-        },
-      });
-    }
-
     return {
       message: 'Account created successfully',
       user: {
@@ -289,107 +319,12 @@ export class AdminService {
     };
   }
 
-  async deleteUser(userId: string, actorId: string) {
-    if (userId === actorId) {
-      throw new BadRequestException('You cannot delete your own account.');
-    }
-
-    const target = await this.getTargetUser(userId);
-    if (target.role?.name === 'sys_admin') {
-      throw new BadRequestException(
-        'System administrator accounts cannot be deleted. Reassign the role first.',
-      );
-    }
-
-    // Find if the user exists
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        studentProfile: {
-          include: {
-            accountBalance: true,
-            enrollments: {
-              include: {
-                grade: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    await this.prisma.$transaction(async (tx) => {
-      // Programmatically delete all child dependencies of studentProfile first to avoid FK constraint errors!
-      if (user.studentProfile) {
-        const studentId = user.studentProfile.id;
-
-        // Delete grades of student enrollments
-        for (const enrollment of user.studentProfile.enrollments) {
-          if (enrollment.grade) {
-            await tx.grade.deleteMany({
-              where: { enrollmentId: enrollment.id },
-            });
-          }
-        }
-
-        // Delete enrollments
-        await tx.enrollment.deleteMany({
-          where: { studentId },
-        });
-
-        // Delete document requests
-        await tx.documentRequest.deleteMany({
-          where: { studentId },
-        });
-
-        // Delete account balance
-        if (user.studentProfile.accountBalance) {
-          await tx.accountBalance.deleteMany({
-            where: { studentId },
-          });
-        }
-
-        // Delete student profile
-        await tx.studentProfile.delete({
-          where: { id: studentId },
-        });
-      }
-
-      // Delete chat logs and escalations
-      const chatLogs = await tx.chatLog.findMany({
-        where: { userId },
-      });
-      const chatLogIds = chatLogs.map((c) => c.id);
-
-      if (chatLogIds.length > 0) {
-        await tx.escalationQueue.deleteMany({
-          where: { chatId: { in: chatLogIds } },
-        });
-      }
-
-      await tx.chatLog.deleteMany({
-        where: { userId },
-      });
-
-      // Delete notifications
-      await tx.notification.deleteMany({
-        where: { userId },
-      });
-
-      // Audit logs are intentionally preserved (P3-09). The audit FK uses
-      // ON DELETE SET NULL and rows carry actor email/role snapshots, so the
-      // system-activity trail survives account removal.
-
-      // Finally, hard delete the user
-      await tx.user.delete({
-        where: { id: userId },
-      });
-    });
-
-    return { message: 'User account hard-deleted successfully' };
+  async deleteUser(_userId: string, _actorId: string) {
+    // Phase 1: ordinary hard deletion is disabled. Academic, financial, chat,
+    // and audit history must never be destroyed to simplify account handling;
+    // use deactivate/archive instead (Gone = the endpoint no longer exists).
+    throw new GoneException(
+      'Account deletion is disabled. Deactivate or archive the account instead.',
+    );
   }
 }

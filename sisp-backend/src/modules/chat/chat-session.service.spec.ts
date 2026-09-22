@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { ChatSessionService } from './chat-session.service';
 
-describe('ChatSessionService authorization', () => {
+describe('ChatSessionService authorization (Phase 1 escalation)', () => {
   const session = {
     id: 'session-1',
     status: 'open',
@@ -9,6 +9,12 @@ describe('ChatSessionService authorization', () => {
     escalationId: 'chat-log-1',
     student: { userId: 'student-owner' },
     agentId: 'agent-owner',
+  };
+
+  const roleFor = (id: string): string => {
+    if (id === 'student-owner') return 'student';
+    if (id === 'dean-1') return 'dean';
+    return 'registrar';
   };
 
   let prisma: any;
@@ -34,7 +40,11 @@ describe('ChatSessionService authorization', () => {
       chatMessage: {
         create: jest.fn().mockResolvedValue({ id: 'message-1' }),
       },
-      user: { findUnique: jest.fn(({ where }: any) => Promise.resolve({ isActive: true, role: { name: where.id === 'student-owner' ? 'student' : 'live_agent' } })) },
+      user: {
+        findUnique: jest.fn(({ where }: any) =>
+          Promise.resolve({ id: where.id, isActive: true, role: { name: roleFor(where.id) } }),
+        ),
+      },
       $transaction: jest.fn((callback: (tx: any) => unknown) => callback(prisma)),
     };
     service = new ChatSessionService(prisma, { sendToUser: jest.fn().mockResolvedValue(undefined) } as any);
@@ -54,28 +64,28 @@ describe('ChatSessionService authorization', () => {
     expect(prisma.chatMessage.create).not.toHaveBeenCalled();
   });
 
-  it('requires a live agent to claim an unassigned session before replying', async () => {
+  it('requires staff to claim an unassigned session before replying', async () => {
     prisma.chatSession.findUnique.mockResolvedValueOnce({
       ...session,
       agentId: null,
     });
 
-    await expect(service.sendMessage('session-1', 'agent-owner', 'reply', 'live_agent'))
+    await expect(service.sendMessage('session-1', 'agent-owner', 'reply', 'registrar'))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.chatMessage.create).not.toHaveBeenCalled();
   });
 
-  it('prevents a live agent from taking another agent session', async () => {
-    await expect(service.assignAgent('session-1', 'different-agent', 'live_agent'))
+  it('prevents staff from taking another staff session', async () => {
+    await expect(service.assignAgent('session-1', 'different-agent', 'registrar'))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.chatSession.updateMany).not.toHaveBeenCalled();
   });
 
-  it('claims an unassigned live-agent session with a conditional update', async () => {
+  it('claims an unassigned concern with a conditional update', async () => {
     prisma.chatSession.findUnique.mockResolvedValueOnce({ ...session, agentId: null });
     prisma.chatSession.findUnique.mockResolvedValueOnce({ ...session, agentId: 'agent-owner' });
 
-    await service.assignAgent('session-1', 'agent-owner', 'live_agent');
+    await service.assignAgent('session-1', 'agent-owner', 'registrar');
 
     expect(prisma.chatSession.updateMany).toHaveBeenCalledWith({
       where: { id: 'session-1', status: 'open', OR: [{ agentId: null }, { agentId: 'agent-owner' }] },
@@ -83,18 +93,40 @@ describe('ChatSessionService authorization', () => {
     });
   });
 
-  it('rejects a live-agent claim lost to a concurrent assignee', async () => {
+  it('rejects a claim lost to a concurrent assignee', async () => {
     prisma.chatSession.findUnique.mockResolvedValueOnce({ ...session, agentId: null });
     prisma.chatSession.updateMany.mockResolvedValueOnce({ count: 0 });
 
-    await expect(service.assignAgent('session-1', 'agent-owner', 'live_agent'))
+    await expect(service.assignAgent('session-1', 'agent-owner', 'registrar'))
       .rejects.toBeInstanceOf(ConflictException);
   });
 
   it('does not allow unassigned staff to read conversation details', async () => {
     prisma.chatSession.findUnique.mockResolvedValueOnce({ ...session, agentId: null });
-    await expect(service.getAuthorizedSession('session-1', 'agent-owner', 'live_agent'))
+    await expect(service.getAuthorizedSession('session-1', 'agent-owner', 'registrar'))
       .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('lets the Dean forward a claimed concern with a routing note', async () => {
+    const result = await service.reassignAgent('session-1', 'dean-1', 'staff-2', 'dean', 'Records can answer this');
+
+    expect(result.previousAgentId).toBe('agent-owner');
+    expect(prisma.escalationQueue.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ routingNote: 'Records can answer this' }),
+      }),
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'CHAT_SESSION_REASSIGNED' }),
+      }),
+    );
+  });
+
+  it('does not let non-Dean staff forward concerns', async () => {
+    await expect(
+      service.reassignAgent('session-1', 'registrar-1', 'dean-1', 'registrar'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('returns the existing student-owned case on repeated human-assistance requests', async () => {
@@ -106,14 +138,14 @@ describe('ChatSessionService authorization', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('returns a bounded privacy-minimized page for the live-agent queue', async () => {
+  it('returns a bounded privacy-minimized page for the Dean queue', async () => {
     prisma.chatSession.findMany.mockResolvedValue([]);
     prisma.chatSession.count.mockResolvedValue(125);
 
-    const result = await service.getVisibleSessions('agent-owner', 'live_agent', 'open', 2, 500);
+    const result = await service.getVisibleSessions('dean-1', 'dean', 'open', 2, 500);
 
     expect(prisma.chatSession.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { OR: [{ agentId: null }, { agentId: 'agent-owner' }], status: 'open' },
+      where: { OR: [{ agentId: null }, { agentId: 'dean-1' }], status: 'open' },
       skip: 100,
       take: 100,
       select: expect.objectContaining({
@@ -125,6 +157,17 @@ describe('ChatSessionService authorization', () => {
     expect(result).toEqual({ data: [], total: 125, page: 2, pageSize: 100, hasMore: false });
   });
 
+  it('shows other staff only their own assigned tickets', async () => {
+    prisma.chatSession.findMany.mockResolvedValue([]);
+    prisma.chatSession.count.mockResolvedValue(0);
+
+    await service.getVisibleSessions('agent-owner', 'registrar', undefined, 1, 25);
+
+    expect(prisma.chatSession.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { agentId: 'agent-owner' },
+    }));
+  });
+
   it('uses defaults for invalid queue pagination values', async () => {
     prisma.chatSession.findMany.mockResolvedValue([]);
     prisma.chatSession.count.mockResolvedValue(0);
@@ -134,5 +177,4 @@ describe('ChatSessionService authorization', () => {
     expect(prisma.chatSession.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 0, take: 25 }));
     expect(result).toEqual({ data: [], total: 0, page: 1, pageSize: 25, hasMore: false });
   });
-
 });
