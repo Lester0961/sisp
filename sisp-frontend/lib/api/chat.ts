@@ -182,7 +182,7 @@ export const chatApi = {
     return response.data;
   },
 
-  // Live Agent Session endpoints
+  // Staff escalation session endpoints
   getSessions: async (status?: string, page = 1, pageSize = 25): Promise<PaginatedAdvisorSessions> => {
     const response = await apiClient.get<PaginatedAdvisorSessions>('/chat/sessions', { params: { status, page, pageSize } });
     return response.data;

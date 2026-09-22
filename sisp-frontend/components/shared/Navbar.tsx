@@ -67,10 +67,6 @@ const roleNavs: Record<string, NavItem[]> = {
     { href: '/admin/audit', label: 'Audit Logs', icon: Shield },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
-  live_agent: [
-    { href: '/live-agent', label: 'Queue', icon: MessageSquare },
-    { href: '/settings', label: 'Settings', icon: Settings },
-  ],
 };
 
 function formatRole(role?: string) {

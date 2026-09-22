@@ -130,7 +130,7 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Settings',
     icon: Settings,
     group: 'system',
-    roles: ['registrar', 'treasury', 'sys_admin', 'dean', 'faculty', 'live_agent'],
+    roles: ['registrar', 'treasury', 'sys_admin', 'dean', 'faculty'],
   },
 ];
 

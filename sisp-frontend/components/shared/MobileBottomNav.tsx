@@ -49,10 +49,6 @@ const roleNavs: Record<string, NavItem[]> = {
     { href: '/admin/audit', label: 'Audit', icon: FileText, isCenter: true },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
-  live_agent: [
-    { href: '/live-agent', label: 'Queue', icon: MessageSquare },
-    { href: '/settings', label: 'Settings', icon: Settings },
-  ],
 };
 
 export function MobileBottomNav() {

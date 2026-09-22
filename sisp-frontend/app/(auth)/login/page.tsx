@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { useAuth } from '@/hooks/useAuth';
+import { homeForRole, useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/lib/api/auth';
-import { useAuthStore } from '@/stores/authStore';
 import { Loader2, GraduationCap, ArrowLeft, ShieldAlert, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 const loginSchema = z.object({
@@ -19,17 +19,24 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const { login, redirectByRole, isLoading } = useAuth();
-  const setAuth = useAuthStore((state) => state.setAuth);
+  const router = useRouter();
+  const { login, verifyMfa, isLoading } = useAuth();
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   // MFA state
   const [mfaRequired, setMfaRequired] = useState(false);
-  const [mfaToken, setMfaToken] = useState('');
+  const [challengeId, setChallengeId] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [mfaLoading, setMfaLoading] = useState(false);
-  const [mfaUser, setMfaUser] = useState<any>(null);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const safeRedirect = () => {
+    if (typeof window === 'undefined') return null;
+    const target = new URLSearchParams(window.location.search).get('redirect');
+    return target && target.startsWith('/') && !target.startsWith('//') ? target : null;
+  };
 
   const {
     register,
@@ -47,15 +54,15 @@ export default function LoginPage() {
       // Check if MFA is required
       if (response.mfaRequired) {
         setMfaRequired(true);
-        setMfaToken(response.mfaToken);
-        setMfaUser(response.user);
+        setChallengeId(response.challengeId ?? '');
+        setMaskedEmail(response.maskedEmail ?? data.email);
         toast.info('Please enter the OTP code sent to your account.');
         return;
       }
 
       // Direct login remains supported for accounts that do not require MFA.
       toast.success('Welcome back!');
-      redirectByRole(response.user.role);
+      router.push(safeRedirect() ?? homeForRole(response.user.role));
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       const message =
@@ -74,11 +81,9 @@ export default function LoginPage() {
     setMfaLoading(true);
     setServerError(null);
     try {
-      const response = await authApi.verifyMfa({ mfaToken, otpCode });
-      // Set auth state with the full response
-      setAuth(response.user, response.accessToken, response.refreshToken);
+      const response = await verifyMfa(challengeId, otpCode);
       toast.success('Welcome back!');
-      redirectByRole(response.user.role);
+      router.push(safeRedirect() ?? homeForRole(response.user.role));
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       const message =
@@ -90,13 +95,38 @@ export default function LoginPage() {
     }
   };
 
+  const onResendMfa = async () => {
+    if (resendCooldown > 0) return;
+    try {
+      const result = await authApi.resendMfa(challengeId);
+      setChallengeId(result.challengeId);
+      setMaskedEmail(result.maskedEmail);
+      setResendCooldown(60);
+      toast.success('A new code has been sent.');
+      const timer = setInterval(() => {
+        setResendCooldown((seconds) => {
+          if (seconds <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return seconds - 1;
+        });
+      }, 1000);
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Unable to resend the code yet.';
+      toast.error(message);
+    }
+  };
+
   // MFA Verification Screen
   if (mfaRequired) {
     return (
       <div className="w-full space-y-5">
         <div className="flex justify-start">
           <button
-            onClick={() => { setMfaRequired(false); setOtpCode(''); setServerError(null); }}
+            onClick={() => { setMfaRequired(false); setOtpCode(''); setChallengeId(''); setServerError(null); }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-[#bed1e0] bg-white px-3 py-2 text-xs font-semibold text-[#0a439b] transition hover:bg-[#eef6fc] group"
           >
             <ArrowLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform duration-300" />
@@ -116,7 +146,7 @@ export default function LoginPage() {
               Enter OTP Code
             </h2>
             <p className="text-sm leading-6 text-[#587387]">
-              Enter the 6-digit verification code sent to <strong>{mfaUser?.email}</strong>.
+              Enter the 6-digit verification code sent to <strong>{maskedEmail}</strong>.
             </p>
           </div>
 
@@ -157,6 +187,15 @@ export default function LoginPage() {
             ) : (
               'Verify & Sign In'
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={onResendMfa}
+            disabled={resendCooldown > 0 || mfaLoading}
+            className="w-full rounded-xl border border-[#bed1e0] bg-white py-2.5 text-xs font-semibold text-[#0a439b] transition hover:bg-[#eef6fc] disabled:pointer-events-none disabled:opacity-55"
+          >
+            {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
           </button>
         </div>
       </div>
@@ -261,6 +300,14 @@ export default function LoginPage() {
                 {errors.password.message}
               </p>
             )}
+            <div className="flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-xs font-semibold text-[#0a439b] hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </div>
 
           {/* Submit */}

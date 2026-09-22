@@ -32,7 +32,6 @@ export default function DashboardPage() {
       const landingPages: Record<string, string> = {
         faculty: '/faculty/grades',
         dean: '/dean/grades',
-        live_agent: '/live-agent',
       };
       router.replace(landingPages[user.role] ?? '/admin/dashboard');
     }

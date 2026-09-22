@@ -1,94 +1,83 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { User } from '@/types';
 
+/**
+ * In-memory auth state (Phase 1).
+ *
+ * The access token is never persisted. The refresh credential lives in an
+ * HttpOnly cookie managed by the backend. A non-sensitive session hint cookie
+ * (role + expiry, no credential) lets the Next.js middleware redirect for UX;
+ * the backend remains authoritative for every API call.
+ */
 interface AuthState {
   user: User | null;
   accessToken: string | null;
-  refreshToken: string | null;
+  permissions: string[];
   isAuthenticated: boolean;
   isLoading: boolean;
   hasHydrated: boolean;
 
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  setSession: (payload: { user: User; accessToken: string; permissions?: string[] }) => void;
   setAccessToken: (accessToken: string) => void;
   setLoading: (isLoading: boolean) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
-  logout: () => void;
+  clearSession: () => void;
 }
 
-// Store cleanup callbacks registered by other stores
+export const SESSION_HINT_COOKIE = 'sisp-session-hint';
+const SESSION_HINT_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+
 const cleanupCallbacks: Array<() => void> = [];
 
 export const registerLogoutCleanup = (cb: () => void) => {
   cleanupCallbacks.push(cb);
 };
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
+function writeSessionHint(user: User | null) {
+  if (typeof document === 'undefined') return;
+  if (!user) {
+    document.cookie = `${SESSION_HINT_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+    return;
+  }
+  const payload = encodeURIComponent(
+    JSON.stringify({ role: user.role, exp: Date.now() + SESSION_HINT_MAX_AGE_SECONDS * 1000 }),
+  );
+  document.cookie = `${SESSION_HINT_COOKIE}=${payload}; path=/; max-age=${SESSION_HINT_MAX_AGE_SECONDS}; SameSite=Lax`;
+}
+
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: null,
+  accessToken: null,
+  permissions: [],
+  isAuthenticated: false,
+  isLoading: false,
+  hasHydrated: true,
+
+  setSession: ({ user, accessToken, permissions }) => {
+    writeSessionHint(user);
+    set({
+      user,
+      accessToken,
+      permissions: permissions ?? [],
+      isAuthenticated: true,
+      isLoading: false,
+    });
+  },
+
+  setAccessToken: (accessToken) => set({ accessToken }),
+
+  setLoading: (isLoading) => set({ isLoading }),
+  setHasHydrated: (hasHydrated) => set({ hasHydrated }),
+
+  clearSession: () => {
+    writeSessionHint(null);
+    cleanupCallbacks.forEach((cb) => cb());
+    set({
       user: null,
       accessToken: null,
-      refreshToken: null,
+      permissions: [],
       isAuthenticated: false,
       isLoading: false,
-      hasHydrated: false,
-
-      setAuth: (user, accessToken, refreshToken) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', refreshToken);
-          document.cookie = `sisp-auth-token=${accessToken}; path=/; SameSite=Strict`;
-        }
-        set({
-          user,
-          accessToken,
-          refreshToken,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-      },
-
-      setAccessToken: (accessToken) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('accessToken', accessToken);
-          document.cookie = `sisp-auth-token=${accessToken}; path=/; SameSite=Strict`;
-        }
-        set({ accessToken });
-      },
-
-      setLoading: (isLoading) => set({ isLoading }),
-      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
-
-      logout: () => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          document.cookie = 'sisp-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict';
-        }
-        // Clear all registered stores on logout
-        cleanupCallbacks.forEach((cb) => cb());
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-      },
-    }),
-    {
-      name: 'sisp-auth-storage',
-      storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
-      },
-      partialize: (state) => ({
-        user: state.user,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
-        isAuthenticated: state.isAuthenticated,
-      }),
-    },
-  ),
-);
+    });
+  },
+}));

@@ -1,105 +1,82 @@
 import axios from 'axios';
+import { useAuthStore } from '@/stores/authStore';
 
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-const apiUrl = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
+export const apiUrl = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
 
 const apiClient = axios.create({
   baseURL: apiUrl,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 let isRefreshing = false;
 let failedQueue: Array<{
-  resolve: (token: string) => void;
+  resolve: () => void;
   reject: (error: unknown) => void;
 }> = [];
 
-const processQueue = (error: unknown, token: string | null = null) => {
+const processQueue = (error: unknown) => {
   failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else if (token) {
-      prom.resolve(token);
-    }
+    if (error) prom.reject(error);
+    else prom.resolve();
   });
   failedQueue = [];
 };
 
-const clearAuthAndRedirect = () => {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-  document.cookie =
-    'sisp-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  window.location.href = '/login';
+const redirectToLogin = () => {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname === '/login') return;
+  const redirect = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.href = `/login?redirect=${redirect}`;
 };
 
-// Request interceptor — attach access token to every request
+// Request interceptor — attach the in-memory access token.
 apiClient.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  const token = useAuthStore.getState().accessToken;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Response interceptor — handle 401 with token refresh
+// Response interceptor — single-flight refresh through the HttpOnly cookie.
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    const isAuthRoute = originalRequest.url?.includes('/auth/login') ||
-                        originalRequest.url?.includes('/auth/verify-mfa') ||
-                        originalRequest.url?.includes('/auth/refresh');
+    const isAuthRoute =
+      originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/verify-mfa') ||
+      originalRequest.url?.includes('/auth/refresh');
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
       if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return apiClient(originalRequest);
-        });
+        }).then(() => apiClient(originalRequest));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken =
-        typeof window !== 'undefined'
-          ? localStorage.getItem('refreshToken')
-          : null;
-
-      if (!refreshToken) {
-        clearAuthAndRedirect();
-        isRefreshing = false;
-        return Promise.reject(error);
-      }
-
       try {
-        const response = await axios.post(`${apiUrl}/auth/refresh`, {
-          refreshToken,
-        });
-        const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
-          response.data;
-
-        localStorage.setItem('accessToken', newAccessToken);
-        if (newRefreshToken) {
-          localStorage.setItem('refreshToken', newRefreshToken);
-        }
-        document.cookie = `sisp-auth-token=${newAccessToken}; path=/; SameSite=Strict`;
-
-        processQueue(null, newAccessToken);
-
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        const response = await axios.post(
+          `${apiUrl}/auth/refresh`,
+          {},
+          { withCredentials: true },
+        );
+        const { user, accessToken, permissions } = response.data;
+        useAuthStore.getState().setSession({ user, accessToken, permissions });
+        processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
-        clearAuthAndRedirect();
+        processQueue(refreshError);
+        useAuthStore.getState().clearSession();
+        redirectToLogin();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

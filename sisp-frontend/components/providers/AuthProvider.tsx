@@ -15,18 +15,16 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const {
-    accessToken,
-    isAuthenticated,
-    hasHydrated,
-    setAccessToken,
-  } = useAuthStore();
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const setSession = useAuthStore((s) => s.setSession);
+  const clearSession = useAuthStore((s) => s.clearSession);
+  const setLoading = useAuthStore((s) => s.setLoading);
+  const setHasHydrated = useAuthStore((s) => s.setHasHydrated);
+
   const clearStudent = useStudentStore((s) => s.clearStudent);
   const clearRequests = useRequestStore((s) => s.clearRequests);
   const clearMessages = useChatStore((s) => s.clearMessages);
-  const clearNotifications = useNotificationStore(
-    (s) => s.clearNotifications,
-  );
+  const clearNotifications = useNotificationStore((s) => s.clearNotifications);
 
   useEffect(() => {
     registerLogoutCleanup(clearStudent);
@@ -35,59 +33,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
     registerLogoutCleanup(clearNotifications);
   }, [clearStudent, clearRequests, clearMessages, clearNotifications]);
 
-  // Auto-refresh token on page load if expired
+  // Bootstrap the session once on load using the HttpOnly refresh cookie.
   useEffect(() => {
     if (!hasHydrated) return;
+    let cancelled = false;
 
-    async function tryAutoRefresh() {
-      const token = localStorage.getItem('accessToken');
-      const storedRefreshToken = localStorage.getItem('refreshToken');
-
-      if (!token || !storedRefreshToken) return;
-
+    async function bootstrap() {
+      setLoading(true);
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const exp = payload.exp * 1000;
-        const now = Date.now();
-        const buffer = 5 * 60 * 1000;
-
-        if (now >= exp - buffer) {
-          const response = await fetch(`${apiUrl}/auth/refresh`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken: storedRefreshToken }),
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem('accessToken', data.accessToken);
-            if (data.refreshToken) {
-              localStorage.setItem('refreshToken', data.refreshToken);
-            }
-            document.cookie = `sisp-auth-token=${data.accessToken}; path=/; SameSite=Strict`;
-            setAccessToken(data.accessToken);
-          }
+        const response = await fetch(`${apiUrl}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) {
+          if (!cancelled) clearSession();
+          return;
+        }
+        const data = await response.json();
+        if (!cancelled) {
+          setSession({ user: data.user, accessToken: data.accessToken, permissions: data.permissions });
         }
       } catch {
-        // Invalid JWT format or refresh failed — will be handled by
-        // the Axios interceptor on the first real API call
+        if (!cancelled) clearSession();
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setHasHydrated(true);
+        }
       }
     }
 
-    tryAutoRefresh();
-  }, [hasHydrated, setAccessToken]);
-
-  useEffect(() => {
-    if (!hasHydrated) return;
-
-    if (accessToken && isAuthenticated) {
-      localStorage.setItem('accessToken', accessToken);
-      document.cookie = `sisp-auth-token=${accessToken}; path=/; SameSite=Strict`;
-    } else {
-      document.cookie =
-        'sisp-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-    }
-  }, [accessToken, isAuthenticated, hasHydrated]);
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return <>{children}</>;
 }

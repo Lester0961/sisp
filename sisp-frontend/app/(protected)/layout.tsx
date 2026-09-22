@@ -24,7 +24,7 @@ export default function ProtectedLayout({
           router.push('/force-password-change');
         }
       } else if (pathname === '/force-password-change') {
-        router.push(user?.role === 'live_agent' ? '/live-agent' : '/dashboard');
+        router.push('/dashboard');
       }
     }
   }, [hasHydrated, isAuthenticated, isLoading, user?.mustChangePassword, pathname, router]);

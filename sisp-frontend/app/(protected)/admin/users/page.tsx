@@ -171,7 +171,6 @@ export default function AdminUsersPage() {
     { value: 'dean', label: 'Academic Dean' },
     { value: 'registrar', label: 'Registrar' },
     { value: 'treasury', label: 'Treasury / Accounting' },
-    { value: 'live_agent', label: 'Live Agent' },
     { value: 'sys_admin', label: 'System Administrator' },
   ];
 
@@ -366,7 +365,6 @@ export default function AdminUsersPage() {
                   <option value="dean">Academic Dean</option>
                   <option value="registrar">Registrar</option>
                   <option value="treasury">Treasury / Accounting</option>
-                  <option value="live_agent">Live Agent</option>
                   <option value="sys_admin">System Administrator</option>
                 </select>
               </div>

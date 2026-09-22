@@ -1,27 +1,40 @@
 export interface User {
   id: string;
   email: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role:
     | 'student'
     | 'faculty'
     | 'dean'
     | 'registrar'
     | 'treasury'
-    | 'sys_admin'
-    | 'live_agent';
+    | 'sys_admin';
   mustChangePassword?: boolean;
 }
 
 export interface AuthTokens {
   accessToken: string;
-  refreshToken: string;
 }
 
 export interface AuthResponse {
-  message: string;
+  message?: string;
   user: User;
   accessToken: string;
-  refreshToken: string;
+  permissions: string[];
+}
+
+export interface AuthMeResponse {
+  user: User;
+  permissions: string[];
+  activeSessions: Array<{
+    id: string;
+    createdAt: string;
+    lastUsedAt: string | null;
+    expiresAt: string;
+    ipAddress: string | null;
+    userAgent: string | null;
+  }>;
 }
 
 export interface ApiError {

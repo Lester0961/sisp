@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PUBLIC_ROUTES = ['/login', '/register', '/about', '/services', '/support', '/admission', '/activate'];
+const PUBLIC_ROUTES = ['/login', '/register', '/about', '/services', '/support', '/admission', '/activate', '/reset-password'];
 
 const ROLE_ROUTES: Record<string, string[]> = {
-  '/admin': ['registrar', 'treasury', 'sys_admin', 'live_agent'],
+  '/admin': ['registrar', 'treasury', 'sys_admin'],
   '/faculty': ['faculty'],
   '/dean': ['dean'],
-  '/live-agent': ['registrar', 'dean', 'live_agent'],
-  '/dashboard': ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin', 'live_agent'],
+  '/dashboard': ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin'],
   '/grades': ['student'],
   '/financials': ['student'],
   '/requests': ['student'],
@@ -18,20 +17,12 @@ const ROLE_ROUTES: Record<string, string[]> = {
 };
 
 /**
- * UX-ONLY route guard (Phase 2, P2-08).
+ * UX-ONLY route guard (Phase 1).
  *
- * This middleware redirects for navigation convenience. It is NOT an
- * authorization boundary:
- *  - the role claim below is decoded, not signature-verified, and is
- *    therefore forgeable;
- *  - verifying the signature here would require shipping the backend
- *    JWT_SECRET inside the frontend/edge bundle, so it is intentionally
- *    not done;
- *  - every API enforces authentication, role, permission, and record-level
- *    authorization server-side (NestJS guards + services).
- *
- * Never add security controls here. Hiding a menu or redirecting a route is
- * UX only; the backend is authoritative.
+ * Reads the non-sensitive `sisp-session-hint` cookie (role + expiry only, no
+ * credential). It is not an authorization boundary: every API enforces
+ * authentication, role, permission, and record-level authorization
+ * server-side (NestJS guards + services). Never add security controls here.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -49,34 +40,26 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const authCookie = request.cookies.get('sisp-auth-token');
-  const token = authCookie?.value;
-
-  if (!token) {
+  const hintCookie = request.cookies.get('sisp-session-hint');
+  if (!hintCookie?.value) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   try {
-    const payload = JSON.parse(
-      Buffer.from(token.split('.')[1], 'base64').toString(),
-    );
-
-    // Check token expiry
-    const exp = payload.exp * 1000;
-    if (Date.now() >= exp) {
+    const hint = JSON.parse(decodeURIComponent(hintCookie.value)) as {
+      role?: string;
+      exp?: number;
+    };
+    if (!hint.exp || Date.now() >= hint.exp) {
       const loginUrl = new URL('/login', request.url);
       const response = NextResponse.redirect(loginUrl);
-      response.cookies.set('sisp-auth-token', '', {
-        path: '/',
-        expires: new Date(0),
-      });
+      response.cookies.set('sisp-session-hint', '', { path: '/', expires: new Date(0) });
       return response;
     }
 
-    const role = payload.role as string;
-
+    const role = hint.role ?? '';
     for (const [route, allowedRoles] of Object.entries(ROLE_ROUTES)) {
       if (pathname.startsWith(route) && !allowedRoles.includes(role)) {
         // Allow the dean to reach /admin/dashboard (faculty uses /faculty)
@@ -89,10 +72,7 @@ export function middleware(request: NextRequest) {
   } catch {
     const loginUrl = new URL('/login', request.url);
     const response = NextResponse.redirect(loginUrl);
-    response.cookies.set('sisp-auth-token', '', {
-      path: '/',
-      expires: new Date(0),
-    });
+    response.cookies.set('sisp-session-hint', '', { path: '/', expires: new Date(0) });
     return response;
   }
 

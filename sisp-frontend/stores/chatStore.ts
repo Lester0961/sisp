@@ -3,7 +3,7 @@ import { chatApi, ChatMessageApi, ChatQuota, ChatSource } from '@/lib/api/chat';
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant' | 'live_agent';
+  role: 'user' | 'assistant' | 'staff';
   content: string;
   intent?: string;
   confidence?: number;
@@ -93,7 +93,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         if (isAdvisorResolution) {
           mappedMessages.push({
             id: `${log.id}-advisor`,
-            role: 'live_agent',
+            role: 'staff',
             content: log.response,
             intent: log.intent || undefined,
             confidence: log.confidence || undefined,
@@ -244,7 +244,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       const messages = await chatApi.getSessionMessages(sessionId);
       const mapped: ChatMessage[] = messages.map((m) => ({
         id: m.id,
-        role: m.senderRole === 'student' ? 'user' : 'live_agent',
+        role: m.senderRole === 'student' ? 'user' : 'staff',
         content: m.content,
         timestamp: new Date(m.createdAt),
       }));
@@ -260,7 +260,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       const newMsg = await chatApi.sendSessionMessage(sessionId, content.trim());
       const mapped: ChatMessage = {
         id: newMsg.id,
-        role: newMsg.senderRole === 'student' ? 'user' : 'live_agent',
+        role: newMsg.senderRole === 'student' ? 'user' : 'staff',
         content: newMsg.content,
         timestamp: new Date(newMsg.createdAt),
       };

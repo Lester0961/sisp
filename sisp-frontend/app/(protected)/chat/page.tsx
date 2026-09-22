@@ -29,14 +29,14 @@ function formatMarkdown(text: string) {
 function MessageBubble({ message, onOpenLiveChat, onRequestHuman }: { message: ChatMessage; onOpenLiveChat: (sessionId: string) => void; onRequestHuman: (chatLogId: string) => void }) {
   const [showSources, setShowSources] = useState(false);
   const isStudent = message.role === 'user';
-  const isLiveAgent = message.role === 'live_agent';
+  const isStaff = message.role === 'staff';
 
   return (
     <div className={`flex flex-col gap-2 ${isStudent ? 'items-end' : 'items-start'}`}>
-      <div className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:max-w-[72%] ${isStudent ? 'rounded-br-md bg-[#0a439b] text-white' : isLiveAgent ? 'rounded-bl-md border border-[#b8d5ed] bg-[#f1f7fb] text-[#102f49]' : 'rounded-bl-md border border-[#dce7ef] bg-white text-[#102f49]'}`}>
+      <div className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-relaxed sm:max-w-[72%] ${isStudent ? 'rounded-br-md bg-[#0a439b] text-white' : isStaff ? 'rounded-bl-md border border-[#b8d5ed] bg-[#f1f7fb] text-[#102f49]' : 'rounded-bl-md border border-[#dce7ef] bg-white text-[#102f49]'}`}>
         {message.isLoading ? (
           <div className="flex items-center gap-2 text-[#587387]"><RefreshCw className="size-4 animate-spin text-[#0a439b]" strokeWidth={1.8} />ARIA is preparing a response</div>
-        ) : isStudent || isLiveAgent ? (
+        ) : isStudent || isStaff ? (
           <p>{message.content}</p>
         ) : (
           <div dangerouslySetInnerHTML={{ __html: formatMarkdown(message.content) }} />

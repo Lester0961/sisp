@@ -42,9 +42,6 @@ export default function ForcePasswordChangePage() {
       case 'faculty':
         router.push('/faculty');
         break;
-      case 'live_agent':
-        router.push('/live-agent');
-        break;
       default:
         router.push('/dashboard');
     }

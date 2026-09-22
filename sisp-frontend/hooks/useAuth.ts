@@ -4,20 +4,34 @@ import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/lib/api/auth';
-import { AuthResponse } from '@/types';
+
+export function homeForRole(role?: string | null): string {
+  switch (role) {
+    case 'faculty':
+      return '/faculty';
+    case 'dean':
+      return '/dean/grades';
+    case 'registrar':
+    case 'treasury':
+    case 'sys_admin':
+      return '/admin/dashboard';
+    case 'student':
+    default:
+      return '/dashboard';
+  }
+}
 
 export function useAuth() {
   const router = useRouter();
   const {
     user,
+    permissions,
     accessToken,
-    refreshToken,
     isAuthenticated,
     isLoading,
-    setAuth,
-    setAccessToken,
+    setSession,
     setLoading,
-    logout: clearAuth,
+    clearSession,
   } = useAuthStore();
 
   const login = useCallback(
@@ -25,88 +39,66 @@ export function useAuth() {
       setLoading(true);
       try {
         const response = await authApi.login({ email, password });
-        if (!response.mfaRequired) {
-          setAuth(response.user, response.accessToken, response.refreshToken);
+        if (!response.mfaRequired && response.accessToken) {
+          setSession({
+            user: response.user,
+            accessToken: response.accessToken,
+            permissions: response.permissions,
+          });
         }
         return response;
       } finally {
         setLoading(false);
       }
     },
-    [setAuth, setLoading],
+    [setSession, setLoading],
   );
 
-  const register = useCallback(
-    async (email: string, password: string, roleName: string) => {
-      setLoading(true);
-      try {
-        const response: AuthResponse = await authApi.register({
-          email,
-          password,
-          roleName,
-        });
-        setAuth(response.user, response.accessToken, response.refreshToken);
-        return response;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [setAuth, setLoading],
-  );
-
-  const refresh = useCallback(async () => {
-    if (!refreshToken) return null;
-    try {
-      const response: AuthResponse = await authApi.refresh(refreshToken);
-      setAccessToken(response.accessToken);
+  const verifyMfa = useCallback(
+    async (challengeId: string, otpCode: string) => {
+      const response = await authApi.verifyMfa({ challengeId, otpCode });
+      setSession({
+        user: response.user,
+        accessToken: response.accessToken,
+        permissions: response.permissions,
+      });
       return response;
+    },
+    [setSession],
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
     } catch {
-      clearAuth();
-      router.push('/login');
-      return null;
+      // Server-side revocation is best-effort; local state is always cleared.
     }
-  }, [refreshToken, setAccessToken, clearAuth, router]);
-
-  const logout = useCallback(() => {
-    clearAuth();
+    clearSession();
     router.push('/login');
-  }, [clearAuth, router]);
+  }, [clearSession, router]);
 
-const redirectByRole = useCallback((roleOverride?: string) => {
-  const role = roleOverride ?? user?.role;
-  if (!role) return;
-  switch (role) {
-    case 'student':
-      router.push('/dashboard');
-      break;
-    case 'faculty':
-      router.push('/faculty');
-      break;
-    case 'registrar':
-    case 'treasury':
-    case 'sys_admin':
-      router.push('/admin/dashboard');
-      break;
-    case 'dean':
-      router.push('/dean/grades');
-      break;
-    case 'live_agent':
-      router.push('/live-agent');
-      break;
-    default:
-      router.push('/dashboard');
-  }
-}, [user, router]);
+  const redirectByRole = useCallback(
+    (roleOverride?: string) => {
+      router.push(homeForRole(roleOverride ?? user?.role));
+    },
+    [user, router],
+  );
+
+  const hasPermission = useCallback(
+    (permission: string) => permissions.includes(permission),
+    [permissions],
+  );
 
   return {
     user,
+    permissions,
     accessToken,
     isAuthenticated,
     isLoading,
     login,
-    register,
-    refresh,
+    verifyMfa,
     logout,
     redirectByRole,
+    hasPermission,
   };
 }
