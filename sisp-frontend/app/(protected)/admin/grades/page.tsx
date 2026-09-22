@@ -164,8 +164,84 @@ export default function RegistrarGradesPage() {
             />
           </div>
 
-          <p className="mb-3 text-xs text-[#587387] sm:hidden">Scroll horizontally to review all grade details.</p>
-          <div className="overflow-x-auto" role="region" aria-label="Submitted grade review table" tabIndex={0}>
+          {/* Mobile: card records (NEXT 12) with the same review actions */}
+          <div className="space-y-3 md:hidden">
+            {loading ? (
+              <p className="py-6 text-center text-xs text-slate-400">Loading dean-approved grades...</p>
+            ) : loadError ? (
+              <div className="space-y-3 rounded-xl border border-rose-100 bg-rose-50/50 p-4 text-center" role="alert">
+                <p className="text-sm text-rose-700">{loadError}</p>
+                <Button size="sm" variant="outline" onClick={() => void loadGrades()} disabled={loading}>
+                  Try again
+                </Button>
+              </div>
+            ) : filteredGrades.length > 0 ? (
+              filteredGrades.map((g) => (
+                <article key={g.id} className="space-y-3 rounded-xl border border-[#e8f0f5] bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#102f49]">
+                        {g.enrollment?.student?.user?.firstName} {g.enrollment?.student?.user?.lastName}
+                      </p>
+                      <p className="text-xs text-[#587387]">
+                        {g.enrollment?.student?.studentNumber} · {g.enrollment?.course?.code}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-lg font-black text-[#102f49]">
+                      {g.finalGrade ?? '—'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-lg bg-slate-50 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Prelim</p>
+                      <p className="font-semibold text-slate-700">{g.prelim ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Midterm</p>
+                      <p className="font-semibold text-slate-700">{g.midterm ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-2">
+                      <p className="text-[10px] uppercase tracking-wide text-slate-400">Finals</p>
+                      <p className="font-semibold text-slate-700">{g.finals ?? '—'}</p>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Submitted by {g.submittedBy?.firstName} {g.submittedBy?.lastName}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      disabled={postingId === g.id}
+                      onClick={() => handlePost(g.id)}
+                      className="bg-blue-600 px-3 py-1.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95"
+                    >
+                      <FileCheck className="mr-1 h-3.5 w-3.5" />
+                      {postingId === g.id ? 'Publishing...' : 'Publish'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={downloadingId === g.enrollment?.student?.id}
+                      onClick={() =>
+                        void handleTranscript(
+                          g.enrollment?.student?.id,
+                          g.enrollment?.student?.studentNumber,
+                        )
+                      }
+                      className="px-3 py-1.5 text-[10px] font-bold"
+                    >
+                      <Download className="mr-1 h-3.5 w-3.5" />
+                      {downloadingId === g.enrollment?.student?.id ? 'Generating…' : 'Transcript'}
+                    </Button>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <p className="py-8 text-center text-xs text-slate-500">
+                No submitted grades pending review.
+              </p>
+            )}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block" role="region" aria-label="Submitted grade review table" tabIndex={0}>
             <Table className="min-w-[900px]">
               <TableHeader className="border-b border-[#e8f0f5]">
                 <TableRow className="hover:bg-transparent">

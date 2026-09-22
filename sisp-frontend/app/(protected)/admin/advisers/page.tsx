@@ -224,7 +224,68 @@ export default function AdminAdvisersPage() {
               No adviser assignments yet. Assign a Dean above to populate Dean dashboards.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="space-y-3 md:hidden">
+                {filteredAssignments.map((assignment) => (
+                <article
+                  key={assignment.id}
+                  className="space-y-3 rounded-xl border border-[#e8f0f5] bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#102f49]">
+                        {assignment.student.user.lastName}, {assignment.student.user.firstName}
+                      </p>
+                      <p className="text-xs text-[#587387]">
+                        {assignment.student.studentNumber}
+                        {assignment.student.program?.code
+                          ? ` · ${assignment.student.program.code}`
+                          : ''}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        assignment.status === 'active'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {assignment.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#587387]">
+                    Adviser: {assignment.adviser.firstName} {assignment.adviser.lastName}
+                    {assignment.academicTerm?.label
+                      ? ` · ${assignment.academicTerm.label}`
+                      : ''}
+                    {assignment.academicYear ? ` · ${assignment.academicYear}` : ''}
+                  </p>
+                  {assignment.status === 'active' ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={busy}
+                      onClick={() => void setStatus(assignment.id, 'inactive')}
+                    >
+                      Deactivate
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={busy}
+                      onClick={() => void setStatus(assignment.id, 'active')}
+                    >
+                      Reactivate
+                    </Button>
+                  )}
+                </article>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
                   <tr className="border-b text-left text-xs uppercase tracking-wide text-[#587387]">
@@ -293,6 +354,7 @@ export default function AdminAdvisersPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -357,8 +357,100 @@ export default function AdminDocumentsPage() {
             </div>
           </div>
 
+          {/* Mobile: card records (NEXT 12) */}
+          <div className="space-y-3 md:hidden">
+            {loading ? (
+              <p className="py-6 text-center text-xs text-slate-400">
+                <RefreshCw className="mx-auto mb-2 size-5 animate-spin text-[#0a439b]" />
+                Loading document catalog items...
+              </p>
+            ) : loadError ? (
+              <div className="space-y-3 rounded-xl border border-rose-100 bg-rose-50/50 p-4 text-center" role="alert">
+                <p className="text-sm text-rose-700">{loadError}</p>
+                <Button size="sm" variant="outline" onClick={() => void loadCatalog()} disabled={loading}>
+                  Try again
+                </Button>
+              </div>
+            ) : filteredCatalog.length === 0 ? (
+              <p className="py-8 text-center text-xs font-semibold text-slate-600">
+                No documents found
+              </p>
+            ) : (
+              filteredCatalog.map((item) => (
+                <article
+                  key={item.id}
+                  className="space-y-3 rounded-xl border border-[#e8f0f5] bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#cbdde9] bg-[#eaf3fa] font-bold text-[#0a439b]">
+                        <FileText className="size-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold leading-tight text-[#102f49]">{item.label}</p>
+                        <p className="mt-0.5 font-mono text-[10px] text-[#587387]">{item.code}</p>
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-xs font-extrabold text-[#102f49]">
+                        ₱{Number(item.fee).toFixed(2)}
+                      </span>
+                      {item.feeNote ? (
+                        <span className="text-[10px] font-medium text-[#587387]">/ {item.feeNote}</span>
+                      ) : null}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-bold text-blue-800">
+                      <Clock className="size-3 text-blue-600" />
+                      {item.tat || 'Not specified'}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-slate-600">
+                      <UserCheck className="size-3.5 text-slate-400" />
+                      {item.assignedTo || 'Not specified'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(item)}
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold transition-all ${
+                        item.isActive
+                          ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                          : 'border border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      <span
+                        className={`size-1.5 rounded-full ${item.isActive ? 'bg-emerald-600' : 'bg-slate-400'}`}
+                      />
+                      {item.isActive ? 'Active' : 'Disabled'}
+                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => handleOpenEdit(item)}
+                        className="text-[#365a72] hover:bg-[#eef5fa] hover:text-[#0a439b]"
+                      >
+                        <Edit2 className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => handleOpenDelete(item)}
+                        className="text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
           {/* Catalog Table */}
-          <div className="overflow-x-auto" role="region" aria-label="Document Catalog Table">
+          <div className="hidden overflow-x-auto md:block" role="region" aria-label="Document Catalog Table">
             <Table className="min-w-[850px]">
               <TableHeader className="border-b border-[#e8f0f5]">
                 <TableRow className="hover:bg-transparent">
