@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, BookOpen, CheckCircle2, RefreshCw, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { adminApi, UserProfile } from '@/lib/api/admin';
 import { academicTermsApi, AcademicTerm } from '@/lib/api/academicTerms';
 import { enrollmentsApi } from '@/lib/api/enrollments';
+
+type FacultyOption = { id: string; firstName: string; lastName: string; email: string };
 
 type EnrollmentRow = {
   id: string;
@@ -22,7 +23,7 @@ export default function EnrollmentAssignmentsPage() {
   const [terms, setTerms] = useState<AcademicTerm[]>([]);
   const [selectedTermId, setSelectedTermId] = useState<string | undefined>();
   const [rows, setRows] = useState<EnrollmentRow[]>([]);
-  const [faculty, setFaculty] = useState<UserProfile[]>([]);
+  const [faculty, setFaculty] = useState<FacultyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [termsLoading, setTermsLoading] = useState(true);
   const [termsError, setTermsError] = useState(false);
@@ -35,10 +36,10 @@ export default function EnrollmentAssignmentsPage() {
     try {
       const [enrollmentResponse, facultyResponse] = await Promise.all([
         enrollmentsApi.getAllEnrollments({ termId }),
-        adminApi.listUsers(1, 100, 'faculty'),
+        enrollmentsApi.getEligibleInstructors(),
       ]);
       setRows(enrollmentResponse.data ?? []);
-      setFaculty(facultyResponse.data ?? []);
+      setFaculty(facultyResponse ?? []);
     } catch {
       setLoadError(true);
       toast.error('Unable to load enrollment assignments.');
@@ -126,7 +127,7 @@ export default function EnrollmentAssignmentsPage() {
                 <article key={row.id} className="grid gap-4 px-4 py-4 lg:grid-cols-[1.1fr_1fr_18rem] lg:items-center sm:px-5">
                   <div className="flex min-w-0 items-start gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#eaf3fa] text-[#0a439b]"><BookOpen className="size-4" /></span><div className="min-w-0"><p className="truncate font-semibold text-[#102f49]">{row.student?.user?.firstName} {row.student?.user?.lastName}</p><p className="mt-1 truncate text-xs text-[#587387]">{row.student?.studentNumber} · {row.course?.code} · {row.course?.title}</p></div></div>
                   <div className="flex items-center gap-2 text-xs text-[#587387]"><span className="rounded-full border border-[#dce7ef] px-2 py-1">Section {row.section || '—'}</span><span>{row.course?.units ?? 0} units</span>{row.instructorId ? <CheckCircle2 className="size-4 text-[#16794c]" /> : <AlertCircle className="size-4 text-[#a15c05]" />}</div>
-                  <label className="flex items-center gap-2 text-xs font-semibold text-[#365a72]"><UserRound className="size-4 shrink-0" /><span className="sr-only">Assign faculty for {row.student?.studentNumber}</span><select value={row.instructorId ?? ''} onChange={(event) => void assign(row.id, event.target.value)} disabled={assigningId === row.id || faculty.length === 0} className="h-10 min-w-0 flex-1 rounded-xl border border-[#cbdde9] bg-white px-3 text-sm font-normal text-[#102f49] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"><option value="">Select faculty</option>{faculty.filter((person) => person.isActive).map((person) => <option key={person.id} value={person.id}>{person.firstName} {person.lastName}</option>)}</select></label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-[#365a72]"><UserRound className="size-4 shrink-0" /><span className="sr-only">Assign faculty for {row.student?.studentNumber}</span><select value={row.instructorId ?? ''} onChange={(event) => void assign(row.id, event.target.value)} disabled={assigningId === row.id || faculty.length === 0} className="h-10 min-w-0 flex-1 rounded-xl border border-[#cbdde9] bg-white px-3 text-sm font-normal text-[#102f49] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"><option value="">Select faculty</option>{faculty.map((person) => <option key={person.id} value={person.id}>{person.firstName} {person.lastName}</option>)}</select></label>
                 </article>
               ))}
             </div>

@@ -416,6 +416,15 @@ export class EnrollmentService {
     return { message: 'Faculty assignment updated successfully', data: updated };
   }
 
+  /** Active faculty accounts eligible for class assignments (registrar scope). */
+  async getEligibleInstructors() {
+    return this.prisma.user.findMany({
+      where: { isActive: true, role: { name: 'faculty' } },
+      select: { id: true, firstName: true, lastName: true, email: true },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+  }
+
   async dropCourse(enrollmentId: string, userId: string) {
     const profile = await this.prisma.studentProfile.findUnique({
       where: { userId },

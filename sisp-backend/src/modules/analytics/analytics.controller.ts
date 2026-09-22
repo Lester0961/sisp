@@ -1,7 +1,6 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { AnalyticsService } from './analytics.service';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 
 @Controller('analytics')
@@ -9,21 +8,27 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   @Get('enrollment')
-  @Roles('registrar', 'dean')
+  @RequirePermissions('report.read')
   async getEnrollmentStats() {
     return this.analyticsService.getEnrollmentStats();
   }
 
   @Get('grades')
-  @Roles('registrar', 'dean')
+  @RequirePermissions('report.read')
   async getPublishedGradeCount() {
     return this.analyticsService.getPublishedGradeCount();
   }
 
   @Get('requests')
-  @Roles('registrar', 'sys_admin')
+  @RequirePermissions('report.read')
   async getRequestVolume() {
     return this.analyticsService.getRequestVolume();
+  }
+
+  @Get('finance-summary')
+  @RequirePermissions('report.read')
+  async getFinanceSummary() {
+    return this.analyticsService.getFinanceSummary();
   }
 
   @Get('chatbot')
@@ -33,7 +38,7 @@ export class AnalyticsController {
   }
 
   @Get('monthly-report')
-  @Roles('registrar', 'dean', 'sys_admin')
+  @RequirePermissions('report.read')
   async getMonthlyExecutiveReport() {
     return this.analyticsService.getMonthlyExecutiveReport();
   }

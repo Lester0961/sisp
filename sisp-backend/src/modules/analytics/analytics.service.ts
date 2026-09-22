@@ -63,13 +63,20 @@ export class AnalyticsService {
     });
 
     const escalatedCount = await this.prisma.escalationQueue.count();
-    const escalationRate = totalLogs > 0 ? escalatedCount / totalLogs : null;
+    const escalationsResolved = await this.prisma.escalationQueue.count({
+      where: { status: 'resolved' },
+    });
+    const escalationRate =
+      totalLogs > 0 ? Number((escalatedCount / totalLogs).toFixed(4)) : null;
+    const escalationResolutionRate =
+      escalatedCount > 0 ? Number((escalationsResolved / escalatedCount).toFixed(4)) : null;
 
     return {
       totalLogs,
       escalatedCount,
-      // ChatLog and EscalationQueue have no common attribution key here.
-      escalationRate: null,
+      escalationsResolved,
+      escalationRate,
+      escalationResolutionRate,
       intentDistribution: intentStats.map((stat) => ({
         intent: stat.intent || 'unknown',
         count: stat._count.id,
@@ -77,6 +84,41 @@ export class AnalyticsService {
           ? null
           : Number(stat._avg.confidence.toFixed(2)),
       })),
+    };
+  }
+
+  /**
+   * Tuition/finance totals for authorized report readers. All values come
+   * straight from the ledger tables; nothing is estimated.
+   */
+  async getFinanceSummary() {
+    const [assessed, collected, outstanding, awaitingVerification, documentFeesCollected] =
+      await Promise.all([
+        this.prisma.studentSemester.aggregate({ _sum: { amountDue: true } }),
+        this.prisma.paymentTransaction.aggregate({
+          where: { status: 'verified' },
+          _sum: { amount: true },
+        }),
+        this.prisma.accountBalance.aggregate({ _sum: { balance: true } }),
+        this.prisma.paymentTransaction.count({ where: { status: 'pending' } }),
+        this.prisma.documentRequest.aggregate({
+          where: { paymentStatus: 'paid' },
+          _sum: { fee: true },
+        }),
+      ]);
+
+    const toNumber = (value: unknown): number => {
+      if (value === null || value === undefined) return 0;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? Number(parsed.toFixed(2)) : 0;
+    };
+
+    return {
+      totalAssessed: toNumber(assessed._sum.amountDue),
+      totalCollected: toNumber(collected._sum.amount),
+      outstandingBalance: toNumber(outstanding._sum.balance),
+      paymentsAwaitingVerification: awaitingVerification,
+      documentFeesCollected: toNumber(documentFeesCollected._sum.fee),
     };
   }
 

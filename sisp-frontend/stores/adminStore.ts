@@ -3,6 +3,7 @@ import { adminApi, UserProfile, ListUsersResponse } from '@/lib/api/admin';
 import {
   analyticsApi,
   EnrollmentStatsResponse,
+  FinanceSummaryResponse,
   PublishedGradeCountResponse,
   RequestVolumeStat,
   ChatbotAnalyticsResponse,
@@ -19,11 +20,17 @@ interface AdminState {
     totalStudents: number;
     totalFaculty: number;
     totalRequests: number;
+    pendingEscalations?: number;
+    resolvedEscalations?: number;
+    awaitingPaymentRequests?: number;
+    openDocumentRequests?: number;
+    activeSessions?: number;
   } | null;
   enrollmentStats: EnrollmentStatsResponse | null;
   publishedGradeCount: PublishedGradeCountResponse | null;
   requestVolume: RequestVolumeStat[];
   chatbotAnalytics: ChatbotAnalyticsResponse | null;
+  financeSummary: FinanceSummaryResponse | null;
   isLoading: boolean;
   error: string | null;
 
@@ -36,10 +43,13 @@ interface AdminState {
   fetchPublishedGradeCount: () => Promise<void>;
   fetchRequestVolume: () => Promise<void>;
   fetchChatbotAnalytics: () => Promise<void>;
+  fetchFinanceSummary: () => Promise<void>;
   downloadEnrollmentReport: () => Promise<void>;
   downloadGradeTranscript: (studentId: string) => Promise<void>;
   createUser: (data: any) => Promise<{ user: UserProfile; temporaryPassword?: string }>;
-  deleteUser: (userId: string) => Promise<void>;
+  activateUser: (userId: string) => Promise<void>;
+  archiveUser: (userId: string) => Promise<void>;
+  revokeUserSessions: (userId: string) => Promise<number>;
 }
 
 export const useAdminStore = create<AdminState>()((set, get) => ({
@@ -53,6 +63,7 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
   publishedGradeCount: null,
   requestVolume: [],
   chatbotAnalytics: null,
+  financeSummary: null,
   isLoading: false,
   error: null,
 
@@ -151,6 +162,16 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
+  fetchFinanceSummary: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const data = await analyticsApi.getFinanceSummary();
+      set({ financeSummary: data, isLoading: false });
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || 'Failed to fetch finance summary.', isLoading: false });
+    }
+  },
+
   downloadEnrollmentReport: async () => {
     try {
       const blob = await analyticsApi.exportEnrollmentExcel();
@@ -198,16 +219,40 @@ export const useAdminStore = create<AdminState>()((set, get) => ({
     }
   },
 
-  deleteUser: async (userId: string) => {
+  activateUser: async (userId: string) => {
     set({ isLoading: true, error: null });
     try {
-      await adminApi.deleteUser(userId);
-      // Fetch users again to reload the current page table
-      await get().fetchUsers(get().currentPage, get().limit);
-      set({ isLoading: false });
+      const updatedUser = await adminApi.activateUser(userId);
+      set((state) => ({
+        users: state.users.map((u) => (u.id === userId ? updatedUser : u)),
+        isLoading: false,
+      }));
     } catch (err: any) {
-      const errMsg = err.response?.data?.message || 'Failed to delete user.';
-      set({ error: errMsg, isLoading: false });
+      set({ error: err.response?.data?.message || 'Failed to activate user.', isLoading: false });
+      throw err;
+    }
+  },
+
+  archiveUser: async (userId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updatedUser = await adminApi.archiveUser(userId);
+      set((state) => ({
+        users: state.users.map((u) => (u.id === userId ? updatedUser : u)),
+        isLoading: false,
+      }));
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || 'Failed to archive user.', isLoading: false });
+      throw err;
+    }
+  },
+
+  revokeUserSessions: async (userId: string) => {
+    try {
+      const result = await adminApi.revokeSessions(userId);
+      return result.revoked;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || 'Failed to revoke sessions.', isLoading: false });
       throw err;
     }
   },

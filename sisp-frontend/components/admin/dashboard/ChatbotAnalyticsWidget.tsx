@@ -1,4 +1,4 @@
-import { MessageSquareText, Sparkles } from 'lucide-react';
+import { MessageSquareText, ShieldAlert, Sparkles } from 'lucide-react';
 
 interface IntentShare {
   intent: string;
@@ -8,10 +8,16 @@ interface IntentShare {
 
 interface ChatbotAnalyticsWidgetProps {
   intentDistribution: IntentShare[];
+  escalatedCount?: number;
+  resolvedCount?: number;
 }
 
-export function ChatbotAnalyticsWidget({ intentDistribution }: ChatbotAnalyticsWidgetProps) {
-  if (!intentDistribution.length) {
+export function ChatbotAnalyticsWidget({
+  intentDistribution,
+  escalatedCount,
+  resolvedCount,
+}: ChatbotAnalyticsWidgetProps) {
+  if (!intentDistribution.length && escalatedCount === undefined) {
     return (
       <section className="portal-surface portal-empty min-h-[15rem]">
         <Sparkles className="size-8 text-[#0a439b]" strokeWidth={1.7} />
@@ -32,10 +38,22 @@ export function ChatbotAnalyticsWidget({ intentDistribution }: ChatbotAnalyticsW
           <MessageSquareText className="size-4" strokeWidth={1.8} />
         </span>
         <div>
-          <h3 className="font-semibold text-[#102f49]">ARIA topics</h3>
-          <p className="mt-1 text-sm text-[#587387]">Conversation intent distribution.</p>
+          <h3 className="font-semibold text-[#102f49]">ARIA topics & escalations</h3>
+          <p className="mt-1 text-sm text-[#587387]">Conversation intent distribution and human handoffs.</p>
         </div>
       </div>
+
+      {(escalatedCount !== undefined || resolvedCount !== undefined) && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-[#dce7ef] bg-[#f8fbfd] p-3">
+          <ShieldAlert className="size-4 text-amber-700" strokeWidth={1.8} />
+          <p className="text-xs text-[#365a72]">
+            <strong className="text-[#102f49]">{escalatedCount ?? 0}</strong> escalation(s) created
+            {' · '}
+            <strong className="text-[#102f49]">{resolvedCount ?? 0}</strong> resolved
+          </p>
+        </div>
+      )}
+
       <ul className="divide-y divide-[#e8f0f5]">
         {intentDistribution.map((item) => {
           const share = Math.round((item.count / total) * 100);

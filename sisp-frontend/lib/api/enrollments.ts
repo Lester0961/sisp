@@ -19,6 +19,13 @@ export const enrollmentsApi = {
     return response.data;
   },
 
+  getEligibleInstructors: async (): Promise<
+    Array<{ id: string; firstName: string; lastName: string; email: string }>
+  > => {
+    const response = await apiClient.get('/enrollments/eligible-instructors');
+    return response.data;
+  },
+
   getMyEnrollments: async () => {
     const response = await apiClient.get('/enrollments/me');
     return response.data;

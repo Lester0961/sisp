@@ -24,12 +24,22 @@ export interface RequestVolumeStat {
 export interface ChatbotAnalyticsResponse {
   totalLogs: number;
   escalatedCount: number;
+  escalationsResolved?: number;
   escalationRate: number | null;
+  escalationResolutionRate?: number | null;
   intentDistribution: {
     intent: string;
     count: number;
     avgConfidence: number | null;
   }[];
+}
+
+export interface FinanceSummaryResponse {
+  totalAssessed: number;
+  totalCollected: number;
+  outstandingBalance: number;
+  paymentsAwaitingVerification: number;
+  documentFeesCollected: number;
 }
 
 export interface MonthlyReportResponse {
@@ -74,6 +84,11 @@ export const analyticsApi = {
 
   getChatbotAnalytics: async (): Promise<ChatbotAnalyticsResponse> => {
     const response = await apiClient.get('/analytics/chatbot');
+    return response.data;
+  },
+
+  getFinanceSummary: async (): Promise<FinanceSummaryResponse> => {
+    const response = await apiClient.get('/analytics/finance-summary');
     return response.data;
   },
 

@@ -43,7 +43,17 @@ export class AdminService {
   ) {}
 
   async getDashboardStats() {
-    const [totalUsers, totalStudents, totalFaculty, totalRequests] = await Promise.all([
+    const [
+      totalUsers,
+      totalStudents,
+      totalFaculty,
+      totalRequests,
+      pendingEscalations,
+      resolvedEscalations,
+      awaitingPaymentRequests,
+      openDocumentRequests,
+      activeSessions,
+    ] = await Promise.all([
       this.prisma.user.count(),
       this.prisma.user.count({
         where: { role: { name: 'student' } },
@@ -52,6 +62,15 @@ export class AdminService {
         where: { role: { name: 'faculty' } },
       }),
       this.prisma.documentRequest.count(),
+      this.prisma.escalationQueue.count({ where: { status: 'pending' } }),
+      this.prisma.escalationQueue.count({ where: { status: 'resolved' } }),
+      this.prisma.documentRequest.count({
+        where: { status: 'awaiting_payment', paymentStatus: 'unpaid' },
+      }),
+      this.prisma.documentRequest.count({
+        where: { status: { in: ['pending', 'under_review', 'approved'] } },
+      }),
+      this.prisma.authSession.count({ where: { revokedAt: null } }),
     ]);
 
     return {
@@ -59,6 +78,11 @@ export class AdminService {
       totalStudents,
       totalFaculty,
       totalRequests,
+      pendingEscalations,
+      resolvedEscalations,
+      awaitingPaymentRequests,
+      openDocumentRequests,
+      activeSessions,
     };
   }
 

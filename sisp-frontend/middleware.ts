@@ -7,6 +7,7 @@ const ROLE_ROUTES: Record<string, string[]> = {
   '/admin': ['registrar', 'treasury', 'sys_admin'],
   '/faculty': ['faculty'],
   '/dean': ['dean'],
+  '/tickets': ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'],
   '/dashboard': ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin'],
   '/grades': ['student'],
   '/financials': ['student'],

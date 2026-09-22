@@ -101,6 +101,13 @@ export class EnrollmentController {
     return this.enrollmentService.assignInstructor(id, dto.instructorId);
   }
 
+  // Active faculty who can be assigned to a class section (registrar scope).
+  @Get('eligible-instructors')
+  @RequirePermissions('enrollment.process')
+  async getEligibleInstructors() {
+    return this.enrollmentService.getEligibleInstructors();
+  }
+
   // Admin creates enrollment history record
   @Post(':studentId/history')
   @RequirePermissions('enrollment.process')

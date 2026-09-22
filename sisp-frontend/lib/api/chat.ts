@@ -77,6 +77,7 @@ export interface EscalationRecord {
   status: string;
   assignedTo: string | null;
   resolution?: string | null;
+  routingNote?: string | null;
   createdAt: string;
   updatedAt: string;
   chat: {
@@ -223,8 +224,8 @@ export const chatApi = {
     return response.data;
   },
 
-  reassignSession: async (sessionId: string, assigneeId: string): Promise<ChatSessionRecord> => {
-    const response = await apiClient.patch<ChatSessionRecord>(`/chat/sessions/${sessionId}/reassign`, { assigneeId });
+  reassignSession: async (sessionId: string, assigneeId: string, note?: string): Promise<ChatSessionRecord> => {
+    const response = await apiClient.patch<ChatSessionRecord>(`/chat/sessions/${sessionId}/reassign`, { assigneeId, note });
     return response.data;
   },
 

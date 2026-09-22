@@ -41,7 +41,7 @@ describe('AnalyticsService enrollment exports', () => {
 });
 
 describe('AnalyticsService chatbot analytics', () => {
-  it('does not invent a confidence or escalation rate when attribution is unavailable', async () => {
+  it('reports real escalation counts without inventing rates when there are no logs', async () => {
     const prisma: any = {
       chatLog: {
         count: jest.fn().mockResolvedValue(0),
@@ -49,15 +49,42 @@ describe('AnalyticsService chatbot analytics', () => {
           { intent: 'enrollment_inquiry', _count: { id: 1 }, _avg: { confidence: null } },
         ]),
       },
-      escalationQueue: { count: jest.fn().mockResolvedValue(5) },
+      escalationQueue: {
+        count: jest.fn((args: any) => Promise.resolve(args?.where?.status === 'resolved' ? 3 : 5)),
+      },
     };
     const service = new AnalyticsService(prisma);
 
     await expect(service.getChatbotAnalytics()).resolves.toEqual({
       totalLogs: 0,
       escalatedCount: 5,
+      escalationsResolved: 3,
       escalationRate: null,
+      escalationResolutionRate: 0.6,
       intentDistribution: [{ intent: 'enrollment_inquiry', count: 1, avgConfidence: null }],
+    });
+  });
+});
+
+describe('AnalyticsService finance summary', () => {
+  it('derives tuition totals from the ledger tables', async () => {
+    const prisma: any = {
+      studentSemester: { aggregate: jest.fn().mockResolvedValue({ _sum: { amountDue: 10000 } }) },
+      paymentTransaction: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 6500.555 } }),
+        count: jest.fn().mockResolvedValue(2),
+      },
+      accountBalance: { aggregate: jest.fn().mockResolvedValue({ _sum: { balance: 3500 } }) },
+      documentRequest: { aggregate: jest.fn().mockResolvedValue({ _sum: { fee: 800 } }) },
+    };
+    const service = new AnalyticsService(prisma);
+
+    await expect(service.getFinanceSummary()).resolves.toEqual({
+      totalAssessed: 10000,
+      totalCollected: 6500.56,
+      outstandingBalance: 3500,
+      paymentsAwaitingVerification: 2,
+      documentFeesCollected: 800,
     });
   });
 });

@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { PageFooter } from '@/components/shared/PageFooter';
 import {
   Users,
-  Trash2,
+  Archive,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -18,6 +18,8 @@ import {
   UserPlus,
   Loader2,
   Lock,
+  Unlock,
+  LogOut,
 } from 'lucide-react';
 import {
   Table,
@@ -38,13 +40,15 @@ export default function AdminUsersPage() {
     fetchUsers,
     updateUserRole,
     deactivateUser,
+    activateUser,
+    archiveUser,
+    revokeUserSessions,
     createUser,
-    deleteUser,
   } = useAdminStore();
 
   const [page, setPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [roleName, setRoleName] = useState('student');
+  const [roleName, setRoleName] = useState('faculty');
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -89,10 +93,6 @@ export default function AdminUsersPage() {
       toast.error('Please fill out all required fields');
       return;
     }
-    if (roleName === 'student' && (!studentNumber || !programId)) {
-      toast.error('Student ID number and an existing academic program are required');
-      return;
-    }
     setCreating(true);
     try {
       const res = await createUser({
@@ -100,8 +100,6 @@ export default function AdminUsersPage() {
         firstName,
         lastName,
         roleName,
-        studentNumber: roleName === 'student' ? studentNumber : undefined,
-        programId: roleName === 'student' ? programId : undefined,
       });
 
       // Show success modal credentials
@@ -137,21 +135,37 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    const confirmFirst = confirm(
-      'WARNING: This will PERMANENTLY DELETE this user account, including their profile, grades, enrollments, balance, and chat logs. This action CANNOT be undone.\n\nAre you sure you want to proceed?'
-    );
-    if (confirmFirst) {
-      const confirmSecond = confirm(
-        'FINAL WARNING: Double check your choice. Click OK to permanently erase the user.'
-      );
-      if (confirmSecond) {
-        try {
-          await deleteUser(userId);
-          toast.success('User account permanently deleted.');
-        } catch {
-          toast.error('Failed to permanently delete user.');
-        }
+  const handleActivate = async (userId: string) => {
+    try {
+      await activateUser(userId);
+      toast.success('User account reactivated.');
+    } catch {
+      toast.error('Failed to reactivate user.');
+    }
+  };
+
+  const handleArchive = async (userId: string) => {
+    if (
+      confirm(
+        'Archive this account? It will be deactivated, its active sessions revoked, and it will be hidden from normal account operations. Academic and audit history are preserved.',
+      )
+    ) {
+      try {
+        await archiveUser(userId);
+        toast.success('User account archived.');
+      } catch {
+        toast.error('Failed to archive user.');
+      }
+    }
+  };
+
+  const handleRevokeSessions = async (userId: string) => {
+    if (confirm('Sign this user out of every device?')) {
+      try {
+        const revoked = await revokeUserSessions(userId);
+        toast.success(`Revoked ${revoked} active session(s).`);
+      } catch {
+        toast.error('Failed to revoke sessions.');
       }
     }
   };
@@ -274,20 +288,36 @@ export default function AdminUsersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end items-center gap-2">
+                          {u.isActive ? (
+                            <Button
+                              onClick={() => handleDeactivate(u.id)}
+                              className="bg-amber-50 border border-amber-100 hover:bg-amber-100 text-amber-700 text-[10px] font-bold py-1 px-2.5 rounded-lg transition-all"
+                            >
+                              <Lock className="h-3 w-3 mr-1 inline" />
+                              Deactivate
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleActivate(u.id)}
+                              className="bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold py-1 px-2.5 rounded-lg transition-all"
+                            >
+                              <Unlock className="h-3 w-3 mr-1 inline" />
+                              Activate
+                            </Button>
+                          )}
                           <Button
-                            disabled={!u.isActive}
-                            onClick={() => handleDeactivate(u.id)}
-                            className="bg-amber-50 border border-amber-100 hover:bg-amber-100 text-amber-700 disabled:opacity-50 text-[10px] font-bold py-1 px-2.5 rounded-lg transition-all"
+                            onClick={() => handleRevokeSessions(u.id)}
+                            className="bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 text-[10px] font-bold py-1 px-2.5 rounded-lg transition-all"
                           >
-                            <Lock className="h-3 w-3 mr-1 inline" />
-                            Deactivate
+                            <LogOut className="h-3 w-3 mr-1 inline" />
+                            Revoke sessions
                           </Button>
                           <Button
-                            onClick={() => handleDeleteUser(u.id)}
+                            onClick={() => handleArchive(u.id)}
                             className="bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-600 hover:text-rose-700 text-[10px] font-bold py-1 px-2.5 rounded-lg transition-all"
                           >
-                            <Trash2 className="h-3 w-3 mr-1 inline" />
-                            Delete
+                            <Archive className="h-3 w-3 mr-1 inline" />
+                            Archive
                           </Button>
                         </div>
                       </TableCell>
@@ -343,8 +373,8 @@ export default function AdminUsersPage() {
                 <UserPlus className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-800">Create User Account</h3>
-                <p className="text-[10px] text-slate-400">Register new students, faculty, or system administrators.</p>
+                <h3 className="text-base font-bold text-slate-800">Create Staff Account</h3>
+                <p className="text-[10px] text-slate-400">Faculty, dean, registrar, treasury, or system administrator. Student accounts are created through admission and activation.</p>
               </div>
             </div>
 
@@ -360,7 +390,6 @@ export default function AdminUsersPage() {
                   onChange={(e) => setRoleName(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl p-2.5 text-xs text-slate-850 focus:outline-none transition"
                 >
-                  <option value="student">Student</option>
                   <option value="faculty">Faculty Member</option>
                   <option value="dean">Academic Dean</option>
                   <option value="registrar">Registrar</option>
@@ -408,43 +437,8 @@ export default function AdminUsersPage() {
                 />
               </div>
 
-              {/* Student specific fields */}
-              {roleName === 'student' && (
-                <div className="space-y-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl animate-in fade-in duration-200">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Student ID Number</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="20250001"
-                        value={studentNumber}
-                        onChange={(e) => setStudentNumber(e.target.value)}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 hover:border-slate-300 rounded-xl text-xs text-slate-850 transition focus:outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Academic Program</label>
-                      <select
-                        value={programId}
-                        onChange={(e) => setProgramId(e.target.value)}
-                        required
-                        disabled={programsLoading || programs.length === 0}
-                        className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-2 text-xs text-slate-850 focus:outline-none transition"
-                      >
-                        <option value="" disabled>{programsLoading ? 'Loading programs…' : 'Select an academic program'}</option>
-                        {programs.map((program) => (
-                          <option key={program.id} value={program.id}>{program.code} — {program.name}</option>
-                        ))}
-                      </select>
-                      {!programsLoading && programs.length === 0 && (
-                        <p className="text-xs text-rose-700" role="alert">No academic programs are available. A student account cannot be created until the program list loads.</p>
-                      )}
-                    </div>
-                  </div>
-
-                </div>
-              )}
+              {/* Student accounts are provisioned through admission + activation,
+                  not through staff account creation. */}
 
               <p className="text-xs text-slate-500">
                 A random one-time password will be generated and shown once after account creation. The user must replace it at first login.

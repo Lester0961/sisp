@@ -77,6 +77,14 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     roles: ['treasury'],
   },
   {
+    href: '/admin/document-requests',
+    label: 'Document Requests',
+    shortLabel: 'Requests',
+    icon: FileText,
+    group: 'operations',
+    roles: ['registrar', 'sys_admin'],
+  },
+  {
     href: '/admin/documents',
     label: 'Document Catalog',
     shortLabel: 'Catalog',
@@ -85,12 +93,12 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     roles: ['registrar', 'sys_admin'],
   },
   {
-    href: '/admin/escalations',
-    label: 'ARIA Escalations',
-    shortLabel: 'Escalations',
+    href: '/tickets',
+    label: 'Escalations',
+    shortLabel: 'Tickets',
     icon: Sparkles,
     group: 'operations',
-    roles: ['registrar'],
+    roles: ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'],
   },
   {
     href: '/admin/enrollments',

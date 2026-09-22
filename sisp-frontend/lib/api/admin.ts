@@ -42,20 +42,28 @@ export const adminApi = {
     return response.data;
   },
 
+  activateUser: async (userId: string): Promise<UserProfile> => {
+    const response = await apiClient.post(`/admin/users/${userId}/activate`);
+    return response.data;
+  },
+
+  archiveUser: async (userId: string): Promise<UserProfile> => {
+    const response = await apiClient.post(`/admin/users/${userId}/archive`);
+    return response.data;
+  },
+
+  revokeSessions: async (userId: string): Promise<{ message: string; revoked: number }> => {
+    const response = await apiClient.post(`/admin/users/${userId}/revoke-sessions`);
+    return response.data;
+  },
+
   createUser: async (data: {
     email: string;
     firstName: string;
     lastName: string;
     roleName: string;
-    studentNumber?: string;
-    programId?: string;
   }): Promise<{ message: string; user: UserProfile; temporaryPassword: string }> => {
     const response = await apiClient.post('/admin/users/create', data);
-    return response.data;
-  },
-
-  deleteUser: async (userId: string): Promise<{ message: string }> => {
-    const response = await apiClient.delete(`/admin/users/${userId}`);
     return response.data;
   },
 

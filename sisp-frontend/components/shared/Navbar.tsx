@@ -39,25 +39,29 @@ const roleNavs: Record<string, NavItem[]> = {
   faculty: [
     { href: '/faculty', label: 'Faculty Classes', icon: LayoutDashboard },
     { href: '/faculty/grades', label: 'Grade entry', icon: BookOpen },
+    { href: '/tickets', label: 'My Tickets', icon: Sparkles },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   dean: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/dean/advisees', label: 'Advisees', icon: Users },
     { href: '/dean/grades', label: 'Approvals', icon: BookOpen },
+    { href: '/tickets', label: 'Escalations', icon: Sparkles },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   registrar: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/document-requests', label: 'Requests', icon: FileText },
     { href: '/admin/enrollments', label: 'Assignments', icon: Users },
     { href: '/admin/grades', label: 'Grade review', icon: BookOpen },
-    { href: '/admin/escalations', label: 'Escalations', icon: Sparkles },
+    { href: '/tickets', label: 'My Tickets', icon: Sparkles },
     { href: '/admin/kb', label: 'Knowledge Base', icon: BookOpen },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   treasury: [
     { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/requests', label: 'Payments', icon: FileText },
+    { href: '/tickets', label: 'My Tickets', icon: Sparkles },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   sys_admin: [
@@ -65,6 +69,7 @@ const roleNavs: Record<string, NavItem[]> = {
     { href: '/admin/users', label: 'User Management', icon: Users },
     { href: '/admin/kb', label: 'Knowledge Base', icon: BookOpen },
     { href: '/admin/audit', label: 'Audit Logs', icon: Shield },
+    { href: '/tickets', label: 'My Tickets', icon: Sparkles },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
 };

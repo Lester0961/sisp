@@ -43,7 +43,7 @@ export function AdminTopHeader({ onOpenMobile }: AdminTopHeaderProps) {
 
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#587387]">
           <Link href="/admin/dashboard" className="font-semibold text-[#102f49] hover:text-[#0a439b] transition-colors">
-            Admin Portal
+            Admin Dashboard
           </Link>
           {currentItem && currentItem.href !== '/admin/dashboard' && (
             <>

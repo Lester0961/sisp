@@ -16,37 +16,41 @@ type NavItem = {
 const roleNavs: Record<string, NavItem[]> = {
   student: [
     { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/grades', label: 'Grades', icon: BookOpen },
+    { href: '/enrollment', label: 'Enroll', icon: BookOpen },
     { href: '/chat', label: 'ARIA', icon: Sparkles, isCenter: true },
-    { href: '/financials', label: 'Financials', icon: Wallet },
-    { href: '/settings', label: 'Settings', icon: Settings },
+    { href: '/grades', label: 'Grades', icon: BookOpen },
+    { href: '/financials', label: 'Fees', icon: Wallet },
   ],
   faculty: [
     { href: '/faculty', label: 'Home', icon: LayoutDashboard },
     { href: '/faculty/grades', label: 'Grades', icon: BookOpen },
+    { href: '/tickets', label: 'Tickets', icon: Sparkles, isCenter: true },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   dean: [
     { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
     { href: '/dean/advisees', label: 'Advisees', icon: Users },
     { href: '/dean/grades', label: 'Approvals', icon: BookOpen },
+    { href: '/tickets', label: 'Tickets', icon: Sparkles },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   registrar: [
     { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/admin/escalations', label: 'ARIA', icon: Sparkles, isCenter: true },
+    { href: '/tickets', label: 'Tickets', icon: Sparkles, isCenter: true },
     { href: '/admin/kb', label: 'Policies', icon: BookOpen },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   treasury: [
     { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
     { href: '/admin/requests', label: 'Payments', icon: FileText, isCenter: true },
+    { href: '/tickets', label: 'Tickets', icon: Sparkles },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
   sys_admin: [
     { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/audit', label: 'Audit', icon: FileText, isCenter: true },
+    { href: '/tickets', label: 'Tickets', icon: Sparkles },
     { href: '/settings', label: 'Settings', icon: Settings },
   ],
 };
