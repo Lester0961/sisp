@@ -557,6 +557,7 @@ export class AdmissionService {
         result.studentProfile.userId,
         'Admission Approved',
         'Your admission application has been approved. Activate your account to access SISP.',
+        { email: true },
       )
       .catch(() => undefined);
 

@@ -96,14 +96,24 @@ describe('AnalyticsService grade export visibility parity', () => {
     const prisma: any = {
       grade: {
         findMany: jest.fn().mockResolvedValue([
-          { finalGrade: 90 },
+          { finalGrade: 2.25 },
           { finalGrade: null },
         ]),
       },
     };
     const service = new AnalyticsService(prisma, access);
 
-    await expect(service.getPublishedGradeCount()).resolves.toEqual({ publishedGradeCount: 1 });
+    await expect(service.getPublishedGradeCount()).resolves.toEqual({
+      publishedGradeCount: 1,
+      gradeDistribution: [
+        { band: '1.00–1.49', count: 0 },
+        { band: '1.50–1.99', count: 0 },
+        { band: '2.00–2.49', count: 1 },
+        { band: '2.50–2.99', count: 0 },
+        { band: '3.00–3.49', count: 0 },
+        { band: '3.50–5.00', count: 0 },
+      ],
+    });
     expect(prisma.grade.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { isVisible: true },
     }));

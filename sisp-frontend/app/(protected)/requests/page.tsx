@@ -438,6 +438,11 @@ export default function RequestsPage() {
                         {request.documentNames || request.typeLabel}
                       </CardTitle>
                       <CardDescription>
+                        {request.referenceNo ? (
+                          <span className="mr-2 font-mono text-[11px] font-semibold text-[#1e3a8a]">
+                            {request.referenceNo}
+                          </span>
+                        ) : null}
                         Submitted{' '}
                         {new Date(request.createdAt).toLocaleDateString(
                           'en-PH',

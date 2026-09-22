@@ -153,6 +153,7 @@ describe('DocumentsService', () => {
         'user-1',
         'Document Request Update',
         expect.stringContaining('is now under review'),
+        { email: true },
       );
     });
 

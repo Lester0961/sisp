@@ -251,6 +251,7 @@ export default function AdminDashboardPage() {
                 ) : (
                   <GpaDistributionWidget
                     publishedGradeCount={publishedGradeCount?.publishedGradeCount ?? 0}
+                    distribution={publishedGradeCount?.gradeDistribution}
                   />
                 )}
               </section>

@@ -543,6 +543,9 @@ model DocumentRequest {
   studentId String         @map("student_id")
   student   StudentProfile @relation(fields: [studentId], references: [id])
   type      String
+  // Human-readable tracking reference (REQ-YYYY-####) shown to students and
+  // staff instead of the internal UUID.
+  referenceNo String?      @unique @map("reference_no")
   status    String         @default("awaiting_payment") // awaiting_payment | pending | under_review | approved | released | rejected
   remarks   String?
 

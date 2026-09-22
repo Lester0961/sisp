@@ -227,6 +227,7 @@ export class DocumentsService {
     });
     const totalFee = fromMinorUnits(requestItems.reduce((sum, item) => sum + toMinorUnits(item.lineTotal), 0));
     const paymentReference = generatePaymentReference();
+    const referenceNo = await this.generateRequestReference();
 
     // Determine staff assignment and TAT notes based on items
     const combinedRemarks = [
@@ -243,6 +244,7 @@ export class DocumentsService {
         data: {
           studentId: profile.id,
           type: requestItems.length === 1 ? requestItems[0].type : 'multiple_documents',
+          referenceNo,
           status: requestItems.some((item) => item.billingBasis === 'page') ? 'awaiting_page_confirmation' : 'awaiting_payment',
           remarks: combinedRemarks || dto.remarks,
           fee: totalFee,
@@ -354,6 +356,7 @@ export class DocumentsService {
       request.student.user.id,
       'Payment Confirmed',
       'Your payment has been confirmed. Your service request is now pending review.',
+      { email: true },
     ).catch(() => undefined);
     return {
       message: 'Payment confirmed. Request is now pending review.',
@@ -510,6 +513,7 @@ export class DocumentsService {
         request.student.user.id,
         'Document Request Update',
         `Your service request status is now ${dto.status.replaceAll('_', ' ')}.`,
+        { email: true },
       );
     }
     return {
@@ -543,6 +547,25 @@ export class DocumentsService {
   private documentNames(request: any): string {
     if (request.items?.length) return request.items.map((item: any) => item.label).join(', ');
     return request.type.replaceAll('_', ' ');
+  }
+
+  private async generateRequestReference(): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `REQ-${year}-`;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const count = await this.prisma.documentRequest.count({
+        where: { referenceNo: { startsWith: prefix } },
+      });
+      const candidate = `${prefix}${String(count + 1 + attempt).padStart(4, '0')}`;
+      const clash = await this.prisma.documentRequest.findUnique({
+        where: { referenceNo: candidate },
+        select: { id: true },
+      });
+      if (!clash) {
+        return candidate;
+      }
+    }
+    return `${prefix}${Date.now().toString(36).toUpperCase()}`;
   }
 
   private serializeRequest(request: any) {

@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Optional, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SendNotificationDto } from './dto/send-notification.dto';
+import { MailService, escapeHtml } from '../auth/mail.service';
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(NotificationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly mailService?: MailService,
+  ) {}
 
   async getMyNotifications(userId: string, unreadOnly = false) {
     const notifications = await this.prisma.notification.findMany({
@@ -174,9 +180,43 @@ export class NotificationsService {
     };
   }
 
-  // Internal helper â€” called by other services to send notifications
-  async sendToUser(userId: string, title: string, message: string): Promise<void> {
+  // Internal helper — called by other services to send notifications.
+  // Pass `{ email: true }` for business events that must also reach the user
+  // by email (best-effort: email failures never block the workflow).
+  async sendToUser(
+    userId: string,
+    title: string,
+    message: string,
+    options?: { email?: boolean },
+  ): Promise<void> {
     await this.createForUsers([{ userId, title, message }]);
+    if (options?.email) {
+      await this.sendEmailBestEffort(userId, title, message);
+    }
+  }
+
+  private async sendEmailBestEffort(userId: string, title: string, message: string): Promise<void> {
+    if (!this.mailService?.isConfigured()) {
+      return;
+    }
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, firstName: true },
+      });
+      if (!user?.email) {
+        return;
+      }
+      await this.mailService.send(
+        user.email,
+        user.firstName || 'SISP User',
+        title,
+        `<p>${escapeHtml(message)}</p><p style="color:#64748b;font-size:12px">Regis Marie College — Student Information and Services Portal</p>`,
+        message,
+      );
+    } catch (error) {
+      this.logger.warn(`Notification email skipped: ${(error as Error).message}`);
+    }
   }
 
   private async createForUsers(data: { userId: string; title: string; message: string }[]) {

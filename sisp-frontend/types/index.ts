@@ -121,6 +121,7 @@ export interface DocumentRequest {
   id: string;
   type: string;
   typeLabel: string;
+  referenceNo?: string | null;
   documentNames?: string;
   totalQuantity?: number;
   items?: Array<{

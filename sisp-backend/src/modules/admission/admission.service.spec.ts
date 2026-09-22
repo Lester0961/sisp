@@ -187,11 +187,12 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
       }),
     );
     expect(result.linkedExistingProfile).toBe(true);
-    expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
-      'user-1',
-      'Admission Approved',
-      'Your admission application has been approved. Activate your account to access SISP.',
-    );
+      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+        'user-1',
+        'Admission Approved',
+        'Your admission application has been approved. Activate your account to access SISP.',
+        { email: true },
+      );
   });
 
   it('creates a new student account with a random non-disclosed password', async () => {

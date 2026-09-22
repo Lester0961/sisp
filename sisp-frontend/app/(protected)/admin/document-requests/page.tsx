@@ -142,6 +142,9 @@ export default function AdminDocumentRequestsPage() {
               <div key={request.id} className="portal-surface space-y-3 p-4">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm font-semibold text-[#102f49]">
+                    {request.referenceNo ? (
+                      <span className="mr-2 font-mono text-xs text-[#1e3a8a]">{request.referenceNo}</span>
+                    ) : null}
                     {request.student?.user?.firstName} {request.student?.user?.lastName} · {request.student?.studentNumber}
                   </p>
                   <p className="text-xs text-[#587387]">

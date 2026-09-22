@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { gradesApi, GradeItem } from '@/lib/api/grades';
+import { analyticsApi } from '@/lib/api/analytics';
 import { academicTermsApi, AcademicTerm } from '@/lib/api/academicTerms';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -20,6 +21,7 @@ import {
   FileCheck,
   Clock,
   AlertCircle,
+  Download,
 } from 'lucide-react';
 
 export default function RegistrarGradesPage() {
@@ -31,6 +33,7 @@ export default function RegistrarGradesPage() {
   const [termsError, setTermsError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [postingId, setPostingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [terms, setTerms] = useState<AcademicTerm[]>([]);
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
 
@@ -85,6 +88,29 @@ export default function RegistrarGradesPage() {
       toast.error(err?.response?.data?.message || 'Failed to post grade.');
     } finally {
       setPostingId(null);
+    }
+  };
+
+  const handleTranscript = async (studentId?: string, studentNumber?: string) => {
+    if (!studentId) {
+      toast.error('This grade row has no linked student profile.');
+      return;
+    }
+    setDownloadingId(studentId);
+    try {
+      const blob = await analyticsApi.exportGradesPdf(studentId);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `transcript-${studentNumber || studentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Could not generate the transcript PDF.');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -178,6 +204,22 @@ export default function RegistrarGradesPage() {
                           <span className="text-[9px] text-slate-400 font-semibold">
                             {g.enrollment?.student?.studentNumber}
                           </span>
+                          <button
+                            type="button"
+                            disabled={downloadingId === g.enrollment?.student?.id}
+                            onClick={() =>
+                              void handleTranscript(
+                                g.enrollment?.student?.id,
+                                g.enrollment?.student?.studentNumber,
+                              )
+                            }
+                            className="mt-1 inline-flex w-fit items-center gap-1 text-[9px] font-semibold text-[#0a439b] hover:underline disabled:opacity-50"
+                          >
+                            <Download className="h-3 w-3" aria-hidden />
+                            {downloadingId === g.enrollment?.student?.id
+                              ? 'Generating…'
+                              : 'Transcript PDF'}
+                          </button>
                         </div>
                       </TableCell>
                       <TableCell>

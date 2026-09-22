@@ -26,6 +26,7 @@ export interface DocumentRequestItem {
   id: string;
   studentId: string;
   type: string;
+  referenceNo?: string | null;
   typeLabel: string;
   documentNames?: string;
   totalQuantity?: number;

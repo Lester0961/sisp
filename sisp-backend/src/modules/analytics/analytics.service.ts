@@ -40,8 +40,31 @@ export class AnalyticsService {
       select: { finalGrade: true },
     });
 
+    const visible = grades.filter(
+      (grade) => grade.finalGrade !== null && grade.finalGrade !== undefined,
+    );
+
+    // Registrar-facing distribution using the Regis Marie College grading
+    // bands (1.00 highest, 5.00 failing); bars replace the old placeholder.
+    const bands = [
+      { band: '1.00–1.49', min: 1.0, max: 1.49 },
+      { band: '1.50–1.99', min: 1.5, max: 1.99 },
+      { band: '2.00–2.49', min: 2.0, max: 2.49 },
+      { band: '2.50–2.99', min: 2.5, max: 2.99 },
+      { band: '3.00–3.49', min: 3.0, max: 3.49 },
+      { band: '3.50–5.00', min: 3.5, max: 5.0 },
+    ];
+    const gradeDistribution = bands.map(({ band, min, max }) => ({
+      band,
+      count: visible.filter((grade) => {
+        const value = Number(grade.finalGrade);
+        return value >= min && value <= max;
+      }).length,
+    }));
+
     return {
-      publishedGradeCount: grades.filter((grade) => grade.finalGrade !== null && grade.finalGrade !== undefined).length,
+      publishedGradeCount: visible.length,
+      gradeDistribution,
     };
   }
 

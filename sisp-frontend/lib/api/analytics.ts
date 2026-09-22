@@ -11,8 +11,14 @@ export interface EnrollmentStatsResponse {
   totalEnrolled: number;
 }
 
+export interface GradeBand {
+  band: string;
+  count: number;
+}
+
 export interface PublishedGradeCountResponse {
   publishedGradeCount: number;
+  gradeDistribution?: GradeBand[];
 }
 
 export interface RequestVolumeStat {
