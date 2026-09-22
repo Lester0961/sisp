@@ -339,11 +339,11 @@ export default function LoginPage() {
             </Link>
 
             <Link
-              href="/activate"
+              href="/account-entry"
               className="flex flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-center transition hover:bg-emerald-100/70 hover:border-emerald-300 group"
             >
-              <span className="text-xs font-bold text-emerald-800">Existing Student?</span>
-              <span className="text-[11px] font-medium text-slate-600 mt-0.5">Activate Portal Account</span>
+              <span className="text-xs font-bold text-emerald-800">Existing / Former Student?</span>
+              <span className="text-[11px] font-medium text-slate-600 mt-0.5">Returning, Old Student, or Alumni</span>
             </Link>
           </div>
         </div>

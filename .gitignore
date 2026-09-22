@@ -55,6 +55,9 @@ desktop.ini
 .vercel/
 .render/
 
+# Phase 1 private identity-verification uploads (never commit ID documents)
+sisp-backend/storage/
+
 .commandcode/
 docs/
 !docs/

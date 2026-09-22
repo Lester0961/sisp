@@ -77,6 +77,14 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     roles: ['treasury'],
   },
   {
+    href: '/admin/identity-verifications',
+    label: 'Identity Verifications',
+    shortLabel: 'Verify',
+    icon: UserCheck,
+    group: 'operations',
+    roles: ['registrar', 'sys_admin'],
+  },
+  {
     href: '/admin/document-requests',
     label: 'Document Requests',
     shortLabel: 'Requests',

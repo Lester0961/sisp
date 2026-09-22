@@ -23,6 +23,7 @@ import { FacultyModule } from './modules/faculty/faculty.module';
 import { DeanModule } from './modules/dean/dean.module';
 import { CurriculumModule } from './modules/curriculum/curriculum.module';
 import { AdmissionModule } from './modules/admission/admission.module';
+import { IdentityVerificationsModule } from './modules/identity-verifications/identity-verifications.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AuthzModule } from './common/authz/authz.module';
@@ -67,6 +68,7 @@ const rateLimitConfig = getRateLimitConfig();
     FinanceModule,
     FacultyModule,
     DeanModule,
+    IdentityVerificationsModule,
   ],
   controllers: [AppController],
   providers: [
