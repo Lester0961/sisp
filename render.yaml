@@ -77,23 +77,31 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
       - key: GROQ_MODEL
         value: qwen/qwen3.6-27b
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
       - key: OPENROUTER_MODEL
         value: openrouter/free
+      - key: NVIDIA_MODEL
+        value: z-ai/glm-5.3-flash
       - key: LLM_PROVIDER_ORDER
-        value: groq,gemini,openrouter
+        value: nvidia
       - key: LLM_REQUEST_TIMEOUT_SECONDS
         value: "18"
+      - key: NVIDIA_REQUEST_TIMEOUT_SECONDS
+        value: "35"
       - key: LLM_MAX_TOKENS
-        value: "900"
+        value: "280"
       - key: GROQ_ENABLED
-        value: "true"
+        value: "false"
       - key: GEMINI_ENABLED
-        value: "true"
+        value: "false"
       - key: OPENROUTER_ENABLED
+        value: "false"
+      - key: NVIDIA_ENABLED
         value: "true"
       - key: ADVISORY_SUPPORTED_LANGUAGES
         value: en,fil,ceb,ilo,hil,war

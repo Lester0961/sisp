@@ -61,7 +61,7 @@ describe('PermissionService (Phase 2, P2-02)', () => {
       '..',
       'prisma',
       'migrations',
-      '20260920000000_rbac_role_alignment',
+      '20260920010000_reference_catalog',
       'migration.sql',
     );
     const sql = fs.readFileSync(migrationPath, 'utf8');

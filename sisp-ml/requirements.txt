@@ -22,5 +22,5 @@ python-multipart==0.0.20
 # ML & NLP (pre-built wheels)
 numpy==1.26.4
 joblib==1.4.2
-scikit-learn==1.5.2
+scikit-learn==1.9.1
 sentence-transformers==3.3.1

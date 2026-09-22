@@ -57,6 +57,13 @@ desktop.ini
 
 .commandcode/
 docs/
+!docs/
+docs/*
+!docs/ARIA_Multilingual_Question_Datasets.md
+!docs/ARIA_Knowledge_Base_Datasets.md
+!docs/ARIA_End_to_End_Recovery_Plan.md
+!docs/ARIA_Interview_Normalized_Knowledge.md
+!docs/ARIA_Interview_Source_2026-09-21.txt
 how commit_hash
 .pytest_cache/
 
@@ -88,3 +95,10 @@ sisp-frontend/.env.production
 # Required, non-secret ARIA runtime artifacts (approved index + classifier).
 !sisp-ml/app/data/local_vector_index.pkl
 !sisp-ml/app/ml/models/intent_classifier_v*.pkl
+
+# Hermes
+.env.*
+!.env.example
+.hermes/backups/
+.hermes/stats.json
+.hermes/plans/

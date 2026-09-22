@@ -4,6 +4,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { ChatSessionMessageDto } from './dto/chat-session-message.dto';
+import { ChatSessionCloseDto } from './dto/chat-session-close.dto';
+import { ReassignChatSessionDto } from './dto/reassign-chat-session.dto';
 import { ChatGateway } from './chat.gateway';
 
 @Controller('chat/sessions')
@@ -35,6 +37,18 @@ export class ChatSessionController {
   async getMySessions(@CurrentUser() user: JwtPayload) {
     const profile = await this.sessionService.getStudentProfileForUser(user.sub);
     return profile ? this.sessionService.getMySessions(profile.id) : [];
+  }
+
+  @Get('eligible-assignees')
+  @Roles('registrar', 'dean')
+  async getEligibleAssignees() {
+    return this.sessionService.getEligibleAssignees();
+  }
+
+  @Post('request-human-assistance/:chatLogId')
+  @Roles('student')
+  async requestHumanAssistance(@CurrentUser() user: JwtPayload, @Param('chatLogId') chatLogId: string) {
+    return this.sessionService.requestHumanAssistance(chatLogId, user.sub);
   }
 
   @Get(':id')
@@ -69,10 +83,25 @@ export class ChatSessionController {
     return session;
   }
 
+  @Patch(':id/reassign')
+  @Roles('registrar', 'dean')
+  async reassignAgent(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: ReassignChatSessionDto,
+  ) {
+    const reassignment = await this.sessionService.reassignAgent(id, user.sub, body.assigneeId, user.role);
+    if (reassignment.previousAgentId && reassignment.previousAgentId !== body.assigneeId) {
+      await this.chatGateway.revokeUserFromSession(id, reassignment.previousAgentId);
+    }
+    this.chatGateway.emitSessionUpdated(id, reassignment.session);
+    return reassignment.session;
+  }
+
   @Patch(':id/close')
   @Roles('registrar', 'dean', 'live_agent')
-  async closeSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
-    const session = await this.sessionService.closeSession(id, user.sub, user.role);
+  async closeSession(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() body: ChatSessionCloseDto) {
+    const session = await this.sessionService.closeSession(id, user.sub, user.role, body.resolution);
     this.chatGateway.emitSessionUpdated(id, session);
     return session;
   }

@@ -22,6 +22,9 @@ function generatePaymentReference(): string {
   return `SISP-${timestamp}-${random}`;
 }
 
+const toMinorUnits = (amount: number | string | { toString(): string }) => Math.round(Number(amount) * 100);
+const fromMinorUnits = (minor: number) => minor / 100;
+
 
 
 @Injectable()
@@ -44,6 +47,7 @@ export class DocumentsService {
         code: item.code,
         label: item.label,
         fee: Number(item.fee),
+        billingBasis: item.billingBasis || (item.code === 'transcript_of_records' ? 'page' : 'copy'),
         feeNote: item.feeNote || null,
         tat: item.tat || null,
         assignedTo: item.assignedTo || null,
@@ -160,6 +164,7 @@ export class DocumentsService {
         type: item.code,
         label: item.label,
         fee: Number(item.fee),
+        billingBasis: item.billingBasis || (item.code === 'transcript_of_records' ? 'page' : 'copy'),
         feeNote: item.feeNote || null,
         tat: item.tat || null,
         assignedTo: item.assignedTo || null,
@@ -175,21 +180,11 @@ export class DocumentsService {
       throw new BadRequestException('Each document type can only appear once per request');
     }
 
-    // Regis Marie College Policy Rule: Active Undergraduates can only request TOR for Employment Purposes Only
-    if (typeCodes.includes('transcript_of_records')) {
-      const isGraduated = (profile as any).isGraduated || profile.yearLevel > 4;
-      if (!isGraduated) {
-        throw new BadRequestException(
-          'Undergraduate students are only eligible for "TOR (Undergraduate - For Employment Purposes Only)". Official graduate TOR is issued only to alumni/graduates upon CHED Special Order confirmation.',
-        );
-      }
-    }
-
     // Duplicate Check: Check if student already has an active pending request for any of these document types
     const activeRequests = await this.prisma.documentRequest.findMany({
       where: {
         studentId: profile.id,
-        status: { in: ['awaiting_payment', 'pending', 'under_review', 'approved'] },
+        status: { in: ['awaiting_payment', 'awaiting_page_confirmation', 'pending', 'under_review', 'approved'] },
       },
       include: { items: true },
     });
@@ -217,28 +212,28 @@ export class DocumentsService {
     const requestItems = dto.items.map((item) => {
       const catalogItem: any = catalogByCode.get(item.type);
       const unitFee = Number(catalogItem.fee);
+      const billingBasis = catalogItem.billingBasis || (catalogItem.code === 'transcript_of_records' ? 'page' : 'copy');
       return {
         catalogItemId: catalogItem.id,
         type: catalogItem.code,
         label: catalogItem.label,
         quantity: item.quantity,
         unitFee,
-        lineTotal: unitFee * item.quantity,
+        lineTotal: billingBasis === 'page' ? 0 : fromMinorUnits(toMinorUnits(unitFee) * item.quantity),
+        billingBasis,
+        pageCount: null,
         remarks: item.remarks,
       };
     });
-    const totalFee = requestItems.reduce((sum, item) => sum + item.lineTotal, 0);
+    const totalFee = fromMinorUnits(requestItems.reduce((sum, item) => sum + toMinorUnits(item.lineTotal), 0));
     const paymentReference = generatePaymentReference();
 
     // Determine staff assignment and TAT notes based on items
-    const hasTor = typeCodes.some((t) => t.includes('transcript_of_records'));
-    const assignedStaff = hasTor ? 'Miss Rose (TOR Evaluation)' : 'Sir Christian (Records)';
     const combinedRemarks = [
       dto.remarks,
       dto.isThirdParty
         ? `[Third-Party Request: ${dto.authorizationNotes || 'Authorized Representative'}]`
         : null,
-      `[Assigned: ${assignedStaff}]`,
     ]
       .filter(Boolean)
       .join(' ');
@@ -248,7 +243,7 @@ export class DocumentsService {
         data: {
           studentId: profile.id,
           type: requestItems.length === 1 ? requestItems[0].type : 'multiple_documents',
-          status: 'awaiting_payment',
+          status: requestItems.some((item) => item.billingBasis === 'page') ? 'awaiting_page_confirmation' : 'awaiting_payment',
           remarks: combinedRemarks || dto.remarks,
           fee: totalFee,
           paymentStatus: 'unpaid',
@@ -295,15 +290,22 @@ export class DocumentsService {
         `Proof can only be submitted while awaiting payment (current status: ${request.status})`,
       );
     }
-    const updated = await this.prisma.documentRequest.update({
-      where: { id: requestId },
+    if (request.paymentProofReference) throw new ConflictException('Payment proof has already been submitted for this request');
+    const duplicateProof = await this.prisma.documentRequest.findFirst({
+      where: { paymentProofChannel: dto.channel, paymentProofReference: dto.reference.trim(), NOT: { id: requestId } },
+      select: { id: true },
+    });
+    if (duplicateProof) throw new ConflictException('This payment reference was already submitted for another request');
+    const savedProof = await this.prisma.documentRequest.updateMany({
+      where: { id: requestId, status: 'awaiting_payment', paymentProofReference: null },
       data: {
         paymentProofChannel: dto.channel,
         paymentProofReference: dto.reference.trim(),
         paymentProofSubmittedAt: new Date(),
       } as any,
-      include: { items: true },
     });
+    if (savedProof.count !== 1) throw new ConflictException('This request changed while proof was being submitted; refresh and retry');
+    const updated = await this.prisma.documentRequest.findUniqueOrThrow({ where: { id: requestId }, include: { items: true } });
     return {
       message:
         'Proof of payment submitted. The Treasury Office will verify it before confirming your payment.',
@@ -330,30 +332,66 @@ export class DocumentsService {
     if (request.status !== 'awaiting_payment') {
       throw new BadRequestException(`Request is not awaiting payment (current status: ${request.status})`);
     }
+    if (!request.paymentProofReference?.trim() || !request.paymentProofChannel) {
+      throw new BadRequestException('Student payment proof must be submitted before Treasury can confirm payment');
+    }
     assertTransition(request.status, 'pending', REQUEST_STATUS_TRANSITIONS);
 
-    const updated = await this.prisma.documentRequest.update({
-      where: { id: requestId },
-      data: {
-        status: 'pending',
-        paymentStatus: 'paid',
-        paymentConfirmedById: actorId,
-        paymentConfirmedAt: new Date(),
-      },
-      include: {
-        items: true,
-        student: { include: { user: { select: { id: true, email: true } } } },
-      },
+    const updated = await this.prisma.$transaction(async (tx: any) => {
+      const claimed = await tx.documentRequest.updateMany({
+        where: { id: requestId, status: 'awaiting_payment', paymentStatus: 'unpaid', paymentProofReference: request.paymentProofReference },
+        data: { status: 'pending', paymentStatus: 'paid', paymentConfirmedById: actorId, paymentConfirmedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new ConflictException('Payment status changed during verification; refresh and retry');
+      const result = await tx.documentRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        include: { items: true, student: { include: { user: { select: { id: true, email: true } } } } },
+      });
+      await tx.auditLog.create({ data: { userId: actorId, action: 'DOCUMENT_PAYMENT_CONFIRMED', resource: 'document_requests', resourceId: requestId, oldValue: 'unpaid', newValue: 'paid', ipAddress: null } });
+      return result;
     });
     await this.notificationsService.sendToUser(
       request.student.user.id,
       'Payment Confirmed',
       'Your payment has been confirmed. Your service request is now pending review.',
-    );
+    ).catch(() => undefined);
     return {
       message: 'Payment confirmed. Request is now pending review.',
       data: this.serializeRequest(updated),
     };
+  }
+
+  async confirmTorQuote(actorId: string, requestId: string, pageCount: number) {
+    if (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 19994) {
+      throw new BadRequestException('Confirmed page count is outside the supported amount range');
+    }
+    const request = await this.prisma.documentRequest.findUnique({ where: { id: requestId }, include: { items: true, student: { include: { user: { select: { id: true } } } } } });
+    if (!request) throw new NotFoundException(`Document request with ID ${requestId} not found`);
+    if (request.status !== 'awaiting_page_confirmation') {
+      throw new BadRequestException(`Request is not awaiting page confirmation (current status: ${request.status})`);
+    }
+    const torItems = request.items.filter((item: any) => item.billingBasis === 'page' || item.type === 'transcript_of_records');
+    if (torItems.length !== 1) throw new BadRequestException('Request must contain exactly one TOR line to confirm its page count');
+    const tor = torItems[0];
+    const catalog = await this.prisma.documentCatalogItem.findUnique({ where: { id: tor.catalogItemId } });
+    if (!catalog?.isActive) throw new BadRequestException('TOR catalog price is unavailable');
+    const torTotal = fromMinorUnits(toMinorUnits(catalog.fee) * pageCount * tor.quantity);
+    const finalFee = fromMinorUnits(request.items.reduce((sum: number, item: any) => sum + (item.id === tor.id ? toMinorUnits(torTotal) : toMinorUnits(item.lineTotal)), 0));
+    if (finalFee > 99_999_999.99) throw new BadRequestException('Confirmed amount exceeds the supported request total');
+    const result = await this.prisma.$transaction(async (tx: any) => {
+      const claimed = await tx.documentRequest.updateMany({ where: { id: requestId, status: 'awaiting_page_confirmation' }, data: { status: 'awaiting_payment', fee: finalFee } });
+      if (claimed.count !== 1) throw new ConflictException('TOR quote was already confirmed; refresh and retry');
+      await tx.documentRequestItem.update({ where: { id: tor.id }, data: { pageCount, unitFee: catalog.fee, billingBasis: 'page', lineTotal: torTotal } });
+      const updated = await tx.documentRequest.update({
+        where: { id: requestId },
+        data: { quoteConfirmedById: actorId, quoteConfirmedAt: new Date() },
+        include: { items: { orderBy: { createdAt: 'asc' } } },
+      });
+      await tx.auditLog.create({ data: { userId: actorId, action: 'TOR_QUOTE_CONFIRMED', resource: 'requests', resourceId: requestId, oldValue: request.status, newValue: JSON.stringify({ status: updated.status, pageCount, fee: finalFee }), ipAddress: null } });
+      return { message: 'TOR page count confirmed; the final amount is now available for payment.', data: this.serializeRequest(updated) };
+    });
+    await this.notificationsService.sendToUser(request.student.user.id, 'TOR fee confirmed', 'The Records Office confirmed your TOR page count. You can now review the final fee and payment instructions.').catch(() => undefined);
+    return result;
   }
 
   async getMyRequests(userId: string) {
@@ -391,6 +429,20 @@ export class DocumentsService {
       data: filtered.map((request: any) => this.serializeRequest(request)),
       total: filtered.length,
     };
+  }
+
+  async getPaymentQueue() {
+    return this.prisma.documentRequest.findMany({
+      where: { status: 'awaiting_payment', paymentStatus: 'unpaid' },
+      select: {
+        id: true, studentId: true, type: true, status: true, fee: true, paymentStatus: true,
+        paymentReference: true, paymentProofChannel: true, paymentProofReference: true, paymentProofSubmittedAt: true,
+        createdAt: true,
+        items: { select: { type: true, label: true, quantity: true, unitFee: true, lineTotal: true, pageCount: true, billingBasis: true } },
+        student: { select: { studentNumber: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   async getRequestById(id: string) {
@@ -467,7 +519,8 @@ export class DocumentsService {
   }
 
   async getRequestStats() {
-    const [awaiting_payment, pending, under_review, approved, released, rejected] = await Promise.all([
+    const [awaiting_page_confirmation, awaiting_payment, pending, under_review, approved, released, rejected] = await Promise.all([
+      this.prisma.documentRequest.count({ where: { status: 'awaiting_page_confirmation' } }),
       this.prisma.documentRequest.count({ where: { status: 'awaiting_payment' } }),
       this.prisma.documentRequest.count({ where: { status: 'pending' } }),
       this.prisma.documentRequest.count({ where: { status: 'under_review' } }),
@@ -476,13 +529,14 @@ export class DocumentsService {
       this.prisma.documentRequest.count({ where: { status: 'rejected' } }),
     ]);
     return {
+      awaiting_page_confirmation,
       awaiting_payment,
       pending,
       under_review,
       approved,
       released,
       rejected,
-      total: awaiting_payment + pending + under_review + approved + released + rejected,
+      total: awaiting_page_confirmation + awaiting_payment + pending + under_review + approved + released + rejected,
     };
   }
 
@@ -518,6 +572,7 @@ export class DocumentsService {
 
   private getStatusStep(status: string): number {
     const steps: Record<string, number> = {
+      awaiting_page_confirmation: 0,
       awaiting_payment: 0,
       pending: 1,
       under_review: 2,

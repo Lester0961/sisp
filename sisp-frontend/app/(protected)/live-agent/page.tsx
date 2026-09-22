@@ -24,7 +24,6 @@ import {
   MessageSquare,
   RefreshCw,
   Send,
-  UserRound,
 } from 'lucide-react';
 
 function studentName(session: ChatSessionRecord) {
@@ -35,15 +34,6 @@ function studentName(session: ChatSessionRecord) {
 
 function studentInitial(session: ChatSessionRecord) {
   return studentName(session).charAt(0).toUpperCase() || 'S';
-}
-
-function studentTerm(session: ChatSessionRecord) {
-  const record = session.student?.studentSemesters?.[0];
-  if (!record) return null;
-  return {
-    label: record.term?.label ?? record.semester,
-    paid: record.isFullyPaid,
-  };
 }
 
 export default function LiveAgentPage() {
@@ -59,6 +49,7 @@ export default function LiveAgentPage() {
   const [sending, setSending] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [resolution, setResolution] = useState('');
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -107,26 +98,17 @@ export default function LiveAgentPage() {
 
   const handleOpenSession = async (summary: AdvisorSessionSummary) => {
     setMessages([]);
+    setResolution('');
+    setAssigning(true);
     try {
+      if (!summary.agentId) await chatApi.assignSession(summary.id);
       const session = await chatApi.getSession(summary.id);
       setActiveSession(session);
       await loadSessionMessages(session.id);
-    } catch {
-      toast.error('Unable to open this support session.');
-    }
-  };
-
-  const handleAssignSession = async () => {
-    if (!activeSession) return;
-    setAssigning(true);
-    try {
-      const assigned = await chatApi.assignSession(activeSession.id);
-      setActiveSession(assigned);
-      setMySessionIds((previous) => new Set(previous).add(assigned.id));
       await loadSessions();
-      toast.success('Session assigned to you.');
+      if (!summary.agentId) toast.success('Concern accepted and assigned to you.');
     } catch {
-      toast.error('Unable to assign this session.');
+      toast.error('Unable to accept this concern. It may have been assigned to another representative.');
     } finally {
       setAssigning(false);
     }
@@ -152,9 +134,10 @@ export default function LiveAgentPage() {
     if (!activeSession) return;
     setClosing(true);
     try {
-      await chatApi.closeSession(activeSession.id);
+      await chatApi.closeSession(activeSession.id, resolution);
       toast.success('Support session closed.');
       setCloseDialogOpen(false);
+      setResolution('');
       setActiveSession(null);
       setMessages([]);
       await loadSessions();
@@ -170,8 +153,6 @@ export default function LiveAgentPage() {
 
   if (activeSession) {
     const isMine = mySessionIds.has(activeSession.id);
-    const isUnassigned = !activeSession.agentId;
-    const term = studentTerm(activeSession);
 
     return (
       <div className="portal-page flex min-h-[100dvh] flex-col">
@@ -197,26 +178,15 @@ export default function LiveAgentPage() {
                 <h1 className="truncate font-semibold text-[#102f49]">{studentName(activeSession)}</h1>
                 <p className="truncate text-xs text-[#587387]">
                   {activeSession.student?.studentNumber || 'Student record'}
-                  {activeSession.student?.user?.email ? ` Â· ${activeSession.student.user.email}` : ''}
                 </p>
-                {term ? <p className="mt-1 text-[11px] font-medium text-[#587387]">{term.label} Â· {term.paid ? 'Paid term' : 'Payment pending'}</p> : null}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="border-[#cfe6db] bg-[#edf9f1] text-[#16794c]">Open</Badge>
-              {isUnassigned ? (
-                <Button size="sm" onClick={() => void handleAssignSession()} disabled={assigning}>
-                  <UserRound className="size-4" strokeWidth={1.8} />
-                  {assigning ? 'Assigning' : 'Assign to me'}
-                </Button>
-              ) : isMine ? (
+              {isMine ? (
                 <Badge variant="outline" className="border-[#b8d5ed] bg-[#f1f7fb] text-[#0a439b]">Assigned to you</Badge>
-              ) : (
-                <Badge variant="outline" className="border-[#f3d6a7] bg-[#fff8eb] text-[#9a5b05]">Assigned</Badge>
-              )}
-              <Button variant="outline" size="sm" className="border-[#f0c4c4] text-[#b42318] hover:bg-[#fff4f4]" onClick={() => setCloseDialogOpen(true)}>
-                Close session
-              </Button>
+              ) : null}
+              {isMine && <Button variant="outline" size="sm" className="border-[#f0c4c4] text-[#b42318] hover:bg-[#fff4f4]" onClick={() => setCloseDialogOpen(true)}>Resolve concern</Button>}
             </div>
           </div>
 
@@ -226,7 +196,7 @@ export default function LiveAgentPage() {
               <p className="mt-0.5 text-xs text-[#587387]">Keep replies clear, factual, and within school support policy.</p>
             </div>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbfdfe] p-4 sm:p-5">
-              {messages.length === 0 ? (
+              {messages.length === 0 && !activeSession.chatLog?.message ? (
                 <div className="portal-empty min-h-[16rem]">
                   <MessageSquare className="size-8 text-[#0a439b]" strokeWidth={1.7} />
                   <div>
@@ -235,7 +205,16 @@ export default function LiveAgentPage() {
                   </div>
                 </div>
               ) : (
-                messages.map((message) => {
+                <>
+                {activeSession.chatLog?.message && (
+                  <article className="flex justify-start">
+                    <div className="max-w-[88%] rounded-2xl rounded-bl-md border border-[#dce7ef] bg-white px-4 py-3 text-sm leading-relaxed text-[#102f49] sm:max-w-[72%]">
+                      <p>{activeSession.chatLog.message}</p>
+                      <p className="mt-2 text-[11px] text-[#6c879a]">Student · ARIA handoff</p>
+                    </div>
+                  </article>
+                )}
+                {messages.map((message) => {
                   const isAgent = message.senderRole !== 'student';
                   return (
                     <article key={message.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
@@ -247,7 +226,8 @@ export default function LiveAgentPage() {
                       </div>
                     </article>
                   );
-                })
+                })}
+                </>
               )}
               <div ref={messagesEndRef} />
             </div>
@@ -274,17 +254,18 @@ export default function LiveAgentPage() {
         <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
           <DialogContent showCloseButton={!closing}>
             <DialogHeader>
-              <DialogTitle>Close this support session?</DialogTitle>
+              <DialogTitle>Resolve this support concern?</DialogTitle>
               <DialogDescription>
-                The student will no longer be able to continue this conversation through the active session.
+                Add the staff response that will be posted to the student before closing the conversation.
               </DialogDescription>
             </DialogHeader>
+            <textarea rows={4} value={resolution} onChange={(event) => setResolution(event.target.value)} maxLength={2000} placeholder="Write the resolution for the student" className="w-full rounded-xl border border-[#cbdde9] bg-white p-3 text-sm text-[#102f49] focus:border-[#0a439b] focus:outline-none" />
             <DialogFooter>
               <DialogClose asChild>
                 <Button variant="outline" disabled={closing}>Cancel</Button>
               </DialogClose>
-              <Button variant="destructive" onClick={() => void handleCloseSession()} disabled={closing}>
-                {closing ? 'Closing' : 'Close session'}
+              <Button variant="destructive" onClick={() => void handleCloseSession()} disabled={closing || !resolution.trim()}>
+                {closing ? 'Resolving' : 'Resolve concern'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -349,7 +330,7 @@ export default function LiveAgentPage() {
                     </button>
                     <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
                       <Badge className={isUnassigned ? 'border-[#f3d6a7] bg-[#fff8eb] text-[#9a5b05]' : 'border-[#b8d5ed] bg-[#f1f7fb] text-[#0a439b]'}>{isUnassigned ? 'Unassigned' : 'Assigned'}</Badge>
-                      <Button size="sm" onClick={() => void handleOpenSession(session)}>Open <ArrowRight className="size-4" strokeWidth={1.8} /></Button>
+                      <Button size="sm" onClick={() => void handleOpenSession(session)} disabled={assigning}>{isUnassigned ? 'Accept concern' : 'Open'} <ArrowRight className="size-4" strokeWidth={1.8} /></Button>
                     </div>
                   </article>
                 );

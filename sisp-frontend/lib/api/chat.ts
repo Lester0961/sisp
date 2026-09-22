@@ -76,26 +76,17 @@ export interface EscalationRecord {
   chatId: string;
   status: string;
   assignedTo: string | null;
-  resolution: string | null;
+  resolution?: string | null;
   createdAt: string;
   updatedAt: string;
   chat: {
     id: string;
-    message: string;
-    response: string;
     intent: string | null;
-    confidence: number | null;
     createdAt: string;
-    user: {
-      id: string;
-      email: string;
-      firstName: string;
-      lastName: string;
-    };
+    chatSession: { id: string; status: string; agentId: string | null; student: { studentNumber: string } } | null;
   };
   assignee?: {
     id: string;
-    email: string;
     firstName: string;
     lastName: string;
   } | null;
@@ -114,21 +105,13 @@ export interface ChatSessionRecord {
     studentNumber: string;
     user: {
       id: string;
-      email: string;
       firstName: string;
       lastName: string;
     };
-    studentSemesters?: Array<{
-      semester: string;
-      year: string;
-      isFullyPaid: boolean;
-      paymentStatus?: string;
-      term?: { code: string; label: string; academicYear: string; termNumber: number } | null;
-    }>;
   };
+  chatLog?: { message: string; response: string; intent: string | null; createdAt: string } | null;
   agent?: {
     id: string;
-    email: string;
     firstName: string;
     lastName: string;
   } | null;
@@ -155,6 +138,8 @@ export interface PaginatedAdvisorSessions {
   hasMore: boolean;
 }
 
+export interface EligibleAssignee { id: string; firstName: string; lastName: string; role: { name: string } }
+
 export interface ChatSessionMessage {
   id: string;
   sessionId: string;
@@ -164,7 +149,6 @@ export interface ChatSessionMessage {
   createdAt: string;
   sender?: {
     id: string;
-    email: string;
     firstName: string;
     lastName: string;
   };
@@ -234,8 +218,23 @@ export const chatApi = {
     return response.data;
   },
 
-  closeSession: async (sessionId: string): Promise<ChatSessionRecord> => {
-    const response = await apiClient.patch(`/chat/sessions/${sessionId}/close`);
+  getEligibleAssignees: async (): Promise<EligibleAssignee[]> => {
+    const response = await apiClient.get<EligibleAssignee[]>('/chat/sessions/eligible-assignees');
+    return response.data;
+  },
+
+  reassignSession: async (sessionId: string, assigneeId: string): Promise<ChatSessionRecord> => {
+    const response = await apiClient.patch<ChatSessionRecord>(`/chat/sessions/${sessionId}/reassign`, { assigneeId });
+    return response.data;
+  },
+
+  requestHumanAssistance: async (chatLogId: string): Promise<ChatSessionRecord> => {
+    const response = await apiClient.post<ChatSessionRecord>(`/chat/sessions/request-human-assistance/${chatLogId}`);
+    return response.data;
+  },
+
+  closeSession: async (sessionId: string, resolution: string): Promise<ChatSessionRecord> => {
+    const response = await apiClient.patch(`/chat/sessions/${sessionId}/close`, { resolution });
     return response.data;
   },
 };

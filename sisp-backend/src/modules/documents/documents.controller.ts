@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, Query } from '@nestj
 import { DocumentsService } from './documents.service';
 import { CreateRequestDto } from './dto/create-request.dto';
 import { SubmitProofDto } from './dto/submit-proof.dto';
+import { ConfirmTorQuoteDto } from './dto/confirm-tor-quote.dto';
 import { UpdateRequestDto } from './dto/update-request.dto';
 import { CreateCatalogItemDto } from './dto/create-catalog-item.dto';
 import { UpdateCatalogItemDto } from './dto/update-catalog-item.dto';
@@ -78,6 +79,12 @@ export class DocumentsController {
     return this.documentsService.getAllRequests(status, type);
   }
 
+  @Get('payment-queue')
+  @Roles('treasury')
+  async getPaymentQueue() {
+    return this.documentsService.getPaymentQueue();
+  }
+
   // Admin views a single request
   @Get(':id')
   @Roles('registrar', 'dean')
@@ -98,6 +105,12 @@ export class DocumentsController {
   @RequirePermissions('financial.manage')
   async confirmPayment(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.documentsService.confirmPayment(user.sub, id);
+  }
+
+  @Post(':id/confirm-tor-quote')
+  @RequirePermissions('service_request.process')
+  async confirmTorQuote(@CurrentUser() user: JwtPayload, @Param('id') id: string, @Body() dto: ConfirmTorQuoteDto) {
+    return this.documentsService.confirmTorQuote(user.sub, id, dto.pageCount);
   }
 
   // Student submits online payment proof (GCash/PNB reference) for Treasury verification

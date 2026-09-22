@@ -24,6 +24,8 @@ import {
 export default function AdminRequestsPage() {
   useAuth();
   const [requests, setRequests] = useState<DocumentRequestItem[]>([]);
+  const [torQuotes, setTorQuotes] = useState<DocumentRequestItem[]>([]);
+  const [pageCounts, setPageCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -33,9 +35,13 @@ export default function AdminRequestsPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await requestsApi.getAllRequests('awaiting_payment');
-      const requestsArray = data?.data || [];
+      const [data, quotes] = await Promise.all([
+        requestsApi.getPaymentQueue(),
+        requestsApi.getAllRequests('awaiting_page_confirmation'),
+      ]);
+      const requestsArray = (data || []).map((request) => ({ ...request, typeLabel: request.items?.map((item) => item.label).join(', ') || request.type }));
       setRequests(requestsArray);
+      setTorQuotes(quotes?.data || []);
     } catch (err) {
       console.error('Failed to load requests:', err);
       setLoadError('Could not load payment confirmations. Please try again.');
@@ -70,11 +76,30 @@ export default function AdminRequestsPage() {
     return studentName.includes(q) || typeLabel.includes(q) || ref.includes(q) || proof.includes(q);
   });
 
+  const handleConfirmQuote = async (requestId: string) => {
+    const pageCount = pageCounts[requestId];
+    if (!Number.isInteger(pageCount) || pageCount < 1 || pageCount > 19994) {
+      toast.error('Enter the Records-confirmed TOR page count.');
+      return;
+    }
+    setConfirmingId(requestId);
+    try {
+      await requestsApi.confirmTorQuote(requestId, pageCount);
+      toast.success('TOR amount confirmed and moved to awaiting payment.');
+      setTorQuotes((previous) => previous.filter((request) => request.id !== requestId));
+      await loadRequests();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Could not confirm TOR page count.');
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
   return (
     <div className="flex min-h-full flex-col">
       <main className="portal-main max-w-7xl space-y-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
+        <div className="space-y-1">
             <h1 className="text-2xl font-extrabold text-slate-900">Payment Confirmations</h1>
             <p className="text-slate-500 text-sm">
               Review and confirm payments for document requests before processing.
@@ -88,6 +113,21 @@ export default function AdminRequestsPage() {
             Refresh
           </Button>
         </div>
+
+        {torQuotes.length > 0 && (
+          <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+            <h2 className="font-semibold text-amber-900">TOR page-count confirmation</h2>
+            <p className="mb-4 mt-1 text-xs text-amber-800">Confirm the number of pages from the official record before the system calculates the payable amount.</p>
+            <div className="space-y-3">
+              {torQuotes.map((request) => (
+                <div key={request.id} className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div><p className="text-sm font-medium text-slate-800">{request.student?.studentNumber} · {request.typeLabel}</p><p className="text-xs text-slate-500">{request.student?.user?.firstName} {request.student?.user?.lastName} · quantity {request.items?.find((item) => item.type === 'transcript_of_records')?.quantity ?? 1}</p></div>
+                  <div className="flex items-center gap-2"><input aria-label={`Confirmed page count for ${request.id}`} type="number" min={1} max={19994} value={pageCounts[request.id] ?? ''} onChange={(event) => setPageCounts((current) => ({ ...current, [request.id]: Number(event.target.value) }))} className="h-9 w-28 rounded-lg border border-slate-300 px-2 text-sm" placeholder="Pages" /><Button size="sm" disabled={confirmingId === request.id} onClick={() => void handleConfirmQuote(request.id)}>Confirm quote</Button></div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <div className="bg-white border border-slate-100 shadow-sm rounded-2xl p-5">
           <div className="relative mb-4">

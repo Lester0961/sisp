@@ -51,47 +51,78 @@ export class ChatbotService {
     // Keep the request bounded, but do not convert a normal cold start into a
     // false live-agent escalation.
     const ML_TIMEOUT_MS = 60000;
+    const transientStatuses = new Set([429, 502, 503, 504]);
 
     try {
       if (!this.mlSecret) {
         throw new Error('ML_SECRET_TOKEN is not configured');
       }
       this.logger.log(`Forwarding query to ML service: ${this.mlServiceUrl}/chat`);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), ML_TIMEOUT_MS);
-      let response: Response;
-      try {
-        response = await fetch(`${this.mlServiceUrl}/chat`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            // Internal service authentication. student_id below is derived
-            // server-side via resolveStudentId — never from client input
-            // (the global ValidationPipe rejects unknown body properties).
-            'X-ML-Secret': this.mlSecret,
-          },
-          body: JSON.stringify({
-            query: message,
-            history: history || [],
-            preferred_language: preferredLanguage,
-            ...(studentId ? { student_id: studentId } : {}),
-          }),
-          signal: controller.signal,
-        });
-      } finally {
-        clearTimeout(timeout);
+      const deadline = Date.now() + ML_TIMEOUT_MS;
+      let response: Response | undefined;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0) throw new Error('ML Service request timed out');
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), remainingMs);
+        try {
+          response = await fetch(`${this.mlServiceUrl}/chat`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              // Internal service authentication. student_id below is derived
+              // server-side via resolveStudentId — never from client input
+              // (the global ValidationPipe rejects unknown body properties).
+              'X-ML-Secret': this.mlSecret,
+            },
+            body: JSON.stringify({
+              query: message,
+              history: history || [],
+              preferred_language: preferredLanguage,
+              ...(studentId ? { student_id: studentId } : {}),
+            }),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+
+        if (response.ok) break;
+        if (!transientStatuses.has(response.status) || attempt === 1) {
+          throw new Error(`ML Service returned status ${response.status}`);
+        }
+
+        // A single retry helps with short Render gateway/rate-limit blips
+        // without extending the request's overall 60-second budget.
+        const retryAfter = response.headers?.get('retry-after');
+        const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN;
+        const retryDelayMs = Number.isFinite(retryAfterSeconds)
+          ? Math.min(Math.max(retryAfterSeconds * 1000, 250), 3000)
+          : 300;
+        if (deadline - Date.now() <= retryDelayMs) {
+          throw new Error(`ML Service returned status ${response.status}`);
+        }
+        this.logger.warn(`ML service returned transient status ${response.status}; retrying once.`);
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
       }
-      if (!response.ok) throw new Error(`ML Service returned status ${response.status}`);
+
+      if (!response?.ok) throw new Error('ML Service did not return a successful response');
       mlResponse = await response.json();
     } catch (error: any) {
       const reason = error?.name === 'AbortError' ? 'timed out' : error?.message || 'unavailable';
-      this.logger.error(`Failed to connect to ML service: ${reason}. Triggering local fallback...`);
+      this.logger.error(`ARIA answer service unavailable: ${reason}. Creating an advisor handoff.`);
+      const unavailableMessages: Record<string, string> = {
+        en: 'I can’t reach ARIA’s verified answer service right now, so I can’t give you a reliable answer yet. I’ve referred your question to an academic adviser for follow-up.',
+        fil: 'Hindi ko ma-access ngayon ang verified answer service ng ARIA, kaya hindi ako makapagbibigay ng tiyak na sagot. Naipasa ko na ang tanong mo sa academic adviser para matulungan ka.',
+        ceb: 'Dili nako ma-access karon ang verified answer service sa ARIA, busa dili ko makahatag og kasaligan nga tubag. Gipasa na nako ang imong pangutana sa academic adviser aron matabangan ka.',
+        ilo: 'Diak ma-access ita ti verified answer service ti ARIA, isu a diak makaited iti mapagtalkan a sungbat. Naipasa ko ti saludsodmo iti academic adviser tapno matulonganka.',
+        hil: 'Indi ko ma-access subong ang verified answer service sang ARIA, gani indi ako makahatag sang masaligan nga sabat. Ginpadala ko na ang imo pamangkot sa academic adviser para mabuligan ka.',
+        war: 'Diri ko ma-access yana an verified answer service han ARIA, salit diri ako makakahatag hin masasarigan nga baton. Iginpasa ko na an imo pakiana ha academic adviser basi mabuligan ka.',
+      };
+      const fallbackLanguage = preferredLanguage || 'en';
       mlResponse = {
-        response:
-          '### Hello! I am ARIA, your Academic Advisory Assistant.\n\n' +
-          'I am currently undergoing scheduled system updates and could not query our policy handbook database.\n\n' +
-          'To ensure you get the assistance you need, **I have referred this chat to an academic advisor**. ' +
-          'An authorized advisor will review your request and reply in this portal.',
+        response: unavailableMessages[fallbackLanguage] || unavailableMessages.en,
         intent: 'general_inquiry',
         confidence: 0.0,
         escalate: true,
@@ -99,8 +130,8 @@ export class ChatbotService {
         route: 'live_advisor',
         action: null,
         language: {
-          code: preferredLanguage || 'en',
-          name: 'English',
+          code: fallbackLanguage,
+          name: fallbackLanguage,
           register: 'natural',
           nativeReviewRequired: false,
         },
@@ -192,7 +223,9 @@ export class ChatbotService {
         mlResponse.response = mlResponse.parts.map((p: any) => p.text).join('\n\n---\n\n');
       }
     }
-    if (mlResponse.systemUnavailable) quota = await this.chatQuotaService.refund(userId);
+    if (mlResponse.systemUnavailable || mlResponse.quotaRefund) {
+      quota = await this.chatQuotaService.refund(userId);
+    }
 
     const chatLog = await this.prisma.chatLog.create({
       data: {
@@ -211,22 +244,24 @@ export class ChatbotService {
         this.logger.log('One or more parts failed backend resolution; escalating for human review.');
       }
       this.logger.log(`Escalating ChatLog ID: ${chatLog.id} to the academic advisor queue.`);
-      escalation = await this.prisma.escalationQueue.create({
-        data: { chatId: chatLog.id, status: 'pending' },
-      });
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
         include: { studentProfile: true },
       });
       if (user?.studentProfile) {
         chatSession = await this.chatSessionService.createSession(chatLog.id, user.studentProfile.id);
+        escalation = { chatId: chatLog.id };
         this.logger.log(`Created ChatSession ID: ${chatSession.id} for escalation.`);
+        await Promise.resolve().then(() => this.notificationsService.sendToUser(
+          userId,
+          'ARIA Request Referred',
+          'Your request has been referred for staff follow-up.',
+        )).catch(() => undefined);
+      } else {
+        mlResponse.response = 'ARIA could not securely link this conversation to a student record, so it was not placed in the staff queue. Please contact the Registrar for assistance.';
+        await this.prisma.chatLog.update({ where: { id: chatLog.id }, data: { response: mlResponse.response } });
+        mlResponse.escalate = false;
       }
-      await this.notificationsService.sendToUser(
-        userId,
-        'ARIA Request Referred',
-        'Your request has been referred for staff follow-up.',
-      );
     }
 
     return {
@@ -261,16 +296,39 @@ export class ChatbotService {
     return this.chatQuotaService.status(userId);
   }
 
-  async getEscalations() {
+  async getEscalations(userId: string) {
     return this.prisma.escalationQueue.findMany({
+      where: {
+        OR: [
+          { assignedTo: userId },
+          { assignedTo: null, status: 'pending' },
+        ],
+      },
       orderBy: { createdAt: 'desc' },
-      include: {
+      select: {
+        id: true,
+        chatId: true,
+        status: true,
+        assignedTo: true,
+        resolution: true,
+        createdAt: true,
+        updatedAt: true,
+        assignee: { select: { id: true, firstName: true, lastName: true } },
         chat: {
-          include: {
-            user: { select: { id: true, email: true, firstName: true, lastName: true } },
+          select: {
+            id: true,
+            intent: true,
+            createdAt: true,
+            chatSession: {
+              select: {
+                id: true,
+                status: true,
+                agentId: true,
+                student: { select: { studentNumber: true } },
+              },
+            },
           },
         },
-        assignee: { select: { id: true, email: true, firstName: true, lastName: true } },
       },
     });
   }
@@ -283,41 +341,13 @@ export class ChatbotService {
   ) {
     const escalation = await this.prisma.escalationQueue.findUnique({
       where: { id: escalationId },
-      include: { chat: { include: { chatSession: true } } },
+      select: { id: true, chat: { select: { chatSession: { select: { id: true } } } } },
     });
     if (!escalation) throw new HttpException('Escalation record not found.', HttpStatus.NOT_FOUND);
-    const updatedEscalation = await this.prisma.escalationQueue.update({
-      where: { id: escalationId },
-      data: { status: 'resolved', resolution, assignedTo: resolverId },
-    });
-    await this.prisma.chatLog.create({
-      data: {
-        userId: escalation.chat.userId,
-        message: `[ADVISOR ANSWER TO ESCALATION ID ${escalationId}]`,
-        response: `### 📢 Official Advisor Resolution:\n\n${resolution}\n\n*(This query has been resolved by advisor ${resolverId})*`,
-        intent: 'general_inquiry',
-        confidence: 1.0,
-      },
-    });
-
-    if (escalation.chat.chatSession) {
-      await this.prisma.chatMessage.create({
-        data: {
-          sessionId: escalation.chat.chatSession.id,
-          senderId: resolverId,
-          senderRole: resolverRole,
-          content: `Official Advisor Resolution:\n\n${resolution}`,
-        },
-      });
-    }
-
-    await this.notificationsService.sendToUser(
-      escalation.chat.userId,
-      'ARIA Response Available',
-      'A staff response is available in your ARIA conversation.',
-    );
-
-    return updatedEscalation;
+    const sessionId = escalation.chat.chatSession?.id;
+    if (!sessionId) throw new HttpException('No live support session is linked to this escalation.', HttpStatus.CONFLICT);
+    await this.chatSessionService.closeSession(sessionId, resolverId, resolverRole, resolution);
+    return this.prisma.escalationQueue.findUnique({ where: { id: escalationId } });
   }
 
   /**

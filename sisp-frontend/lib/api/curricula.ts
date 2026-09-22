@@ -9,10 +9,11 @@ export interface CurriculumPrereq {
 export interface CurriculumCourse {
   id: string;
   code: string;
+  isCodeSynthesized?: boolean;
   title: string;
   units: number;
   lecUnits?: number;
-  labUnits?: number;
+  labUnits?: number | null;
   subjectArea?: string | null;
   catNo?: string | null;
   prereqText?: string | null;
@@ -41,10 +42,11 @@ export interface Program {
 export interface ProgressCourse {
   id: string;
   code: string;
+  isCodeSynthesized?: boolean;
   title: string;
   units: number;
   lecUnits?: number;
-  labUnits?: number;
+  labUnits?: number | null;
   prereqText?: string | null;
   yearLevel: number;
   semester: number;

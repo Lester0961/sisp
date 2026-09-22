@@ -23,7 +23,7 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     grade: { findMany: jest.fn() },
     documentRequest: { findMany: jest.fn() },
     chatLog: { create: jest.fn() },
-    escalationQueue: { create: jest.fn() },
+    escalationQueue: { create: jest.fn(), findUnique: jest.fn() },
   };
 
   const mockConfig = {
@@ -34,7 +34,7 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     }),
   };
 
-  const mockSessions = { createSession: jest.fn() };
+  const mockSessions = { createSession: jest.fn(), closeSession: jest.fn() };
   const mockNotifications = { sendToUser: jest.fn() };
   const mockQuota = {
     consume: jest.fn(),
@@ -139,6 +139,92 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.response).toBe('ok');
   });
 
+  it('refunds quota for an unresolved answer and leaves human support optional', async () => {
+    fetchMock.mockImplementation(() =>
+      mlOk({
+        response: 'I do not have verified information for that yet.',
+        intent: 'enrollment_inquiry',
+        confidence: 1,
+        escalate: false,
+        quotaRefund: true,
+        sources: [],
+        route: 'knowledge_gap',
+        language: { code: 'en' },
+        parts: [],
+      }),
+    );
+
+    const result = await service.sendMessage('user-1', { message: 'How do I enroll?' } as any);
+
+    expect(mockQuota.refund).toHaveBeenCalledWith('user-1');
+    expect(mockSessions.createSession).not.toHaveBeenCalled();
+    expect(result.escalated).toBe(false);
+  });
+
+  it('keeps a grounded partial enrollment answer out of the live-agent queue', async () => {
+    fetchMock.mockImplementation(() =>
+      mlOk({
+        response: 'According to interview notes, clear a previous balance at Treasury, then go to Admissions.',
+        intent: 'enrollment_inquiry',
+        confidence: 1,
+        escalate: false,
+        quotaRefund: false,
+        sources: [{ source: 'enrollment_interview_guidance.txt', category: 'enrollment_policy' }],
+        route: 'partially_answered',
+        language: { code: 'en' },
+        parts: [],
+      }),
+    );
+
+    const result = await service.sendMessage('user-1', { message: 'How do I enroll and how much is tuition?' } as any);
+
+    expect(result.response).toContain('Treasury');
+    expect(result.response).toContain('Admissions');
+    expect(result.route).toBe('partially_answered');
+    expect(result.escalated).toBe(false);
+    expect(result.sessionId).toBeNull();
+    expect(mockQuota.refund).not.toHaveBeenCalled();
+    expect(mockSessions.createSession).not.toHaveBeenCalled();
+  });
+
+  it('retries one transient ML gateway failure before returning the answer', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 502, headers: { get: () => null } })
+      .mockImplementationOnce(() =>
+        mlOk({
+          response: 'Here is the answer.',
+          intent: 'document_request',
+          confidence: 0.9,
+          escalate: false,
+          sources: [],
+          route: 'policy',
+          language: { code: 'en' },
+          parts: [],
+        }),
+      );
+
+    const res = await service.sendMessage('user-1', { message: 'How much is a TOR?' } as any);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.response).toBe('Here is the answer.');
+    expect(res.escalated).toBe(false);
+  });
+
+  it('uses a truthful localized handoff when the ML service remains unavailable', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 429, headers: { get: () => null } });
+
+    const res = await service.sendMessage('user-1', {
+      message: 'Paano mag-enroll?',
+      preferredLanguage: 'fil',
+    } as any);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.response).toContain('Hindi ko ma-access ngayon');
+    expect(res.response).not.toContain('scheduled system updates');
+    expect(res.escalated).toBe(true);
+    expect(mockQuota.refund).toHaveBeenCalledWith('user-1');
+  });
+
   it('resolves backend-flagged parts and re-stitches the response', async () => {
     fetchMock.mockImplementation(() =>
       mlOk({
@@ -235,32 +321,20 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.response).not.toContain('hint');
   });
 
-  it('notifies the student after an ARIA escalation response is persisted', async () => {
-    const order: string[] = [];
-    mockPrisma.escalationQueue.findUnique = jest.fn().mockResolvedValue({
+  it('resolves an escalation through the assigned live session close workflow', async () => {
+    mockPrisma.escalationQueue.findUnique.mockResolvedValue({
       id: 'escalation-1',
-      chat: { userId: 'user-1', chatSession: null },
+      chat: { userId: 'user-1', chatSession: { id: 'session-1' } },
     });
-    mockPrisma.escalationQueue.update = jest.fn().mockImplementation(async () => {
-      order.push('resolved');
-      return { id: 'escalation-1', status: 'resolved' };
-    });
-    mockPrisma.chatLog.create.mockImplementation(async ({ data }: any) => {
-      order.push('response');
-      return { id: 'chat-log-1', ...data };
-    });
-    mockNotifications.sendToUser.mockImplementation(async () => {
-      order.push('notification');
-    });
+    mockPrisma.escalationQueue.findUnique
+      .mockResolvedValueOnce({ id: 'escalation-1', chat: { userId: 'user-1', chatSession: { id: 'session-1' } } })
+      .mockResolvedValueOnce({ id: 'escalation-1', status: 'resolved' });
+    mockSessions.closeSession.mockResolvedValue({ id: 'session-1', status: 'closed' });
 
-    await service.resolveEscalation('escalation-1', 'Approved course plan', 'registrar-1');
+    const result = await service.resolveEscalation('escalation-1', 'Approved course plan', 'registrar-1', 'registrar');
 
-    expect(order).toEqual(['resolved', 'response', 'notification']);
-    expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
-      'user-1',
-      'ARIA Response Available',
-      'A staff response is available in your ARIA conversation.',
-    );
+    expect(mockSessions.closeSession).toHaveBeenCalledWith('session-1', 'registrar-1', 'registrar', 'Approved course plan');
+    expect(result).toEqual({ id: 'escalation-1', status: 'resolved' });
   });
 
   it('does not report a missing balance record as zero and escalates it', async () => {

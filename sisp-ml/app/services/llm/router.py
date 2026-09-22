@@ -6,6 +6,7 @@ from .errors import AllProvidersFailed, ProviderError
 from .gemini_provider import GeminiProvider
 from .groq_provider import GroqProvider
 from .models import LLMRequest, LLMResponse
+from .nvidia_provider import NvidiaProvider
 from .openrouter_provider import OpenRouterProvider
 
 
@@ -17,6 +18,14 @@ class LLMRouter:
     def __init__(self, settings=settings) -> None:
         timeout = settings.llm_request_timeout_seconds
         providers = {
+            "nvidia": (
+                NvidiaProvider(
+                    settings.nvidia_api_key,
+                    settings.nvidia_model,
+                    settings.nvidia_request_timeout_seconds,
+                ),
+                settings.nvidia_enabled,
+            ),
             "groq": (GroqProvider(settings.groq_api_key, settings.groq_model, timeout), settings.groq_enabled),
             "gemini": (
                 GeminiProvider(settings.google_ai_api_key, settings.gemini_model, timeout),

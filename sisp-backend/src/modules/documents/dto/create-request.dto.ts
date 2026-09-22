@@ -26,6 +26,13 @@ export class CreateRequestItemDto {
   @Max(10)
   quantity: number;
 
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  @IsOptional()
+  pageCount?: number;
+
   @IsString()
   @MaxLength(300)
   @IsOptional()

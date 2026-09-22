@@ -78,6 +78,7 @@ model User {
 
   // Payment confirmation
   confirmedPayments DocumentRequest[] @relation("PaymentConfirmedBy")
+  confirmedTorQuotes DocumentRequest[] @relation("TorQuoteConfirmedBy")
 
   // Live agent sessions
   assignedChatSessions ChatSession[] @relation("SessionAssignedTo")
@@ -230,10 +231,11 @@ model StudentSemester {
 model Course {
   id          String   @id @default(uuid())
   code        String
+  isCodeSynthesized Boolean @default(false) @map("is_code_synthesized")
   title       String
   units       Int
   lecUnits    Int      @default(0) @map("lec_units")
-  labUnits    Int      @default(0) @map("lab_units")
+  labUnits    Int?     @default(0) @map("lab_units")
   subjectArea String?  @map("subject_area")
   catNo       String?  @map("cat_no")
   // Raw prerequisite text from source doc (e.g. "MMA101", "ITE 6200A, CS 6201A", "—"/"-").
@@ -398,6 +400,9 @@ model CurriculumCourse {
   semester     Int
   termNumber   Int?       @map("term_number")
   termLabel    String?    @map("term_label")
+  sourceUnits  Int        @map("source_units")
+  sourceLecUnits Int      @map("source_lec_units")
+  sourceLabUnits Int?     @map("source_lab_units")
   sourceTotal  String?    @map("source_total")
 
   @@id([curriculumId, courseId])
@@ -538,6 +543,9 @@ model DocumentRequest {
   paymentConfirmedById    String?   @map("payment_confirmed_by_id")
   paymentConfirmedBy      User?     @relation("PaymentConfirmedBy", fields: [paymentConfirmedById], references: [id])
   paymentConfirmedAt      DateTime? @map("payment_confirmed_at")
+  quoteConfirmedById      String?   @map("quote_confirmed_by_id")
+  quoteConfirmedAt        DateTime? @map("quote_confirmed_at")
+  quoteConfirmedBy        User?     @relation("TorQuoteConfirmedBy", fields: [quoteConfirmedById], references: [id])
 
   items DocumentRequestItem[]
 
@@ -545,6 +553,7 @@ model DocumentRequest {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("document_requests")
+  @@unique([paymentProofChannel, paymentProofReference], map: "document_requests_payment_proof_reference_unique")
 }
 
 model DocumentCatalogItem {
@@ -557,6 +566,7 @@ model DocumentCatalogItem {
   assignedTo String?  @map("assigned_to")
   sortOrder  Int      @default(0) @map("sort_order")
   isActive   Boolean  @default(true) @map("is_active")
+  billingBasis String @default("copy") @map("billing_basis")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -576,6 +586,8 @@ model DocumentRequestItem {
   quantity      Int                 @default(1)
   unitFee       Decimal             @map("unit_fee") @db.Decimal(10, 2)
   lineTotal     Decimal             @map("line_total") @db.Decimal(10, 2)
+  billingBasis  String              @default("copy") @map("billing_basis")
+  pageCount     Int?                @map("page_count")
   remarks       String?
   createdAt     DateTime            @default(now()) @map("created_at")
 

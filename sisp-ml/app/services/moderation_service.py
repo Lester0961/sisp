@@ -43,7 +43,10 @@ def compact_for_moderation(text: str) -> str:
 
 def has_obfuscation_signal(text: str) -> bool:
     raw = text or ""
-    if re.search(r"[.@#$!?*~^_\-]", raw):
+    # Ordinary sentence punctuation (especially a trailing question mark) is
+    # not evidence of filter evasion. Look for these characters only when they
+    # split a token, as in ``f.u.c.k`` or ``p-a-k-y-u``.
+    if re.search(r"(?<=\w)[.@#$!?*~^_\-](?=\w)", raw):
         return True
     if re.search(r"(?<!\w)(?:[a-z0-9]\s+){2,}[a-z0-9](?!\w)", raw.casefold()):
         return True
@@ -84,7 +87,13 @@ class ModerationService:
 
     def evaluate(self, text: str) -> dict:
         normalized = normalize_for_moderation(text)
-        compact = compact_for_moderation(text)
+        # Keep token boundaries while compacting repeated-letter padding. A
+        # single obfuscation marker must never cause unrelated words across an
+        # entire sentence to be concatenated and matched as profanity.
+        compact_tokens = {
+            re.sub(r"(.)\1+", r"\1", token)
+            for token in normalized.split()
+        }
         matches: dict[str, dict] = {}
         for entry in self.entries:
             exact_match = bool(entry["pattern"].search(normalized))
@@ -95,7 +104,7 @@ class ModerationService:
             constructed_match = (
                 has_obfuscation_signal(text)
                 and len(compact_term) >= 4
-                and compact_term in compact
+                and compact_term in compact_tokens
             )
             if not exact_match and not constructed_match:
                 continue

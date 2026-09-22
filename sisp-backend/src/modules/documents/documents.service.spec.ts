@@ -13,8 +13,11 @@ describe('DocumentsService', () => {
     documentRequest: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       count: jest.fn(),
     },
     auditLog: { create: jest.fn() },
@@ -53,21 +56,25 @@ describe('DocumentsService', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       mockPrisma.studentProfile.findUnique.mockResolvedValue(profile);
+      mockPrisma.documentRequest.findFirst.mockResolvedValue(null);
     });
 
     it('stores channel, reference and timestamp for own awaiting request', async () => {
       mockPrisma.documentRequest.findUnique.mockResolvedValue(awaiting);
-      mockPrisma.documentRequest.update.mockImplementation((args: any) =>
-        Promise.resolve({ ...awaiting, ...args.data }),
-      );
+      mockPrisma.documentRequest.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.documentRequest.findUniqueOrThrow.mockResolvedValue({
+        ...awaiting,
+        paymentProofChannel: 'gcash',
+        paymentProofReference: 'GCASH12345',
+      });
 
       const res = await service.submitPaymentProof('user-1', 'req-1', {
         channel: 'gcash',
         reference: 'GCASH12345',
       } as any);
 
-      expect(mockPrisma.documentRequest.update).toHaveBeenCalledTimes(1);
-      const data = mockPrisma.documentRequest.update.mock.calls[0][0].data;
+      expect(mockPrisma.documentRequest.updateMany).toHaveBeenCalledTimes(1);
+      const data = mockPrisma.documentRequest.updateMany.mock.calls[0][0].data;
       expect(data.paymentProofChannel).toBe('gcash');
       expect(data.paymentProofReference).toBe('GCASH12345');
       expect(data.paymentProofSubmittedAt).toBeInstanceOf(Date);
@@ -163,6 +170,21 @@ describe('DocumentsService', () => {
       ).rejects.toThrow(/Cannot transition/);
       expect(mockPrisma.documentRequest.update).not.toHaveBeenCalled();
       expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
+    });
+
+    it('blocks the page-based fee bypass (awaiting_page_confirmation -> awaiting_payment)', async () => {
+      mockPrisma.documentRequest.findUnique.mockResolvedValue({
+        id: 'req-1',
+        studentId: 'profile-1',
+        status: 'awaiting_page_confirmation',
+        items: [],
+        student: { user: { id: 'user-1' } },
+      });
+
+      await expect(
+        service.updateRequestStatus('req-1', { status: 'awaiting_payment' } as any, 'registrar-1'),
+      ).rejects.toThrow(/Cannot transition/);
+      expect(mockPrisma.documentRequest.update).not.toHaveBeenCalled();
     });
   });
 

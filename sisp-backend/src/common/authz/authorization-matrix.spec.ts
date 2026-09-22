@@ -1,4 +1,4 @@
-import { CANONICAL_ROLE_NAMES, ROLE_PERMISSIONS, ALL_PERMISSION_KEYS } from './rbac';
+import { CANONICAL_ROLE_NAMES, ROLE_PERMISSIONS } from './rbac';
 
 /**
  * Table 3.10 permission-model coverage (Phase 2 required tests).
@@ -21,7 +21,7 @@ describe('Thesis role-permission matrix (Table 3.10)', () => {
         'live_agent',
       ]),
     );
-    expect(ROLE_PERMISSIONS.sys_admin.length).toBe(ALL_PERMISSION_KEYS.length);
+    expect(ROLE_PERMISSIONS.sys_admin).not.toContain('student_record.update');
   });
 
   it('student: own records, service requests, ARIA only', () => {
@@ -82,13 +82,19 @@ describe('Thesis role-permission matrix (Table 3.10)', () => {
     expect(can('treasury', 'audit.read')).toBe(false);
   });
 
-  it('sys_admin: user/role administration, audit, and all system permissions', () => {
+  it('sys_admin: system administration and authorized support reads only', () => {
     expect(can('sys_admin', 'user.manage')).toBe(true);
     expect(can('sys_admin', 'role.manage')).toBe(true);
     expect(can('sys_admin', 'audit.read')).toBe(true);
-    for (const permission of ALL_PERMISSION_KEYS) {
-      expect(can('sys_admin', permission)).toBe(true);
-    }
+    expect(can('sys_admin', 'system_settings.manage')).toBe(true);
+    expect(can('sys_admin', 'security.manage')).toBe(true);
+    expect(can('sys_admin', 'student_record.read_assigned')).toBe(true);
+    expect(can('sys_admin', 'knowledge_base.manage')).toBe(true);
+    expect(can('sys_admin', 'student_record.update')).toBe(false);
+    expect(can('sys_admin', 'enrollment.process')).toBe(false);
+    expect(can('sys_admin', 'financial.manage')).toBe(false);
+    expect(can('sys_admin', 'service_request.process')).toBe(false);
+    expect(can('sys_admin', 'aria.use')).toBe(false);
   });
 
   it('only sys_admin can manage users/roles or read audit logs', () => {

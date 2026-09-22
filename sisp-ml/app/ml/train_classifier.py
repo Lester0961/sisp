@@ -1,58 +1,18 @@
-import os
-import json
-import joblib
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from datetime import datetime
+"""Train a staged candidate; pass --promote only after held-out review."""
 
-def train_classifier():
-    print("Starting intent classifier training...")
-    
-    # Define file paths
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    data_path = os.path.join(base_dir, "data", "training_data.json")
-    model_dir = os.path.join(os.path.dirname(__file__), "models")
-    os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, "intent_classifier_v1.pkl")
+import argparse
+from pathlib import Path
 
-    # 1. Load training data
-    if not os.path.exists(data_path):
-        print(f"Error: Training data file not found at {data_path}")
-        return False
-        
-    with open(data_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-        
-    texts = [item["text"] for item in data]
-    labels = [item["intent"] for item in data]
-    
-    print(f"Loaded {len(texts)} training samples.")
-    
-    # 2. Build Pipeline
-    pipeline = Pipeline([
-        ('vectorizer', TfidfVectorizer(ngram_range=(1, 2), stop_words='english', min_df=1)),
-        ('classifier', LogisticRegression(C=10.0, class_weight='balanced', max_iter=1000))
-    ])
-    
-    # 3. Fit Pipeline
-    pipeline.fit(texts, labels)
-    
-    # Evaluate self-accuracy
-    train_accuracy = pipeline.score(texts, labels)
-    print(f"Model training complete. Training Accuracy: {train_accuracy * 100:.2f}%")
-    
-    # 4. Save model + metadata
-    metadata = {
-        "model": pipeline,
-        "version": "v1",
-        "accuracy": train_accuracy,
-        "trained_at": datetime.utcnow().isoformat()
-    }
-    
-    joblib.dump(metadata, model_path)
-    print(f"Serialized model saved successfully to: {model_path}")
-    return True
+from app.ml.retrain import promote_candidate, retrain_model
+
 
 if __name__ == "__main__":
-    train_classifier()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--training-data", type=Path, help="JSON training file; defaults to the 18K corpus when present")
+    parser.add_argument("--promote", action="store_true", help="train directly into the active model directory")
+    parser.add_argument("--promote-candidate", type=Path, help="promote a separately evaluated staged candidate")
+    args = parser.parse_args()
+    if args.promote_candidate:
+        promote_candidate(args.promote_candidate)
+    else:
+        retrain_model(args.training_data, promote=args.promote)

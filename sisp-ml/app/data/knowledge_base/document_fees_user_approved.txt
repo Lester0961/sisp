@@ -1,0 +1,10 @@
+Student Service Document Fees — values supplied by the SISP project owner
+
+- Certificate of good moral: PHP 500 per copy.
+- 2nd copy of grades: PHP 150 per copy.
+- COR: PHP 300 per copy.
+- Certified true copy - copy of grades: PHP 300 per copy.
+- TOR: PHP 500 per page. The Records Office confirms the page count before the final amount is payable.
+- COE: PHP 300 per copy.
+
+These are the active SISP request options and displayed fee basis. No processing time or named staff assignment is specified here.

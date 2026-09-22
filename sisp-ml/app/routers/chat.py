@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 from app.security import require_ml_secret
 from app.services.chat_service import chat_service
+from app.services.llm.router import llm_router
+from app.services.retrieval_service import retrieval_service
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -38,11 +40,27 @@ class ChatResponse(BaseModel):
     action: Optional[str] = None
     language: Dict[str, Any]
     moderationCategories: List[str] = []
+    second_intent: Optional[str] = None
+    second_confidence: Optional[float] = None
+    margin: Optional[float] = None
+    model_version: Optional[str] = None
+    quotaRefund: bool = False
 
 
 @router.get("/health")
 async def chat_health():
-    return {"status": "ok", "router": "chat"}
+    providers = llm_router.configured_providers()
+    llm_ready = any(provider["configured"] for provider in providers)
+    retrieval_ready = retrieval_service.is_ready()
+    return {
+        "status": "ready" if llm_ready and retrieval_ready else "degraded",
+        "router": "chat",
+        "llm_ready": llm_ready,
+        "retrieval_ready": retrieval_ready,
+        "providers": providers,
+        "approved_static_chunks": len(retrieval_service.text_documents),
+        "database_connected": retrieval_service.pgvector_index_ready(),
+    }
 
 
 @router.post("", response_model=ChatResponse)

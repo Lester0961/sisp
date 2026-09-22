@@ -5,7 +5,7 @@
  *  - the mock database (local development) reads it directly;
  *  - `prisma/seed.ts` (local database seeding) upserts it;
  *  - tests assert it matches the reviewed SQL migration
- *    (`prisma/migrations/20260920000000_rbac_role_alignment/migration.sql`).
+ *    (`prisma/migrations/20260920010000_reference_catalog/migration.sql`).
  *
  * Permission keys use the `<resource>.<action>` form, backed by the
  * `permissions` table columns `resource` and `action`.
@@ -45,6 +45,8 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { resource: 'user', action: 'manage' },
   { resource: 'role', action: 'manage' },
   { resource: 'audit', action: 'read' },
+  { resource: 'system_settings', action: 'manage' },
+  { resource: 'security', action: 'manage' },
 ];
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_DEFINITIONS.map(
@@ -56,7 +58,9 @@ export const ALL_PERMISSION_KEYS: string[] = PERMISSION_DEFINITIONS.map(
  * (Table 3.10) with the Registrar/Treasury separation from DEC-001:
  *  - Registrar: academic records, enrollment, service requests, reports, KB
  *  - Treasury: financial records, payment verification, financial reports
- *  - sys_admin additionally holds the system-administration permissions.
+ *  - sys_admin holds system-administration permissions and read-only access
+ *    needed for support; operational student, enrollment, request, and finance
+ *    writes remain assigned to their domain offices.
  */
 export const ROLE_PERMISSIONS: Record<CanonicalRoleName, string[]> = {
   student: [
@@ -77,7 +81,16 @@ export const ROLE_PERMISSIONS: Record<CanonicalRoleName, string[]> = {
     'report.read',
   ],
   treasury: ['financial.manage', 'report.read'],
-  sys_admin: [...ALL_PERMISSION_KEYS],
+  sys_admin: [
+    'student_record.read_assigned',
+    'knowledge_base.manage',
+    'report.read',
+    'user.manage',
+    'role.manage',
+    'audit.read',
+    'system_settings.manage',
+    'security.manage',
+  ],
   live_agent: [],
 };
 

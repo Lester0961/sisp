@@ -12,6 +12,10 @@ class ClassifyResponse(BaseModel):
     intent: str
     confidence: float
     escalate: bool
+    second_intent: str | None = None
+    second_confidence: float | None = None
+    margin: float | None = None
+    model_version: str | None = None
 
 @router.get("/health")
 async def classify_health():

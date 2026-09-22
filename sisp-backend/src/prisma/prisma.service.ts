@@ -92,7 +92,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   constructor() {
     super(prismaClientOptions());
-    this.initMockDb();
+    // A production process must never initialize demo identities or read/write
+    // the local mock store, even briefly before the connection check.
+    if (!this.isProduction()) this.initMockDb();
 
     // Proxy the entire service. If offline, return mock model handlers.
     return new Proxy(this, {
@@ -132,8 +134,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       // Fail closed in production: mock data lives in RAM/ephemeral disk and
       // would silently lose writes on restart. Development/test may opt in
       // to mock mode explicitly, or implicitly when NODE_ENV is not production.
-      const isProduction =
-        (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+      const isProduction = this.isProduction();
       const strictDb = process.env.STRICT_DB === 'true' || isProduction;
       if (strictDb) {
         console.error(
@@ -153,6 +154,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     } catch {}
     if (this.mockFlushTimer) clearInterval(this.mockFlushTimer);
     await this.$disconnect().catch(() => {});
+  }
+
+  private isProduction(): boolean {
+    return (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
   }
 
   private initMockDb() {
@@ -1353,6 +1358,21 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           const where = args?.where || {};
           const filtered = list.filter((item) => matchesWhere(item, where));
           return filtered.map((item) => resolveIncludes(item, args?.include, modelKey));
+        },
+        upsert: async (args: any) => {
+          const list = store[modelKey];
+          const where = args?.where || {};
+          const existing = list.find((item) => matchesWhere(item, where));
+          if (existing) {
+            Object.assign(existing, args?.update || {});
+            existing.updatedAt = new Date();
+            saveDb();
+            return resolveIncludes(existing, args?.include, modelKey);
+          }
+          return this.mockDb[modelKey].create({
+            data: args?.create || {},
+            include: args?.include,
+          });
         },
         create: async (args: any) => {
           const list = store[modelKey];

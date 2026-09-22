@@ -1,0 +1,304 @@
+ARIA STUDENT SERVICES Q&A DATASET - supplied approved-source answers
+Dataset provenance: Transcribed and normalized from the project owner supplied Q&A list pasted on 2026-09-21. Each record retains its stated source. This file is factual retrieval context; it is not intent-classifier training data and does not create new institutional policy.
+Freshness and answer limits: All calendar events in the fixed-date section below are historical and past as of 2026-09-21. Answer those only as events or dates stated in the cited 2025-2026 source; do not present them as upcoming/current dates. The June 11, 2026 memo excerpt lists a June 8-10, 2026 Special Examination Period, which predates the memo date and must be treated as an unresolved source inconsistency. The source does not establish current or future schedules.
+Payment safety: The undated online-payment announcement is transcribed as supplied. Verify current payment recipient details with the Treasury Office through an independently confirmed school channel before sending money; the pasted source does not state its publication date or proof-submission channel.
+Source limits: Where the Q&A says an amount, contact channel, deadline, checklist, or consequence is not specified, ARIA must preserve that limitation and refer the student to the named office. Do not infer missing institutional rules.
+
+Topic: FIXED DATES AND DEADLINES
+Q: According to the June 11, 2026 Academic Department Announcement, when were classes scheduled to start for the 1st Term of SY 2026-2027?
+A: The announcement scheduled classes to start on June 22, 2026. That date has passed and does not establish a current or future start date.
+Source:
+Academic Department Announcement
+Memo 2526-00011
+Date: June 11, 2026
+Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+
+Topic: FIXED DATES AND DEADLINES
+Q: What Special Examination Period does the June 11, 2026 Academic Department Announcement list?
+A: The supplied excerpt lists June 8-10, 2026. That period predates the memo date, so verify it against the original announcement; do not present it as a current or upcoming examination period.
+Source:
+Academic Department Announcement
+Memo 2526-00011
+Date: June 11, 2026
+Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule. Source consistency: the listed June 8-10, 2026 event predates the June 11, 2026 memo date; verify the original announcement before relying on the date.
+
+Topic: FIXED DATES AND DEADLINES
+Q: What INC Completion Period did the June 11, 2026 announcement specify for the 3rd Term of SY 2025-2026?
+A: The announcement specified June 22 to July 4, 2026. This was a past completion period, not a current deadline.
+Source:
+Academic Department Announcement
+Memo 2526-00011
+Date: June 11, 2026
+Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+
+Topic: FIXED DATES AND DEADLINES
+Q: What grade release date did the June 11, 2026 announcement give for the concluded 3rd Term of SY 2025-2026?
+A: The announcement scheduled grade release for June 20, 2026. This date has passed.
+Source:
+Academic Department Announcement
+Memo 2526-00011
+Date: June 11, 2026
+Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+
+Topic: FIXED DATES AND DEADLINES
+Q: What date did the June 11, 2026 announcement list for 4th Year Orientation?
+A: The announcement listed June 15, 2026. This date has passed.
+Source:
+Academic Department Announcement
+Memo 2526-00011
+Date: June 11, 2026
+Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+
+Topic: FIXED DATES AND DEADLINES
+Q: What date did the June 11, 2026 announcement list for 2nd and 3rd Year orientation?
+A: The announcement listed June 22, 2026. This date has passed.
+Source:
+Academic Department Announcement
+Memo 2526-00011
+Date: June 11, 2026
+Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+
+Topic: FIXED DATES AND DEADLINES
+Q: What Special Exam processing period did the Registrar announce in the February 24, 2026 memo?
+A: The Registrar memo listed March 2-4, 2026. This is a past processing period.
+Source:
+Office of the Registrar
+Memo 2026-00004
+Date: February 24, 2026
+Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+
+Topic: FIXED DATES AND DEADLINES
+Q: What INC form processing period did the Registrar announce in the February 24, 2026 memo?
+A: The Registrar memo listed March 5-April 8, 2026. This is a past form-processing period and is distinct from the June 22-July 4, 2026 INC completion period.
+NOTE:
+This is specifically the INC FORM PROCESSING period in the
+February 24, 2026 Registrar memo. It should not automatically
+be treated as the same thing as the June 22–July 4, 2026 INC
+Completion Period announced for the 3rd Term of SY 2025–2026.
+Source:
+Office of the Registrar
+Memo 2026-00004
+Date: February 24, 2026
+Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+
+Topic: TUITION AND PAYMENT POLICIES
+Q: What online payment methods are available?
+A: According to the official payment announcement, students may
+use:
+1. GCash
+Number: 0919 911 8050
+Account name indicated in the announcement: Richard H.
+2. Bank Transfer / Deposit through PNB
+Account Name: REGIS MARIE COLLEGE INC.
+Account Number: 149110075280
+The announcement also states that PNB bank transfer may be
+used if the payment amount exceeds the GCash limit.
+Source:
+Official Online Payment Announcement
+Currentness: Publication date not supplied. Verify recipient details with Treasury before sending any payment.
+
+Topic: TUITION AND PAYMENT POLICIES
+Q: What should I do after making an online payment?
+A: Students are instructed to send their proof of payment to
+Ms. Arlyne Punzalan from the Treasury Office after completing
+the transaction.
+IMPORTANT LIMITATION:
+The announcement does not specify the exact messaging platform,
+email address, or submission system through which the proof
+should be sent.
+Source:
+Official Online Payment Announcement
+Currentness: Publication date not supplied. Verify recipient details with Treasury before sending any payment.
+
+Topic: TUITION AND PAYMENT POLICIES
+Q: Where should I pay the fee for a Special Exam?
+A: Proceed to the Treasury Office and settle the required fee.
+Keep the official receipt as proof of payment.
+Source:
+Office of the Registrar
+Memo 2026-00004
+Date: February 24, 2026
+
+Topic: TUITION AND PAYMENT POLICIES
+Q: Where should I pay the fee for an INC form?
+A: Proceed to the Treasury Office and pay the required fee for
+the INC form. Retain the official receipt because it is
+required for the succeeding step.
+Source:
+Office of the Registrar
+Memo 2026-00004
+Date: February 24, 2026
+
+Topic: TUITION AND PAYMENT POLICIES
+Q: Is there a fee for adding, dropping, or changing a subject?
+A: The provided guideline states that a fee of ₱150.00 per
+subject applies to a change, addition, or dropping of a
+subject.
+IMPORTANT:
+The guideline contains a March 28, 2025 deadline and therefore
+should be treated as a dated/historical source unless a newer
+official policy confirms the same fee.
+Source:
+Guidelines for Adding, Dropping, Changing Subjects,
+Modality of Learning, or Major Field
+Currentness: The cited guideline includes a March 28, 2025 deadline. Treat its deadline, fee, and procedure as source-specific historical guidance unless a newer official policy confirms them.
+
+Topic: ADD/DROP AND SUBJECT CHANGES
+Q: What reasons are allowed for adding, dropping, or changing
+subjects according to the provided guideline?
+A: The guideline lists the following reasons:
+• Conflict of class schedules
+• Enrollment in the wrong subject(s)
+• Incorrect subject description(s)
+• Wrong sequence of subjects
+Source:
+Guidelines for Adding, Dropping, Changing Subjects,
+Modality of Learning, or Major Field
+Currentness: The cited guideline includes a March 28, 2025 deadline. Treat its deadline, fee, and procedure as source-specific historical guidance unless a newer official policy confirms them.
+
+Topic: ADD/DROP AND SUBJECT CHANGES
+Q: What is the procedure for adding, dropping, or changing
+subjects?
+A:
+1. Secure the appropriate form from the Registrar's Office.
+2. Submit the completed form together with the new schedule
+for approval at the Registrar's Office.
+3. Pay the applicable Adding, Dropping, or Change of Course
+fee at the Accounting Office.
+4. Have the new class schedule encoded and validated at the
+Registrar's Office.
+5. Inform the concerned faculty member of any changes to the
+schedule.
+Source:
+Guidelines for Adding, Dropping, Changing Subjects,
+Modality of Learning, or Major Field
+Currentness: The cited guideline includes a March 28, 2025 deadline. Treat its deadline, fee, and procedure as source-specific historical guidance unless a newer official policy confirms them.
+
+Topic: ADD/DROP AND SUBJECT CHANGES
+Q: What was the add/drop/change deadline stated in the provided
+guideline?
+A: For 1st Year, 2nd Year, and 3rd Year students, the guideline
+states that changing programs, adding, dropping, or changing
+subjects was allowed only until March 28, 2025.
+IMPORTANT:
+This is a historical deadline. ARIA must NOT present
+March 28, 2025 as the current add/drop deadline.
+Source:
+Guidelines for Adding, Dropping, Changing Subjects,
+Modality of Learning, or Major Field
+Currentness: The cited guideline includes a March 28, 2025 deadline. Treat its deadline, fee, and procedure as source-specific historical guidance unless a newer official policy confirms them.
+
+Topic: GRADING / INC PROCEDURE
+Q: What is the procedure for processing an INC form according
+to the February 2026 Registrar memo?
+A:
+Step 1 — Payment
+• Proceed to the Treasury Office and pay the required fee
+for the INC form.
+• Retain the official receipt.
+Step 2 — Compliance Check
+• Return to the Dean's Office with the receipt and all other
+required documents.
+• The Dean's Office will verify compliance and confirm that
+the requirements are complete.
+Step 3 — Submission
+• Obtain the Dean's signature on the INC form after
+verification.
+• Submit the fully completed and signed form to the Records
+Department.
+Source:
+Office of the Registrar
+Memo 2026-00004
+Date: February 24, 2026
+
+Topic: GRADING / INC PROCEDURE
+Q: What happens if an INC is not completed within the prescribed
+completion period?
+A: The June 11, 2026 announcement states that failure to complete
+the requirements within the given schedule may result in the
+application of existing institutional policies.
+IMPORTANT:
+The announcement does NOT describe what those institutional
+policies or consequences specifically are.
+Source:
+Academic Department Announcement
+Memo 2526-00011
+Date: June 11, 2026
+
+Topic: SPECIAL EXAM PROCEDURE
+Q: How do I process a Special Exam?
+A:
+Step 1 — Payment
+• Proceed to the Treasury Office and settle the required fees.
+• Keep the official receipt as proof of payment.
+Step 2 — Exam Schedule
+• After payment, report to the Dean's Office.
+• The Dean's Office will provide the Special Exam schedule
+and any additional instructions.
+Source:
+Office of the Registrar
+Memo 2026-00004
+Date: February 24, 2026
+
+Topic: OFFICE / CONTACT INFORMATION
+Q: What is the school's address?
+A: The official 2026 memoranda show the address as:
+#7072 Dollar Lane, Villanueva Village
+Parañaque City, Metro Manila 1700
+Source:
+Official Regis Marie College memoranda
+Currentness: Transcribed from official 2026 memoranda; confirm contact details with the College if they are being used for a current request.
+
+Topic: OFFICE / CONTACT INFORMATION
+Q: What is the school's general contact number?
+A: The official memoranda list:
+(02) 8671-01-99
+Source:
+Official Regis Marie College memoranda
+Currentness: Transcribed from official 2026 memoranda; confirm contact details with the College if they are being used for a current request.
+
+Topic: OFFICE / CONTACT INFORMATION
+Q: What general email address is shown in the school memoranda?
+A: Some official memoranda list:
+admin@regismarie-college.com
+Source:
+Official Regis Marie College memoranda
+Currentness: Transcribed from official 2026 memoranda; confirm contact details with the College if they are being used for a current request.
+
+Topic: OFFICE / CONTACT INFORMATION
+Q: What email address is shown for the Academic Department?
+A: The June 11, 2026 Academic Department announcement lists:
+rmcacademicdepartment@gmail.com
+Source:
+Academic Department Announcement
+Memo 2526-00011
+Currentness: Transcribed from official 2026 memoranda; confirm contact details with the College if they are being used for a current request.
+
+Topic: OFFICE / CONTACT INFORMATION
+Q: Which office handles Special Exam scheduling after payment?
+A: Students are instructed to report to the Dean's Office after
+payment. The Dean's Office provides the Special Exam schedule
+and additional instructions.
+Source:
+Office of the Registrar
+Memo 2026-00004
+Currentness: Transcribed from official 2026 memoranda; confirm contact details with the College if they are being used for a current request.
+
+Topic: OFFICE / CONTACT INFORMATION
+Q: Which offices are involved in INC form processing?
+A:
+• Treasury Office — payment
+• Dean's Office — compliance verification and Dean's signature
+• Records Department — submission of the completed INC form
+Source:
+Office of the Registrar
+Memo 2026-00004
+Currentness: Transcribed from official 2026 memoranda; confirm contact details with the College if they are being used for a current request.
+
+Topic: OFFICE / CONTACT INFORMATION
+Q: Who is identified for proof-of-payment submission?
+A: The payment announcement instructs students to send proof of
+payment to Ms. Arlyne Punzalan from the Treasury Office.
+Source:
+Official Online Payment Announcement
+Currentness: Publication date not supplied. Verify recipient details with Treasury before sending any payment.

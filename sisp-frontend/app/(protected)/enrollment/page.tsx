@@ -21,10 +21,11 @@ import { Button } from '@/components/ui/button';
 interface AvailableCourse {
   id: string;
   code: string;
+  isCodeSynthesized?: boolean;
   title: string;
   units: number;
   lecUnits?: number;
-  labUnits?: number;
+  labUnits?: number | null;
   prerequisites?: { requiresCode: string }[];
 }
 
@@ -315,7 +316,7 @@ export default function EnrollmentPage() {
                         className="flex items-center gap-3 px-4 py-4 sm:px-5"
                       >
                         <span className="min-w-16 rounded-lg bg-[#eaf3fa] px-2 py-1 text-center text-xs font-semibold text-[#0a439b]">
-                          {course.code}
+                          {course.isCodeSynthesized ? 'Code not specified' : course.code}
                         </span>
                         <div className="min-w-0 flex-1">
                           <h3 className="truncate font-medium text-[#102f49]">
@@ -324,7 +325,7 @@ export default function EnrollmentPage() {
                           <p className="mt-0.5 text-xs text-[#587387]">
                             {course.units} units
                             {course.lecUnits != null || course.labUnits != null
-                              ? ` (LEC ${course.lecUnits ?? 0} / LAB ${course.labUnits ?? 0})`
+                              ? ` (LEC ${course.lecUnits ?? 0} / LAB ${course.labUnits ?? 'not listed'})`
                               : ''}
                             {course.prerequisites?.length
                               ? ` · Prereq: ${course.prerequisites

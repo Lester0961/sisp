@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from app.config import get_settings
+from app.services.curriculum_service import get_curriculum_source, is_curriculum_query, is_course_list_query
 from app.services.retrieval_service import retrieval_service
 
 
@@ -26,7 +27,12 @@ def evaluate() -> dict:
     # can show the separation achieved by the configured threshold.
     results = []
     for case in cases:
-        matches = retrieval_service.retrieve(case["text"], limit=3)
+        query = case["text"]
+        if is_curriculum_query(query) or is_course_list_query(query):
+            source, _ = get_curriculum_source(query)
+            matches = retrieval_service.retrieve_source(source) if source else retrieval_service.retrieve(query, limit=3)
+        else:
+            matches = retrieval_service.retrieve(query, limit=3)
         top = matches[0] if matches else None
         relevant = [item for item in matches if item["source"] in case["expected_sources"]]
         relevant_top = max(relevant, key=lambda item: item["similarity"], default=None)

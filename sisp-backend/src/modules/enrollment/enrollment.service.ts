@@ -254,8 +254,15 @@ export class EnrollmentService {
       .filter((e) => e.status === 'enrolled')
       .reduce((sum, e) => sum + e.course.units, 0);
 
+    // Grade publication gate: unpublished (isVisible=false) marks must never
+    // leave the backend through a non-grade endpoint.
+    const data = enrollments.map((enrollment) => {
+      if (enrollment.grade && enrollment.grade.isVisible) return enrollment;
+      return { ...enrollment, grade: null };
+    });
+
     return {
-      data: enrollments,
+      data,
       total: enrollments.length,
       totalUnits,
     };
@@ -621,7 +628,12 @@ export class EnrollmentService {
           include: { course: { include: { prerequisites: { select: { requiresCode: true } } } } },
           orderBy: { course: { code: 'asc' } },
         });
-        const courses = links.map((l) => l.course);
+        const courses = links.map((link) => ({
+          ...link.course,
+          units: link.sourceUnits,
+          lecUnits: link.sourceLecUnits,
+          labUnits: link.sourceLabUnits,
+        }));
         return { data: courses, total: courses.length, term: term.code, scoped: true };
       }
     }

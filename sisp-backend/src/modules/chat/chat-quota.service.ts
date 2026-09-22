@@ -1,6 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const DAILY_LIMIT = 20;
@@ -43,16 +42,30 @@ export class ChatQuotaService {
         });
       }
     } else {
-      const rows = await this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
-        INSERT INTO "chat_daily_usage" ("id", "user_id", "usage_date", "count", "created_at", "updated_at")
-        VALUES (CAST(${randomUUID()} AS uuid), CAST(${userId} AS uuid), CAST(${window.dayKey} AS date), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT ("user_id", "usage_date")
-        DO UPDATE SET "count" = "chat_daily_usage"."count" + 1, "updated_at" = CURRENT_TIMESTAMP
-        WHERE "chat_daily_usage"."count" < ${DAILY_LIMIT}
-        RETURNING "count"
-      `);
-      if (rows.length === 0) throw this.limitError(window.resetsAt);
-      usedToday = Number(rows[0].count);
+      // Type-safe (TEXT or uuid id columns) quota increment via Prisma.
+      const usageDate = new Date(`${window.dayKey}T00:00:00.000Z`);
+      try {
+        await this.prisma.chatDailyUsage.create({
+          data: { userId, usageDate, count: 1 },
+        });
+        usedToday = 1;
+      } catch (error) {
+        if (
+          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+          error.code !== 'P2002'
+        ) {
+          throw error;
+        }
+        const updated = await this.prisma.chatDailyUsage.updateMany({
+          where: { userId, usageDate, count: { lt: DAILY_LIMIT } },
+          data: { count: { increment: 1 } },
+        });
+        if (updated.count === 0) throw this.limitError(window.resetsAt);
+        const current = await this.prisma.chatDailyUsage.findUnique({
+          where: { userId_usageDate: { userId, usageDate } },
+        });
+        usedToday = Number(current?.count ?? DAILY_LIMIT);
+      }
     }
 
     return this.toStatus(usedToday, window.resetsAt);
@@ -74,13 +87,17 @@ export class ChatQuotaService {
       return this.toStatus(usedToday, window.resetsAt);
     }
 
-    const rows = await this.prisma.$queryRaw<{ count: number }[]>(Prisma.sql`
-      UPDATE "chat_daily_usage"
-      SET "count" = GREATEST(0, "count" - 1), "updated_at" = CURRENT_TIMESTAMP
-      WHERE "user_id" = CAST(${userId} AS uuid) AND "usage_date" = CAST(${window.dayKey} AS date)
-      RETURNING "count"
-    `);
-    return this.toStatus(Number(rows[0]?.count ?? 0), window.resetsAt);
+    const usageDate = new Date(`${window.dayKey}T00:00:00.000Z`);
+    const current = await this.prisma.chatDailyUsage.findUnique({
+      where: { userId_usageDate: { userId, usageDate } },
+    });
+    if (!current) return this.toStatus(0, window.resetsAt);
+    const usedToday = Math.max(0, current.count - 1);
+    await this.prisma.chatDailyUsage.update({
+      where: { id: current.id },
+      data: { count: usedToday },
+    });
+    return this.toStatus(usedToday, window.resetsAt);
   }
 
   async status(userId: string): Promise<QuotaStatus> {

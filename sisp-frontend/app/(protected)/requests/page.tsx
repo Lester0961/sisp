@@ -28,6 +28,15 @@ import {
 import { toast } from 'sonner';
 import { requestsApi, DocumentCatalogItem, PaymentChannels } from '@/lib/api/requests';
 
+const STUDENT_DOCUMENT_OPTIONS = [
+  { codes: ['certificate_of_good_moral'], label: 'Certificate of good moral', fee: 500, billingBasis: 'copy' },
+  { codes: ['copy_of_grades'], label: '2nd copy of grades', fee: 150, billingBasis: 'copy' },
+  { codes: ['certificate_of_registration', 'certified_true_copy_cor'], label: 'COR', fee: 300, billingBasis: 'copy' },
+  { codes: ['certified_true_copy_grades'], label: 'certified true copy - copy of grades', fee: 300, billingBasis: 'copy' },
+  { codes: ['transcript_of_records'], label: 'TOR', fee: 500, billingBasis: 'page', feeNote: 'per page' },
+  { codes: ['certificate_of_enrollment'], label: 'COE', fee: 300, billingBasis: 'copy' },
+] as const;
+
 export default function RequestsPage() {
   const { requests, isLoading, isSubmitting, error: requestsError, fetchRequests, submitRequest } =
     useRequestStore();
@@ -50,8 +59,7 @@ export default function RequestsPage() {
       feeNote?: string;
       tat?: string;
       staff?: string;
-      undergradOnly?: boolean;
-      graduateOnly?: boolean;
+      billingBasis?: string;
     }>
   >([]);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -62,16 +70,21 @@ export default function RequestsPage() {
     setCatalogError(null);
     try {
       const fees = await requestsApi.getFees();
-      const mapped = (Array.isArray(fees) ? fees : []).map((item: any) => ({
-        value: item.code || item.type,
-        label: item.label,
-        fee: Number(item.fee),
-        feeNote: item.feeNote || undefined,
-        tat: item.tat || undefined,
-        staff: item.assignedTo || undefined,
-        undergradOnly: (item.code || item.type) === 'transcript_of_records_undergrad',
-        graduateOnly: (item.code || item.type) === 'transcript_of_records',
-      }));
+      const activeFees = new Map(
+        (Array.isArray(fees) ? fees : []).filter((item: any) => item.isActive !== false)
+          .map((item: any) => [item.code || item.type, item]),
+      );
+      const mapped = STUDENT_DOCUMENT_OPTIONS.flatMap((option) => {
+        const availableCode = option.codes.find((code) => activeFees.has(code));
+        if (!availableCode) return [];
+        return [{
+          value: availableCode,
+          label: option.label,
+          fee: option.fee,
+          feeNote: 'feeNote' in option ? option.feeNote : undefined,
+          billingBasis: option.billingBasis,
+        }];
+      });
       setCatalogItems(mapped);
       if (mapped.length === 0) {
         setCatalogError('The document catalog is currently unavailable. Please contact the Records Office.');
@@ -174,7 +187,7 @@ export default function RequestsPage() {
 
   const selectedCount = Object.values(selectedItems).filter((quantity) => quantity > 0).length;
   const estimatedTotal = catalogItems.reduce(
-    (sum, type) => sum + type.fee * (selectedItems[type.value] ?? 0),
+    (sum, type) => sum + (type.billingBasis === 'page' ? 0 : type.fee * (selectedItems[type.value] ?? 0)),
     0,
   );
 
@@ -245,12 +258,10 @@ export default function RequestsPage() {
                           <span className="block text-sm font-medium text-[#102f49]">{type.label}</span>
                           <span className="flex items-center gap-2 text-xs text-[#587387]">
                             <span>₱{type.fee.toFixed(2)}{type.feeNote ? ` / ${type.feeNote}` : ''}</span>
-                            {type.tat ? <span className="rounded bg-blue-50 px-1.5 py-0.5 font-medium text-blue-700">TAT: {type.tat}</span> : null}
-                            {type.staff ? <span className="rounded bg-slate-100 px-1.5 py-0.5 text-slate-600">Office: {type.staff}</span> : null}
                           </span>
                         </label>
                         <input
-                          aria-label={`${type.label} quantity`}
+                          aria-label={`${type.label} copies`}
                           type="number"
                           min={1}
                           max={10}
@@ -319,7 +330,7 @@ export default function RequestsPage() {
                   <div>
                     <p className="text-xs font-semibold text-amber-800">Payment Required</p>
                     <p className="text-xs text-amber-700">
-                      {selectedCount} document type{selectedCount === 1 ? '' : 's'} · Estimated total: ₱{estimatedTotal.toFixed(2)}. A payment reference will be issued after submission; pay through the official channels below.
+                      {selectedCount} document type{selectedCount === 1 ? '' : 's'} · {catalogItems.some((item) => item.billingBasis === 'page' && selectedItems[item.value] > 0) ? `At least ₱${estimatedTotal.toFixed(2)}; TOR page count and final fee will be confirmed by the Records Office.` : `Estimated total: ₱${estimatedTotal.toFixed(2)}.`} Final payable amounts come from the server catalog.
                     </p>
                   </div>
                 </div>
@@ -446,7 +457,7 @@ export default function RequestsPage() {
                             ? 'bg-rose-50 text-rose-600'
                             : request.status === 'released'
                             ? 'bg-emerald-50 text-emerald-600'
-                            : request.status === 'awaiting_payment'
+                            : request.status === 'awaiting_payment' || request.status === 'awaiting_page_confirmation'
                             ? 'bg-amber-50 text-amber-600'
                             : 'bg-blue-50 text-[#1e3a8a]'
                         }`}
@@ -477,6 +488,10 @@ export default function RequestsPage() {
                 {expandedId === request.id && (
                   <CardContent className="pt-0">
                     <Separator className="mb-4" />
+
+                    {request.status === 'awaiting_page_confirmation' && (
+                      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Awaiting Records Office page-count confirmation. No TOR amount is payable yet.</div>
+                    )}
 
                     {/* Payment Section for awaiting_payment */}
                     {request.status === 'awaiting_payment' && (

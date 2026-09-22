@@ -27,17 +27,20 @@ describe('CurriculumService — server-computed progress (P4-06)', () => {
     schoolYear: '2024-2025',
     program: { code: 'BSCS', name: 'BS Computer Science' },
     curriculumCourses: [
-      { courseId: 'c1', yearLevel: 1, semester: 1, termNumber: 1, course: course('c1', 'CS101') },
+      { courseId: 'c1', yearLevel: 1, semester: 1, termNumber: 1, sourceUnits: 3, sourceLecUnits: 3, sourceLabUnits: 0, course: course('c1', 'CS101') },
       {
         courseId: 'c2',
         yearLevel: 1,
         semester: 1,
         termNumber: 1,
+        sourceUnits: 3,
+        sourceLecUnits: 3,
+        sourceLabUnits: 0,
         course: course('c2', 'CS102', [
           { requiresCode: 'CS101', requiresId: 'c1', isSelfReference: false, isUnresolved: false },
         ]),
       },
-      { courseId: 'c3', yearLevel: 1, semester: 2, termNumber: 2, course: course('c3', 'CS103') },
+      { courseId: 'c3', yearLevel: 1, semester: 2, termNumber: 2, sourceUnits: 3, sourceLecUnits: 3, sourceLabUnits: 0, course: course('c3', 'CS103') },
     ],
   };
 

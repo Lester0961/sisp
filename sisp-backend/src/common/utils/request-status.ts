@@ -4,6 +4,10 @@
  * frontend and backend agree on valid transitions.
  */
 export const REQUEST_STATUS_TRANSITIONS: Record<string, string[]> = {
+  // Page-based (TOR) requests leave awaiting_page_confirmation only through
+  // DocumentsService.confirmTorQuote, which recomputes the final fee. A plain
+  // status PATCH must never move them to awaiting_payment (fee bypass).
+  awaiting_page_confirmation: ['rejected'],
   awaiting_payment: ['pending', 'rejected'],
   pending: ['under_review', 'approved', 'rejected'],
   under_review: ['approved', 'rejected'],
@@ -13,6 +17,7 @@ export const REQUEST_STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 
 export const REQUEST_STATUS_MESSAGES: Record<string, string> = {
+  awaiting_page_confirmation: 'is awaiting Records Office page-count confirmation',
   awaiting_payment: 'is awaiting payment confirmation',
   pending: 'is now pending review',
   under_review: 'is now under review',

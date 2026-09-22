@@ -1,262 +1,86 @@
+/**
+ * Safe reference-data seed. It never creates users, student profiles, balances,
+ * transactions, requests, or other person-linked/demo records.
+ */
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
 import { DOCUMENT_CATALOG } from '../src/common/constants/document-catalog';
 import { PERMISSION_DEFINITIONS, ROLE_PERMISSIONS } from '../src/common/authz/rbac';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Starting Supabase database seeding...');
+  const roleNames = ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin', 'live_agent'] as const;
+  const roleIds = new Map<string, string>();
 
-  const localDemoPassword = process.env.LOCAL_DEMO_PASSWORD || 'local-demo-only';
-  const mockPasswordHash = await bcrypt.hash(localDemoPassword, 10);
-
-  // 1. Seed Roles. The combined admin_staff role is deliberately migrated to
-  // registrar (it keeps its id, so user references are preserved).
-  await prisma.role.updateMany({
-    where: { name: 'admin_staff' },
-    data: { name: 'registrar' },
-  });
-
-  const rolesData = [
-    { id: 'role-id-admin_staff', name: 'registrar' },
-    { id: 'role-id-treasury', name: 'treasury' },
-    { id: 'role-id-dean', name: 'dean' },
-    { id: 'role-id-faculty', name: 'faculty' },
-    { id: 'role-id-student', name: 'student' },
-    { id: 'role-id-sys_admin', name: 'sys_admin' },
-    { id: 'role-id-live_agent', name: 'live_agent' },
-  ];
-
-  for (const role of rolesData) {
-    await prisma.role.upsert({
-      where: { id: role.id },
-      update: { name: role.name },
-      create: { id: role.id, name: role.name },
-    });
-  }
-  console.log('Roles seeded successfully.');
-
-  // 1b. Seed the permission catalog and role → permission mapping (P2-02).
-  for (const permission of PERMISSION_DEFINITIONS) {
-    await prisma.permission.upsert({
-      where: {
-        action_resource: {
-          action: permission.action,
-          resource: permission.resource,
-        },
-      },
+  for (const name of roleNames) {
+    const role = await prisma.role.upsert({
+      where: { name },
       update: {},
-      create: { action: permission.action, resource: permission.resource },
+      create: { id: `role-id-${name}`, name },
     });
+    roleIds.set(name, role.id);
   }
 
-  const seededPermissions = await prisma.permission.findMany();
-  const permissionIdByKey = new Map(
-    seededPermissions.map((permission) => [
-      `${permission.resource}.${permission.action}`,
-      permission.id,
-    ]),
-  );
+  const permissionIds = new Map<string, string>();
+  for (const permission of PERMISSION_DEFINITIONS) {
+    const saved = await prisma.permission.upsert({
+      where: { action_resource: { action: permission.action, resource: permission.resource } },
+      update: {},
+      create: permission,
+    });
+    permissionIds.set(`${permission.resource}.${permission.action}`, saved.id);
+  }
 
-  for (const [roleName, permissionKeys] of Object.entries(ROLE_PERMISSIONS)) {
-    const role = await prisma.role.findUnique({ where: { name: roleName } });
-    if (!role) continue;
-    for (const key of permissionKeys) {
-      const permissionId = permissionIdByKey.get(key);
-      if (!permissionId) continue;
+  for (const [roleName, keys] of Object.entries(ROLE_PERMISSIONS)) {
+    const roleId = roleIds.get(roleName);
+    if (!roleId) continue;
+    for (const key of keys) {
+      const permissionId = permissionIds.get(key);
+      if (!permissionId) throw new Error(`RBAC mapping references unknown permission: ${key}`);
       await prisma.rolePermission.upsert({
-        where: { roleId_permissionId: { roleId: role.id, permissionId } },
+        where: { roleId_permissionId: { roleId, permissionId } },
         update: {},
-        create: { roleId: role.id, permissionId },
+        create: { roleId, permissionId },
       });
     }
   }
-  console.log('Permissions and role mappings seeded successfully.');
 
-  // 2. Seed Users
-  const usersData = [
-    {
-      id: 'mock-admin-id',
-      email: 'admin@rmc.edu.ph',
-      passwordHash: mockPasswordHash,
-      firstName: 'Regis',
-      lastName: 'Admin',
-      roleId: 'role-id-admin_staff',
-    },
-    {
-      id: 'mock-dean-id',
-      email: 'dean@rmc.edu.ph',
-      passwordHash: mockPasswordHash,
-      firstName: 'Regis',
-      lastName: 'Dean',
-      roleId: 'role-id-dean',
-    },
-    {
-      id: 'mock-sysadmin-id',
-      email: 'sysadmin@rmc.edu.ph',
-      passwordHash: mockPasswordHash,
-      firstName: 'System',
-      lastName: 'Administrator',
-      roleId: 'role-id-sys_admin',
-    },
-    {
-      id: 'mock-live-agent-id',
-      email: 'agent@rmc.edu.ph',
-      passwordHash: mockPasswordHash,
-      firstName: 'Support',
-      lastName: 'Agent',
-      roleId: 'role-id-live_agent',
-    },
-    {
-      id: 'mock-student-id',
-      email: 'student@rmc.edu.ph',
-      passwordHash: mockPasswordHash,
-      firstName: 'John',
-      lastName: 'Doe',
-      roleId: 'role-id-student',
-    },
-    {
-      id: 'mock-faculty-id',
-      email: 'faculty@rmc.edu.ph',
-      passwordHash: mockPasswordHash,
-      firstName: 'Regis',
-      lastName: 'Faculty',
-      roleId: 'role-id-faculty',
-    },
-    {
-      id: 'mock-treasury-id',
-      email: 'treasury@rmc.edu.ph',
-      passwordHash: mockPasswordHash,
-      firstName: 'Regis',
-      lastName: 'Treasury',
-      roleId: 'role-id-treasury',
-    },
-  ];
-
-  for (const user of usersData) {
-    await prisma.user.upsert({
-      where: { email: user.email },
-      update: {
-        passwordHash: user.passwordHash,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        roleId: user.roleId,
-      },
-      create: {
-        id: user.id,
-        email: user.email,
-        passwordHash: user.passwordHash,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        roleId: user.roleId,
-        mustChangePassword: false,
-      },
-    });
-  }
-  console.log('User accounts seeded successfully.');
-
-  const programCatalog = [
-    { code: 'BSCS', name: 'Bachelor of Science in Computer Science' },
-    { code: 'BSOA', name: 'Bachelor of Science in Office Administration' },
-    { code: 'BSMA', name: 'Bachelor of Science in Multimedia Arts' },
-    { code: 'BSCrim', name: 'Bachelor of Science in Criminology' },
-    { code: 'BEED', name: 'Bachelor of Elementary Education' },
-    { code: 'BSEd-Math', name: 'Bachelor in Secondary Major in Mathematics' },
-    { code: 'BSEd-Eng', name: 'Bachelor in Secondary Major in English' },
-    // Disambiguated Filipino tracks (VERIFIED doc §§4,6). Legacy aliases kept below.
-    { code: 'BSEd-Fil-2026', name: 'Bachelor of Secondary Education Major in Filipino (2026)' },
-    { code: 'BSEd-Fil-2024', name: 'Bachelor in Secondary Major in Filipino (2024)' },
-    // Legacy aliases (pre-verified catalog) — retained, do not assign new students.
-    { code: 'BSEd-English', name: 'Bachelor of Secondary Education – English (legacy)' },
-    { code: 'BSEd-Secondary', name: 'Bachelor of Secondary Education (legacy)' },
-  ];
-
-  for (const program of programCatalog) {
-    await prisma.program.upsert({
-      where: { code: program.code },
-      update: { name: program.name },
-      create: { code: program.code, name: program.name },
-    });
-  }
-
-  for (const term of [1, 2, 3]) {
-    await prisma.academicTerm.upsert({
-      where: { code: `2026-2027-T${term}` },
-      update: { label: `Term ${term}`, termNumber: term },
-      create: {
-        academicYear: '2026-2027',
-        termNumber: term,
-        code: `2026-2027-T${term}`,
-        label: `Term ${term}`,
-        status: term === 1 ? 'active' : 'planned',
-        isCurrent: term === 1,
-      },
-    });
-  }
-  console.log('Program catalog and academic terms seeded successfully.');
-
-  // Ensure demo student profile and treasury balance exist
-  try {
-    const bscsProgram = await prisma.program.findUnique({ where: { code: 'BSCS' } });
-    if (bscsProgram) {
-      const studentProfile = await prisma.studentProfile.upsert({
-        where: { userId: 'mock-student-id' },
-        update: { programId: bscsProgram.id },
-        create: {
-          id: 'mock-student-profile-id',
-          userId: 'mock-student-id',
-          studentNumber: 'RMC-2026-0001',
-          programId: bscsProgram.id,
-          yearLevel: 3,
-        },
-      });
-
-      await prisma.accountBalance.upsert({
-        where: { studentId: studentProfile.id },
-        update: { balance: 12500.5 },
-        create: {
-          id: 'mock-balance-id',
-          studentId: studentProfile.id,
-          balance: 12500.5,
-          status: 'active',
-        },
-      });
-      console.log('Demo student profile and treasury balance seeded successfully.');
-    }
-  } catch (err) {
-    console.error('Warning: Failed to seed demo student profile (user ID mismatch?)', err);
-  }
-
+  const activeCodes = DOCUMENT_CATALOG.map(({ code }) => code);
+  await prisma.documentCatalogItem.updateMany({
+    where: { code: { notIn: activeCodes } },
+    data: { isActive: false },
+  });
   for (const item of DOCUMENT_CATALOG) {
+    const { id, code, label, fee, sortOrder, billingBasis, ...optional } = item;
     await prisma.documentCatalogItem.upsert({
-      where: { code: item.code },
-      update: {
-        label: item.label,
-        fee: item.fee,
-        sortOrder: item.sortOrder,
-        isActive: true,
-      },
-      create: {
-        id: item.id,
-        code: item.code,
-        label: item.label,
-        fee: item.fee,
-        sortOrder: item.sortOrder,
-        isActive: true,
-      },
+      where: { code },
+      update: { label, fee, sortOrder, billingBasis, feeNote: 'feeNote' in optional ? optional.feeNote : null, isActive: true },
+      create: { id, code, label, fee, sortOrder, billingBasis, feeNote: 'feeNote' in optional ? optional.feeNote : null, isActive: true },
     });
   }
-  console.log('Document catalog seeded successfully.');
+
+  // Snapshot of the three non-person academic terms in the supplied backup.
+  // Importing these terms does not import student-semester or enrollment data.
+  const academicTerms = [
+    { id: '55e10e33-e582-455b-8902-87112457187e', academicYear: '2026-2027', termNumber: 1, code: '2026-2027-T1', label: 'Term 1', status: 'active', isCurrent: true },
+    { id: 'cc97e48a-e4ca-46c5-b4de-52e51a5e0634', academicYear: '2026-2027', termNumber: 2, code: '2026-2027-T2', label: 'Term 2', status: 'planned', isCurrent: false },
+    { id: 'e17f21c5-29df-4e12-8338-d8694582ea57', academicYear: '2026-2027', termNumber: 3, code: '2026-2027-T3', label: 'Term 3', status: 'planned', isCurrent: false },
+  ];
+  for (const term of academicTerms) {
+    const { id, code, ...data } = term;
+    await prisma.academicTerm.upsert({
+      where: { code },
+      update: data,
+      create: { id, code, ...data },
+    });
+  }
+
+  console.log('Reference seed complete: roles, permissions, six approved document types, and three archived academic terms. No accounts or demo records created.');
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-    console.log('Seeding completed successfully!');
+  .catch((error) => {
+    console.error('Reference seed failed:', error);
+    process.exitCode = 1;
   })
-  .catch(async (e) => {
-    console.error('Error during seeding:', e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+  .finally(async () => prisma.$disconnect());

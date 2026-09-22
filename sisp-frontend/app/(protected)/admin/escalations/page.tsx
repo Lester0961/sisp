@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { chatApi, EscalationRecord } from '@/lib/api/chat';
+import { chatApi, EscalationRecord, ChatSessionRecord, EligibleAssignee } from '@/lib/api/chat';
 import { PageFooter } from '@/components/shared/PageFooter';
 import { 
   ShieldAlert, 
   CheckCircle, 
   Clock, 
   User, 
-  Mail, 
   RefreshCw,
   Edit3,
   Check,
@@ -29,6 +28,9 @@ export default function EscalationsPage() {
   
   // Resolution Dialog state
   const [selectedRecord, setSelectedRecord] = useState<EscalationRecord | null>(null);
+  const [selectedSession, setSelectedSession] = useState<ChatSessionRecord | null>(null);
+  const [eligibleAssignees, setEligibleAssignees] = useState<EligibleAssignee[]>([]);
+  const [targetAssignee, setTargetAssignee] = useState('');
   const [resolutionText, setResolutionText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -51,9 +53,45 @@ export default function EscalationsPage() {
     fetchRecords();
   }, []);
 
-  const handleOpenResolve = (record: EscalationRecord) => {
-    setSelectedRecord(record);
-    setResolutionText(record.resolution || '');
+  const handleOpenResolve = async (record: EscalationRecord) => {
+    const sessionId = record.chat.chatSession?.id;
+    if (!sessionId) { toast.error('No advisor session is linked to this case.'); return; }
+    try {
+      setSelectedRecord(record);
+      const [session, assignees] = await Promise.all([chatApi.getSession(sessionId), chatApi.getEligibleAssignees()]);
+      setSelectedSession(session);
+      setEligibleAssignees(assignees);
+      setTargetAssignee(assignees.find((assignee) => assignee.id !== session.agentId)?.id || '');
+      setResolutionText(record.resolution || '');
+    } catch {
+      setSelectedRecord(null);
+      toast.error('Accept this concern before viewing its conversation.');
+    }
+  };
+
+  const handleReassign = async () => {
+    if (!selectedSession || !targetAssignee) return;
+    try {
+      const session = await chatApi.reassignSession(selectedSession.id, targetAssignee);
+      setSelectedSession(session);
+      setTargetAssignee(eligibleAssignees.find((assignee) => assignee.id !== session.agentId)?.id || '');
+      toast.success('Concern reassigned. The previous representative has lost access.');
+      await fetchRecords();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Could not reassign this concern.');
+    }
+  };
+
+  const handleAccept = async (record: EscalationRecord) => {
+    const sessionId = record.chat.chatSession?.id;
+    if (!sessionId) { toast.error('No advisor session is linked to this case.'); return; }
+    try {
+      await chatApi.assignSession(sessionId);
+      toast.success('Concern accepted and assigned to you.');
+      await fetchRecords();
+    } catch {
+      toast.error('This concern may have been claimed by another representative. Refresh and retry.');
+    }
   };
 
   const handleSubmitResolution = async () => {
@@ -78,13 +116,13 @@ export default function EscalationsPage() {
   };
 
   // Stats computation
-  const pendingCount = escalations.filter(e => e.status === 'pending').length;
+  const pendingCount = escalations.filter(e => e.status === 'pending' || e.status === 'in_progress').length;
   const resolvedCount = escalations.filter(e => e.status === 'resolved').length;
 
   // Filtered dataset
   const filteredRecords = escalations.filter(e => {
     if (filterStatus === 'all') return true;
-    return e.status === filterStatus;
+    return filterStatus === 'pending' ? e.status === 'pending' || e.status === 'in_progress' : e.status === filterStatus;
   });
 
   return (
@@ -194,7 +232,6 @@ export default function EscalationsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           {filteredRecords.map((record) => {
-            const studentName = `${record.chat.user.firstName} ${record.chat.user.lastName}`.trim();
             const dateFormatted = new Date(record.createdAt).toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
@@ -202,21 +239,21 @@ export default function EscalationsPage() {
               hour: '2-digit',
               minute: '2-digit'
             });
-            const isPending = record.status === 'pending';
+            const isPending = record.status === 'pending' || record.status === 'in_progress';
+            const session = record.chat.chatSession;
 
             return (
               <Card key={record.id} className="portal-surface overflow-hidden">
                 <CardHeader className="bg-slate-50/50 p-4 border-b flex flex-row items-center justify-between space-y-0">
                   <div className="flex items-center space-x-3 select-none">
                     <div className="h-8 w-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs uppercase shadow-inner">
-                      {record.chat.user.firstName?.[0] || 'S'}
+                      {'S'}
                     </div>
                     <div>
-                      <h4 className="font-bold text-xs text-slate-800">{studentName || 'Student'}</h4>
+                      <h4 className="font-bold text-xs text-slate-800">Student {session?.student.studentNumber || 'record'}</h4>
                       <div className="flex items-center text-[10px] text-slate-400 space-x-2.5 mt-0.5">
                         <span className="flex items-center gap-1">
-                          <Mail className="h-2.5 w-2.5" />
-                          {record.chat.user.email}
+                          <User className="h-2.5 w-2.5" />
                         </span>
                         <span>•</span>
                         <span>Student support request</span>
@@ -241,7 +278,7 @@ export default function EscalationsPage() {
                       Student Message:
                     </div>
                     <p className="text-slate-800 text-xs leading-relaxed font-semibold">
-                      &ldquo;{record.chat.message}&rdquo;
+                      Human review requested Â· {record.chat.intent || 'student support'}
                     </p>
                   </div>
 
@@ -252,7 +289,7 @@ export default function EscalationsPage() {
                       ARIA response
                     </div>
                     <p className="text-slate-600 text-[11px] leading-relaxed italic truncate">
-                      {record.chat.response.replace(/###|#|\*\*|>/g, '')}
+                      {session?.agentId ? 'Conversation available to the assigned representative.' : 'Accept this concern to review the conversation.'}
                     </p>
                   </div>
 
@@ -268,7 +305,7 @@ export default function EscalationsPage() {
                       </div>
                       {record.assignee && (
                         <div className="text-[10px] text-slate-400 font-medium text-right">
-                          Resolved by: <span className="text-slate-600 font-bold">{record.assignee.firstName} {record.assignee.lastName}</span> ({record.assignee.email})
+                          Assigned to: <span className="text-slate-600 font-bold">{record.assignee.firstName} {record.assignee.lastName}</span>
                         </div>
                       )}
                     </div>
@@ -279,11 +316,11 @@ export default function EscalationsPage() {
                   <CardFooter className="p-4 border-t bg-slate-50/30 flex items-center justify-end">
                     <Button 
                       size="sm" 
-                      onClick={() => handleOpenResolve(record)}
+                      onClick={() => session?.agentId ? void handleOpenResolve(record) : void handleAccept(record)}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center gap-1.5 h-8 px-3.5 rounded-lg shadow-sm"
                     >
                       <Edit3 className="h-3.5 w-3.5" />
-                      Draft response
+                      {session?.agentId ? 'Open assigned concern' : 'Accept concern'}
                     </Button>
                   </CardFooter>
                 )}
@@ -294,7 +331,7 @@ export default function EscalationsPage() {
       )}
 
       {/* Resolution Interactive Modal Dialog */}
-      <Dialog open={!!selectedRecord} onOpenChange={(open) => !open && setSelectedRecord(null)}>
+      <Dialog open={!!selectedRecord} onOpenChange={(open) => !open && (setSelectedRecord(null), setSelectedSession(null), setEligibleAssignees([]))}>
         <DialogContent className="max-w-2xl bg-white border border-slate-100 rounded-2xl shadow-2xl p-6 overflow-hidden">
           <DialogHeader className="select-none">
             <DialogTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -312,16 +349,28 @@ export default function EscalationsPage() {
             <div className="space-y-4 max-h-[380px] overflow-y-auto pr-1">
               {/* Student info card */}
               <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex items-center justify-between text-xs">
-                <span className="text-slate-500 font-medium">Student Name: <strong className="text-slate-800 font-bold">{selectedRecord.chat.user.firstName} {selectedRecord.chat.user.lastName}</strong></span>
-                <span className="text-slate-500 font-medium">Email: <strong className="text-slate-800 font-bold">{selectedRecord.chat.user.email}</strong></span>
+                <span className="text-slate-500 font-medium">Student record: <strong className="text-slate-800 font-bold">{selectedSession?.student.studentNumber}</strong></span>
               </div>
 
               {/* Student Query */}
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 select-none">Student Question:</label>
                 <div className="p-3 border border-slate-100 rounded-xl bg-slate-50 text-xs font-semibold text-slate-800 leading-relaxed">
-                  &ldquo;{selectedRecord.chat.message}&rdquo;
+                  {selectedSession?.chatLog?.message || 'Conversation question unavailable.'}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Conversation</label>
+                {selectedSession?.messages?.map((message) => <div key={message.id} className="rounded-lg border border-slate-100 bg-white p-2 text-xs"><strong>{message.senderRole === 'student' ? 'Student' : 'Staff'}:</strong> {message.content}</div>)}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                <label htmlFor="reassign-concern" className="text-xs font-medium text-slate-600">Reassign to an active representative</label>
+                <select id="reassign-concern" value={targetAssignee} onChange={(event) => setTargetAssignee(event.target.value)} className="min-w-48 rounded-lg border border-slate-200 bg-white p-2 text-xs">
+                  {eligibleAssignees.filter((assignee) => assignee.id !== selectedSession?.agentId).map((assignee) => <option key={assignee.id} value={assignee.id}>{assignee.firstName} {assignee.lastName} · {assignee.role.name}</option>)}
+                </select>
+                <Button type="button" size="sm" variant="outline" onClick={() => void handleReassign()} disabled={!targetAssignee}>Reassign</Button>
               </div>
 
               {/* Resolution Input */}

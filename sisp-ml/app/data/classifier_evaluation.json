@@ -13,5 +13,12 @@
   {"text": "Can I check whether the registrar completed my certificate?", "intent": "document_request"},
   {"text": "What campus office should I visit for advising help?", "intent": "general_inquiry"},
   {"text": "Does the college offer a student library?", "intent": "general_inquiry"},
-  {"text": "Who can answer questions about the academic calendar?", "intent": "general_inquiry"}
+  {"text": "Who can answer questions about the academic calendar?", "intent": "general_inquiry"},
+  {"text": "Can you show the course sequence for Computer Science?", "intent": "curriculum_inquiry"},
+  {"text": "Ano naman ang mga asignatura ng BSCS kada taon?", "intent": "curriculum_inquiry"},
+  {"text": "Pakita ang mga kurso sa Bachelor of Science in Computer Science.", "intent": "curriculum_inquiry"},
+  {"text": "What classes are part of the BSEd Mathematics program?", "intent": "curriculum_inquiry"},
+  {"text": "Unsa nga courses naa sa BSCS?", "intent": "curriculum_inquiry"},
+  {"text": "Paano ako magdadagdag ng subject sa enrollment?", "intent": "enrollment_inquiry"},
+  {"text": "When can I change the classes I registered for?", "intent": "enrollment_inquiry"}
 ]

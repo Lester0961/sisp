@@ -8,6 +8,8 @@ export interface DocumentRequestLineItem {
   quantity: number;
   unitFee: number;
   lineTotal: number;
+  billingBasis?: 'copy' | 'page' | string;
+  pageCount?: number | null;
   remarks?: string | null;
   createdAt?: string;
 }
@@ -66,6 +68,7 @@ export interface DocumentCatalogItem {
   assignedTo?: string | null;
   sortOrder: number;
   isActive: boolean;
+  billingBasis?: 'copy' | 'page' | string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -128,6 +131,16 @@ export const requestsApi = {
 
   confirmPayment: async (id: string): Promise<any> => {
     const response = await apiClient.post(`/requests/${id}/confirm-payment`);
+    return response.data;
+  },
+
+  confirmTorQuote: async (id: string, pageCount: number): Promise<any> => {
+    const response = await apiClient.post(`/requests/${id}/confirm-tor-quote`, { pageCount });
+    return response.data;
+  },
+
+  getPaymentQueue: async (): Promise<DocumentRequestItem[]> => {
+    const response = await apiClient.get<DocumentRequestItem[]>('/requests/payment-queue');
     return response.data;
   },
 

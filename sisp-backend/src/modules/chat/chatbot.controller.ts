@@ -5,6 +5,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
+import { ResolveEscalationDto } from './dto/resolve-escalation.dto';
 
 @Controller('chat')
 export class ChatbotController {
@@ -39,14 +40,14 @@ export class ChatbotAdminController {
   constructor(private readonly chatbotService: ChatbotService) {}
 
   @Get()
-  async getEscalations() {
-    return this.chatbotService.getEscalations();
+  async getEscalations(@CurrentUser() user: JwtPayload) {
+    return this.chatbotService.getEscalations(user.sub);
   }
 
   @Patch(':id')
   async resolveEscalation(
     @Param('id') id: string,
-    @Body() body: { resolution: string },
+    @Body() body: ResolveEscalationDto,
     @CurrentUser() user: JwtPayload,
   ) {
     return this.chatbotService.resolveEscalation(id, body.resolution, user.sub, user.role);

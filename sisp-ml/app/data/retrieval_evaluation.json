@@ -3,7 +3,15 @@
   {"text": "Where is the BSCS curriculum course sequence?", "expected_sources": ["program_catalog.txt", "curriculum_BSCS_2024.txt"]},
   {"text": "What courses appear in the Bachelor of Science in Computer Science curriculum?", "expected_sources": ["curriculum_BSCS_2024.txt"]},
   {"text": "What is the school GWA probation threshold?", "expected_sources": []},
-  {"text": "How much is the TOR request fee?", "expected_sources": []},
+  {"text": "How much is the TOR request fee?", "expected_sources": ["document_fees_user_approved.txt"]},
   {"text": "What are the regular enrollment late fees?", "expected_sources": []},
-  {"text": "How do I renew a campus parking permit?", "expected_sources": []}
+  {"text": "How do I renew a campus parking permit?", "expected_sources": []},
+  {"text": "Ano ang mga subject ko sa BSCS?", "expected_sources": ["curriculum_BSCS_2024.txt"]},
+  {"text": "Anong mga asignatura ang kasama sa Bachelor of Science in Computer Science?", "expected_sources": ["curriculum_BSCS_2024.txt"]},
+  {"text": "List the courses in the BSCS curriculum by year.", "expected_sources": ["curriculum_BSCS_2024.txt"]},
+  {"text": "How do I add or drop a subject?", "expected_sources": ["student_services_faq_2026.txt"]},
+  {"text": "What online payment methods are available?", "expected_sources": ["student_services_faq_2026.txt"]},
+  {"text": "What is the procedure for processing an INC form?", "expected_sources": ["student_services_faq_2026.txt"]},
+  {"text": "Who should receive online payment proof?", "expected_sources": ["student_services_faq_2026.txt"]},
+  {"text": "When were classes scheduled to start for the first term of SY 2026-2027?", "expected_sources": ["student_services_faq_2026.txt"]}
 ]

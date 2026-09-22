@@ -74,6 +74,16 @@ export class ChatGateway {
     this.server?.to(this.room(sessionId)).emit('session:updated', session);
   }
 
+  async revokeUserFromSession(sessionId: string, userId: string): Promise<void> {
+    if (!this.server) return;
+    const sockets = await this.server.in(this.room(sessionId)).fetchSockets();
+    await Promise.all(
+      sockets
+        .filter((socket) => socket.data.user?.sub === userId)
+        .map((socket) => socket.leave(this.room(sessionId))),
+    );
+  }
+
   private socketUser(client: Socket): { sub: string; role: string } {
     const user = client.data.user;
     if (!user) throw new WsException('Authentication required');

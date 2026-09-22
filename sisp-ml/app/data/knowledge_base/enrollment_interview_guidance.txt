@@ -1,0 +1,21 @@
+Source type: institutional interview notes. Interview date and respondent attribution were not supplied. These statements describe the interview and are not a complete or independently verified current policy. Source reference: ARIA_Interview_Source_2026-09-21.txt; rewritten counterpart: ARIA_Interview_Normalized_Knowledge.md.
+
+Continuing-student enrollment: According to the interview notes, a continuing student should first visit Treasury to clear any previous outstanding balance. The student should then proceed to Admissions for enrollment. The notes do not specify enrollment dates, tuition or down-payment amounts, or a complete document checklist.
+
+Returning after a break: According to the interview notes, a student returning after a break should obtain Treasury clearance, have previously taken subjects evaluated, and then proceed to Admissions for enrollment. The notes do not identify the office responsible for evaluating subjects, state an evaluation duration, or give a complete checklist.
+
+Transferee documents: The interview lists a Transcript of Records (TOR), a Certificate of Good Moral Character, and an Honorable Dismissal document for transferees. This is the list recorded in the interview, not a confirmed exhaustive current checklist.
+
+Document validation and down payment: The interview says Admissions checks student information and documents for validity during enrollment. It also identifies making a down payment as part of becoming enrolled. The amount and all enrollment conditions are not specified. Do not infer that payment alone changes a student's portal enrollment status.
+
+Late enrollment: The interview describes late enrollment as requiring Registrar approval. A student enrolling late may face uncertainty about taking subjects that are already underway. The notes do not give a late-enrollment fee, fixed deadline, or guarantee of subject availability.
+
+Adding or dropping units: The supplied interview direction is to approach Admissions and then Treasury. The complete procedure, forms, deadlines, fees, and approval conditions are not provided. Do not add steps from another source without identifying and reconciling that source.
+
+Records Office services: The interview describes the Records Office as maintaining student records and documents. It mentions COR, COE, Certificates of Good Moral Character, and TOR as services. Records coordinates with Treasury/Finance for matters such as enrollment. Enrollment periods are particularly busy, and TOR processing is described as one of the most time-consuming tasks. The interview does not provide service prices; use the separately approved document-fee schedule.
+
+Student record updates and grade checks: The interview says students should communicate with Records about record updates. It lists name, address, date of birth, guardian, and phone number as student information. It describes using both a portal and paper records for updates. Records staff check grades before posting. The procedure for correcting an incorrect grade is not clear; direct the student to Records and do not claim ARIA can change a grade.
+
+TOR processing estimate: The interview gives an estimated TOR processing time of three to four weeks. Present this only as an interview estimate, not a guaranteed release date or the status of an individual request.
+
+Requests through a representative: The interview says that when another person requests a student's information, Records requires authorization from the student. It does not specify the authorization format or identification documents. Existing SISP access controls still apply.

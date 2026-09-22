@@ -287,7 +287,18 @@ The foundation is ready for broader feature work when all of these are true:
 - ARIA retrieval uses a durable approved knowledge source, a compatible pinned model artifact, safe fallback, and private logs.
 - CI and release evidence reproduce the relevant checks, and rollback does not depend on deleting production data.
 
-## 8. Execution Log — 2026-09-20
+## 8. Execution Log — 2026-09-20 and 2026-09-21
+
+### Current-run verification — 2026-09-21
+
+- Current checkout is `defense-candidate` at `655f08a1`; `origin/main`/`main` point to the preserved baseline `2d07a82e18c0ab460c8b7c866d71379c7ab4b4e1`, which is an ancestor. The candidate is a 198-path change set (10,717 insertions / 2,973 deletions at capture), not the earlier 178-path report snapshot. No force-push or branch deletion occurred.
+- Earlier Phase A notes refer to a different worktree/session; its temp backup/classification is not available for inspection here. Treat Phase A as **NEEDS REVALIDATION**, not a verified current-run PASS. The recovery branch exists locally but currently points to the unchanged production baseline; it does not contain this candidate.
+- In this checkout, deployed HEAD has 29 Prisma models and candidate HEAD has 36. The audit wording that both define 36 was incorrect and has been corrected. Current read-only Supabase findings in the audit are preserved as prior-run evidence and must be refreshed against the intended project/branch before any migration action.
+- Local review reconfirms `20260920000000_rbac_role_alignment` changes `admin_staff` to `registrar`, while a prior live catalog query found 29 policies referencing `admin_staff`; candidate SQL does not update those predicates. `20260921000000_phase3_additive_structures` creates seven public tables but contains no RLS enablement, policies, or explicit direct-client grant restrictions. Both are staging blockers requiring a reviewed, coordinated migration.
+- The audit's admission finding is recorded as a source-level risk; production runtime disclosure or takeover was not demonstrated. Live schema lacks the three admission tables expected by deployed HEAD, so route behavior is unverified.
+- No production deployment, branch creation, account mutation, SQL migration, or database write was performed. `git diff --check` passes for the one documentation edit. No code test was run in this documentation/evidence correction pass.
+
+### Phase A — Preserve and inventory: NEEDS REVALIDATION
 
 ### Phase A — Preserve and inventory: PASS
 
@@ -296,14 +307,14 @@ The foundation is ready for broader feature work when all of these are true:
 - Classified 198 paths in the initial inventory: 129 tracked paths changed and 69 untracked paths. The working tree is still uncommitted; categories are not yet a content review.
 - Identified nine untracked SQL/migration helper files. `sisp-backend/diff.sql` contains 64 `DROP` and 43 `DELETE` keywords; it was not executed. Several handwritten migration JS helpers reference a remote service and were not run.
 
-### Phase B — Security correction: IN_PROGRESS
+### Phase B — Security correction: IN_PROGRESS (prior-run candidate evidence)
 
 - Narrow candidate fix: admin account creation now generates a random password meeting the existing password policy, hashes it with bcrypt, and sets `mustChangePassword=true`; the UI no longer derives a credential from student personal data or accepts a staff-selected temporary password.
 - Recorded DEC-043 and updated `TH-AUTH-07/08` traceability notes. The phase tracker records this as candidate work only; no claim is made that production changed.
 - Verification: four focused Nest Jest suites, 29 tests PASS; backend `npm run build` PASS; backend `npx tsc --noEmit -p tsconfig.json` PASS; frontend `npx tsc --noEmit` PASS; `git diff --check` PASS.
 - Remaining: review/commit the other mixed auth, admission, and startup fixes; startup now proposes `prisma migrate deploy`, so no deployment can proceed until the DB baseline is established and rehearsed.
 
-### Phase D — Read-only DB forensics: IN_PROGRESS, performed ahead of deployment gate
+### Phase D — Read-only DB forensics: IN_PROGRESS, prior-run evidence; current project/branch refresh required
 
 - Supabase migration history shows eight entries, while local Prisma has 15 migration directories with timestamps that do not match the live history; `public._prisma_migrations` is absent. The live public inventory has 27 tables (including an extra `events` table) and is missing ten local Prisma tables: admission applications/requirements/submissions, class sections/schedules, payment transactions, adviser assignments/concerns, and knowledge documents/chunks. The `vector` extension is installed, but KB/vector tables are absent.
 - Security advisor flags `course_prerequisites` as public with RLS disabled. Read-only catalog query confirms `anon` and `authenticated` have table grants. No RLS change was attempted.
@@ -314,4 +325,21 @@ The foundation is ready for broader feature work when all of these are true:
 - Local migration review found constraint drops in `20260919000000_curricula_verified_shape` and `20260921000000_phase3_additive_structures`; these require explicit impact review. The generated `diff.sql` is not a migration plan.
 - Remaining: complete a schema/constraints/grants/RLS matrix, verify backup/restore capability, map every live migration effect to the exact local SQL, and prepare a staging-only baseline rehearsal. No SQL writes or migrations were executed.
 
-**Next phase:** finish code/diff review and the full read-only schema/migration map. Keep Phase B deployment hold in place until those gates pass. No production or database change has been performed.
+### Phase D — Current-run migration chain review: PARTIAL, deployment remains BLOCKED
+
+- Rechecked the repository in `E:\projects\sisp` on `defense-candidate` (`655f08a1`). The 15 SQL files in `sisp-backend/prisma/migrations/` are tracked in Git; `migration_lock.toml` is absent. The source SQL is therefore version-controlled, though live Supabase history is maintained in a different ledger and the local Prisma chain still requires reconciliation and clean-install rehearsal. An earlier note in this execution log incorrectly called the SQL files untracked; corrected on 2026-09-20. No files were staged or forced into Git in this pass.
+- Mapped local SQL effects: `20260826000000_advisory_service_models` creates 3 tables and writes/updates the document catalog with seven fee-bearing entries; `20260905000000_live_schema_alignment` adds enrollment/grade/document-payment columns and chat tables/FKs; `20260905010000_student_semesters` creates the student term-payment table; `20260912000000_faculty_enrollment_assignments` adds nullable faculty ownership to enrollments; `20260913122935_trisemestral_academic_terms` creates academic terms, backfills terms from existing semester/year fields, writes a three-term 2026–2027 calendar, inserts seven named programs (or overwrites names on code conflict), and backfills term/semester/curriculum fields; `20260913131636_academic_terms_rls` enables RLS and adds authenticated catalog-read policy; `20260913132135_harden_public_rls` enables RLS on seven legacy tables without policies; `20260913140500_activate_current_academic_term` sets 2026–2027 term states; `20260918000000_payment_proof_fields` adds payment proof fields; `20260919000000_curricula_verified_shape` adds curriculum/course metadata, drops `courses_code_key`, and adds replacement uniqueness plus prerequisite constraints; `20260920000000_rbac_role_alignment` renames `admin_staff`, seeds canonical roles/permission rows/links; `20260921000000_phase3_additive_structures` adds six supporting tables plus audit/enrollment-history columns, relaxes audit user nullability and recreates its FK; later migrations add enrollment uniqueness (non-null terms), audit snapshots, and KB indexing status.
+- Consequence: `prisma db push` does not replay SQL migration seeds/backfills/policies/role mappings and does not establish `_prisma_migrations`. The prior exact `db push` schema diff was 583 lines: it would drop the currently empty `events` table; add ten modeled tables; change types/nullability/defaults and constraints/indexes; and drop no columns. That schema diff does not capture the separate effects listed above. It is not a substitute for a reviewed migration deployment.
+- Specific unresolved data-impact decisions include the seven document fees, the hard-coded 2026–2027 calendar and seven programs, and any prior `courses_code_key` dependents. These values must be confirmed against approved institutional sources before replaying data-changing migrations. Existing live role policies (29 mention `admin_staff`) also remain unreconciled; finance policies cannot be blanket-renamed to Registrar under DEC-012.
+- A zero-cost local rehearsal is not currently available: this Windows host has no PostgreSQL/`psql`/`initdb`, Docker/Podman, or Supabase CLI; the project folder has no local migration database. The paid Supabase branch option remains declined by the user. No package installation or cost-incurring resources were created. Production remains unchanged.
+- This review did not modify SQL or application code and did not run database migrations. Exit criteria remain open: verify the tracked migration source set and add/review its Prisma lock metadata; identify and verify every historical SQL effect against live catalog/data; resolve the policy/role mapping and institutional seed values; obtain a free PostgreSQL+pgvector rehearsal environment; rehearse all migrations and the approved baseline sequence; verify provider backup/restore capability.
+
+### Phase B — Production mock-store isolation correction: CANDIDATE FIX, VERIFICATION PARTIAL
+
+- Updated `sisp-backend/src/prisma/prisma.service.ts` so `NODE_ENV=production` skips mock identity hashing, demo fixtures, JSON-store reads, and mock persistence setup entirely; production database connection failure continues to throw instead of enabling mock mode.
+- `git diff --check` passes. Static review confirms the production start script still invokes only `prisma migrate deploy` and does not seed or invoke `db push`.
+- Backend `npm run build` was attempted but Prisma client generation failed with Windows `EPERM` while renaming a locked `query_engine-windows.dll.node`; this is an environment/file-lock failure before TypeScript compilation, so the change is not yet build-verified. Backend `npx tsc --noEmit -p tsconfig.json` was started, emitted no output, then the terminal session ended without an exit code; record as **INCONCLUSIVE**, not PASS. No tests were run in this subphase.
+- The ignored local `sisp-backend/mock-db.json` (67,669 bytes) already exists; it was not opened, modified, or deleted. Runtime guidance to remove it applies only after a mock-mode run, which was not performed here.
+- This is uncommitted candidate code and is not deployed. Its behavior needs a targeted test proving production construction does not call mock initialization or touch the JSON file, plus a clean build when Prisma's Windows engine file is unlocked.
+
+**Next action:** preserve and classify the candidate worktree, then reconcile the tracked migration source set and continue the schema/constraints/grants/RLS matrix. Supabase development branch staging remains out of scope because it incurs cost; use a free, isolated PostgreSQL+pgvector environment when available. Production migration/deployment remains blocked until live policy/schema drift is reconciled, data-changing seeds/backfills are approved, and a full rehearsal and recovery check pass. No production or database change has been performed.

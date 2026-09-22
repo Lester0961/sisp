@@ -12,6 +12,7 @@ export interface ChatMessage {
   sources?: ChatSource[];
   escalated?: boolean;
   sessionId?: string | null;
+  chatLogId?: string;
   language?: { code: string; name: string; register?: string; codeSwitched?: boolean };
   quota?: ChatQuota;
 }
@@ -117,6 +118,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           timestamp: new Date(log.createdAt),
           escalated: !!log.escalation,
           sessionId: log.chatSession?.id || null,
+          chatLogId: log.id,
         });
       });
       
@@ -182,7 +184,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         // student asks ARIA a follow-up question; never send the UI-only
         // `live_agent` role to the API validator.
         role: m.role === 'user' ? 'user' : 'assistant',
-        content: m.content,
+        // SendMessageDto limits each history entry to 2,000 characters. Long
+        // curriculum answers can exceed that; keep the leading context rather
+        // than letting the backend reject the next message with a 400.
+        content: m.content.slice(0, 2000),
       }));
 
       const res = await chatApi.sendMessage({
@@ -202,6 +207,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
                 sources: res.sources,
                 escalated: res.escalated,
                 sessionId: res.sessionId,
+                chatLogId: res.chatId,
                 language: res.language,
                 quota: res.quota,
                 isLoading: false,
@@ -214,6 +220,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         quota: res.quota ?? state.quota,
       }));
     } catch (error: any) {
+      const status = error?.response?.status;
       set((state) => ({
         messages: state.messages.map((m) =>
           m.id === assistantMsgId
@@ -227,7 +234,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         isTyping: false,
         error: error?.response?.status === 429
           ? error?.response?.data?.message || 'You have reached today\'s ARIA message limit.'
-          : 'Failed to send message.',
+          : `Failed to send message${status ? ` (HTTP ${status})` : ''}.`,
       }));
     }
   },

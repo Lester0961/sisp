@@ -43,6 +43,29 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
     );
   });
 
+  it('never exposes unpublished grades through the enrollment list', async () => {
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.enrollment.findMany.mockResolvedValue([
+      {
+        id: 'enrollment-visible',
+        status: 'completed',
+        course: { code: 'CS 101', title: 'Intro', units: 3 },
+        grade: { prelim: 1.5, midterm: 1.5, finals: 1.25, finalGrade: 1.42, isVisible: true },
+      },
+      {
+        id: 'enrollment-hidden',
+        status: 'completed',
+        course: { code: 'CS 102', title: 'Data Structures', units: 3 },
+        grade: { prelim: 2.5, midterm: 2.75, finals: 2.5, finalGrade: 2.58, isVisible: false },
+      },
+    ]);
+
+    const result: any = await service.getMyEnrollments('user-1');
+
+    expect(result.data[0].grade.finalGrade).toBe(1.42);
+    expect(result.data[1].grade).toBeNull();
+  });
+
   it('writes automatic enrollment history when a student enrolls', async () => {
     mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
     mockPrisma.course.findUnique.mockResolvedValue(course);

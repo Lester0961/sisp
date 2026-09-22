@@ -46,7 +46,7 @@ export default function CurriculumChecklist({ courses }: Props) {
                         <Circle className="w-4 h-4 text-gray-300 shrink-0" />
                       )}
                       <span className={done ? 'text-gray-500 line-through' : 'text-gray-700'}>
-                        {course.code} · {course.title}
+                        {course.isCodeSynthesized ? 'Code not specified' : course.code} · {course.title}
                         {course.prereqText ? (
                           <span className="ml-1 text-xs text-gray-400">(Prereq: {course.prereqText})</span>
                         ) : null}
@@ -60,7 +60,7 @@ export default function CurriculumChecklist({ courses }: Props) {
                         {ongoing ? 'Ongoing · ' : ''}
                         {course.units} units
                         {course.lecUnits != null || course.labUnits != null
-                          ? ` (LEC ${course.lecUnits ?? 0} / LAB ${course.labUnits ?? 0})`
+                          ? ` (LEC ${course.lecUnits ?? 0} / LAB ${course.labUnits ?? 'not listed'})`
                           : ''}
                       </span>
                     </li>

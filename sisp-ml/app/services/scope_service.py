@@ -3,16 +3,70 @@ import re
 
 ACADEMIC_TERMS = {
     "academic", "adviser", "advisor", "balance", "cashier", "class", "course", "curriculum",
-    "diploma", "document", "enroll", "enrollment", "exam", "finals", "grade", "graduation",
+    "diploma", "document", "enroll", "enrollment", "enrolment", "exam", "finals", "grade", "graduation",
     "midterm", "permit", "prelim", "prerequisite", "registrar", "request", "schedule", "semester",
-    "student", "subject", "transcript", "treasury", "tuition", "akademiko", "bayad", "bayranan",
+    "student", "subject", "transcript", "treasury", "tuition", "matriculation", "akademiko", "bayad", "bayranan",
     "dokumento", "grado", "iskedyul", "klase", "kurso", "mag enroll", "matrikula", "paaralan",
     "pagsusulit", "permiso", "subject ko", "enrolment", "eskwela", "iskwela", "pag enroll", "pasulit",
     "grades", "enrollment_status", "document_request_status", "dean", "faculty", "teacher",
     "official", "officials", "advice", "advising", "advisory", "policy", "policies", "handbook",
     "school hours", "academic calendar", "requirements", "student services", "office", "publication",
     "guro", "titser", "tagapayo", "opisina", "patakaran", "payong", "payo",
+    "eskuelaan", "eskwelahan", "pangutana", "pamangkot", "pakiana", "saludsod",
+    "iskediul", "iskedyul", "bayad", "matrikula", "grado", "kurso", "dokumento",
 }
+
+# Common question forms should route to the verified academic corpus even when
+# they omit formal keywords such as "enrollment" or "document request".
+ACADEMIC_PHRASES = (
+    "how do i enroll", "how can i enroll", "how to enroll", "how do i apply",
+    "how can i apply", "paano mag enroll", "paano mag-enroll",
+    "unsaon pag enroll", "unsaon pag-enroll", "kasano ti ag-enroll",
+    "how much is a tor", "how much is the tor", "tor fee", "document fee", "document fees",
+    "request a tor", "request transcript", "curriculum for", "courses in",
+    "pila ang tor", "pila sang tor", "pila sa tor", "pira an tor", "tagpira an tor", "mano ti tor",
+    "pila ang matrikula", "pila sang matrikula", "pila sa matrikula", "pira an matrikula", "mano ti matrikula",
+)
+
+# These cues are covered by the owner-supplied ARIA student-services FAQ.
+# Keep this list specific so arbitrary non-school payment, travel, or calendar
+# questions do not become in-scope by accident.
+STUDENT_SERVICE_PHRASES = (
+    "payment", "online payment", "payment method", "payment methods", "proof of payment",
+    "payment option", "payment options", "payment process", "pay online",
+    "bank transfer", "gcash", "pnb", "add/drop", "add drop", "adding a subject",
+    "dropping a subject", "changing subjects", "subject change", "inc", "special exam",
+    "special examination", "orientation", "orientasyon", "oryentasyon", "oriyentasyon",
+    "classes start", "class start", "grade release", "grades release", "school address",
+    "school's address", "contact number", "general email", "academic department email",
+    "where to pay", "where do i pay", "where can i pay", "where should i pay",
+    "how to pay", "how do i pay", "how can i pay", "how should i pay",
+    "saan magbayad", "saan ako magbabayad", "saan ko babayaran", "paano magbayad",
+    "paano ako magbayad", "asa mobayad", "asa ko mobayad", "unsaon pagbayad",
+    "diin magbayad", "diin ti agbayad", "sadino ti agbayad", "hain magbayad",
+    "hain ako magbayad",
+)
+
+# A personal marker such as "my" or "ako" should not turn an informational
+# payment question into a private balance lookup. Explicit amount/balance
+# questions still use the authenticated database route below.
+PAYMENT_INSTRUCTION_PHRASES = (
+    "where to pay", "where do i pay", "where can i pay", "where should i pay",
+    "how to pay", "how do i pay", "how can i pay", "how should i pay",
+    "pay online", "payment method", "payment methods", "payment option", "payment options",
+    "online payment", "payment process", "proof of payment", "bank transfer", "gcash", "pnb",
+    "saan magbayad", "saan ako magbabayad", "saan ko babayaran", "paano magbayad",
+    "paano ako magbayad", "asa mobayad", "asa ko mobayad", "unsaon pagbayad",
+    "diin magbayad", "diin ti agbayad", "sadino ti agbayad", "hain magbayad",
+    "hain ako magbayad", "magbayad", "magbabayad", "mobayad", "makakabayad",
+    "agbayad", "pagbayad",
+)
+
+CONTINUING_ENROLLMENT_PHRASES = (
+    "continuing student", "continuing students", "continue my studies",
+    "continuing studies", "magpatuloy", "magpapatuloy", "magpadayon",
+    "magpapadayon", "magapadayon", "agtultuloy",
+)
 
 OUT_OF_SCOPE_TERMS = {
     "recipe", "celebrity", "politics", "weather", "movie", "write code", "game cheat", "sports score",
@@ -20,11 +74,16 @@ OUT_OF_SCOPE_TERMS = {
     "religion", "horoscope", "lottery", "shopping recommendation", "travel itinerary", "legal advice",
 }
 
-PERSONAL_MARKERS = {"ko", "ako", "mine", "akong", "siak", "current", "akin", "my", "akon"}
+PERSONAL_MARKERS = {
+    "ko", "ako", "mine", "akong", "siak", "current", "akin", "my", "akon", "i owe",
+}
 PERSONAL_ROUTES = {
     "grades": {"grades", "grado", "grade", "marka"},
     "schedule": {"class schedule", "schedule", "oras ng klase", "iskedyul"},
-    "balance": {"account balance", "balance", "bayranan", "matrikula", "tuition"},
+    "balance": {
+        "account balance", "balance", "bayranan", "matrikula", "tuition",
+        "owe", "amount due", "outstanding amount", "how much do i owe",
+    },
     "enrollment_status": {"enrolled", "naka enroll", "nakapag enroll", "enrollment status"},
     "document_request_status": {"document request status", "status ng request", "request status"},
 }
@@ -32,25 +91,68 @@ PERSONAL_ROUTES = {
 
 class ScopeService:
     @staticmethod
+    def _contains_phrase(text: str, phrase: str) -> bool:
+        pattern = r"[\s-]+".join(re.escape(part) for part in phrase.casefold().split())
+        return bool(re.search(rf"(?<!\w){pattern}(?!\w)", text))
+
+    @staticmethod
+    def is_student_services_faq_query(query: str) -> bool:
+        normalized = re.sub(r"\s+", " ", (query or "").casefold()).strip()
+        return any(
+            ScopeService._contains_phrase(normalized, phrase)
+            for phrase in STUDENT_SERVICE_PHRASES
+        )
+
+    @staticmethod
+    def is_payment_instruction_query(query: str) -> bool:
+        normalized = re.sub(r"\s+", " ", (query or "").casefold()).strip()
+        return any(
+            ScopeService._contains_phrase(normalized, phrase)
+            for phrase in PAYMENT_INSTRUCTION_PHRASES
+        )
+
+    @staticmethod
     def route(query: str) -> dict:
         normalized = re.sub(r"\s+", " ", (query or "").casefold()).strip()
 
+        if ScopeService.is_payment_instruction_query(normalized):
+            return {"route": "policy", "action": None, "inScope": True}
+        if any(
+            ScopeService._contains_phrase(normalized, phrase)
+            for phrase in CONTINUING_ENROLLMENT_PHRASES
+        ):
+            return {"route": "policy", "action": None, "inScope": True}
+
         is_personal = any(
-            marker.split() in normalized.split() or marker in normalized
+            ScopeService._contains_phrase(normalized, marker)
             for marker in PERSONAL_MARKERS
         )
         if is_personal:
             for action, terms in PERSONAL_ROUTES.items():
-                if any(term in normalized for term in terms):
+                if any(ScopeService._contains_phrase(normalized, term) for term in terms):
                     return {"route": "database", "action": action, "inScope": True}
 
         if any(term in normalized for term in OUT_OF_SCOPE_TERMS):
             return {"route": "out_of_scope", "action": None, "inScope": False}
 
-        if any(term in normalized for term in ACADEMIC_TERMS):
+        has_document_code = any(
+            re.search(rf"(?<!\w){code}(?!\w)", normalized)
+            for code in ("tor", "cor", "coe")
+        )
+        if (
+            any(term in normalized for term in ACADEMIC_TERMS)
+            or has_document_code
+            or any(phrase in normalized for phrase in ACADEMIC_PHRASES)
+            or ScopeService.is_student_services_faq_query(normalized)
+        ):
             return {"route": "policy", "action": None, "inScope": True}
 
-        if normalized in {"hello", "hi", "hey", "good morning", "good afternoon", "kumusta", "maayong adlaw"}:
+        greetings = {
+            "hello", "hi", "hey", "good morning", "good afternoon", "kumusta", "maayong adlaw",
+            "maayong buntag", "maayong hapon", "naimbag nga aldaw", "naimbag nga bigat",
+            "maayong aga", "maupay nga adlaw", "maupay nga aga", "maupay nga udto",
+        }
+        if normalized in greetings:
             return {"route": "greeting", "action": None, "inScope": True}
 
         return {"route": "out_of_scope", "action": None, "inScope": False}

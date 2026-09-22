@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { ChatSessionService } from './chat-session.service';
 
 describe('ChatSessionService authorization', () => {
@@ -6,6 +6,7 @@ describe('ChatSessionService authorization', () => {
     id: 'session-1',
     status: 'open',
     studentId: 'profile-1',
+    escalationId: 'chat-log-1',
     student: { userId: 'student-owner' },
     agentId: 'agent-owner',
   };
@@ -19,14 +20,24 @@ describe('ChatSessionService authorization', () => {
         findUnique: jest.fn().mockResolvedValue({ ...session }),
         findMany: jest.fn().mockResolvedValue([]),
         count: jest.fn().mockResolvedValue(0),
-        update: jest.fn().mockResolvedValue({ ...session }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        upsert: jest.fn().mockResolvedValue({ ...session }),
+      },
+      escalationQueue: {
+        findUnique: jest.fn().mockResolvedValue({ chatId: 'chat-log-1', assignedTo: 'agent-owner', status: 'in_progress' }),
+        upsert: jest.fn().mockResolvedValue({ chatId: 'chat-log-1', status: 'pending' }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+      studentProfile: { findUnique: jest.fn().mockResolvedValue({ id: 'profile-1' }) },
+      chatLog: { findFirst: jest.fn().mockResolvedValue({ id: 'chat-log-1', chatSession: { ...session } }) },
       chatMessage: {
         create: jest.fn().mockResolvedValue({ id: 'message-1' }),
       },
+      user: { findUnique: jest.fn(({ where }: any) => Promise.resolve({ isActive: true, role: { name: where.id === 'student-owner' ? 'student' : 'live_agent' } })) },
+      $transaction: jest.fn((callback: (tx: any) => unknown) => callback(prisma)),
     };
-    service = new ChatSessionService(prisma);
+    service = new ChatSessionService(prisma, { sendToUser: jest.fn().mockResolvedValue(undefined) } as any);
   });
 
   it('allows a student to send only to their own session', async () => {
@@ -57,7 +68,6 @@ describe('ChatSessionService authorization', () => {
   it('prevents a live agent from taking another agent session', async () => {
     await expect(service.assignAgent('session-1', 'different-agent', 'live_agent'))
       .rejects.toBeInstanceOf(ForbiddenException);
-    expect(prisma.chatSession.update).not.toHaveBeenCalled();
     expect(prisma.chatSession.updateMany).not.toHaveBeenCalled();
   });
 
@@ -69,7 +79,7 @@ describe('ChatSessionService authorization', () => {
 
     expect(prisma.chatSession.updateMany).toHaveBeenCalledWith({
       where: { id: 'session-1', status: 'open', OR: [{ agentId: null }, { agentId: 'agent-owner' }] },
-      data: { agentId: 'agent-owner' },
+      data: { agentId: 'agent-owner', updatedAt: expect.any(Date) },
     });
   });
 
@@ -78,7 +88,22 @@ describe('ChatSessionService authorization', () => {
     prisma.chatSession.updateMany.mockResolvedValueOnce({ count: 0 });
 
     await expect(service.assignAgent('session-1', 'agent-owner', 'live_agent'))
+      .rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('does not allow unassigned staff to read conversation details', async () => {
+    prisma.chatSession.findUnique.mockResolvedValueOnce({ ...session, agentId: null });
+    await expect(service.getAuthorizedSession('session-1', 'agent-owner', 'live_agent'))
       .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('returns the existing student-owned case on repeated human-assistance requests', async () => {
+    const existingSession = { ...session, id: 'existing-session' };
+    prisma.chatLog.findFirst.mockResolvedValueOnce({ id: 'chat-log-1', chatSession: existingSession });
+    const result = await service.requestHumanAssistance('chat-log-1', 'student-owner');
+    expect(result).toEqual(existingSession);
+    expect(prisma.chatLog.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'chat-log-1', userId: 'student-owner' } }));
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('returns a bounded privacy-minimized page for the live-agent queue', async () => {

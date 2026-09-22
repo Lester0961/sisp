@@ -50,17 +50,22 @@ async function main() {
   console.log(`Source: ${payload.sourceDoc} sha=${payload.sourceSha256.slice(0, 12)} programs=${programs.length} rows=${payload.totalRows} mode=${DRY ? 'DRY-RUN' : 'APPLY'}`);
 
   let totalCourses = 0, totalLinks = 0, totalUnresolved = 0, totalSelfRef = 0;
+  let missingCourseCodes = 0, missingLabUnits = 0;
 
   for (const p of programs) {
     const name = PROGRAM_NAMES[p.code] ?? p.heading;
     if (DRY) {
       console.log(`[dry] Program ${p.code} | ${name} | eff=${p.effectiveYear} courses=${p.courses.length}`);
       totalCourses += p.courses.length;
+      const sourceCodeSet = new Set(p.courses.filter((row) => row.code).map((row) => row.code as string));
       for (const r of p.courses) {
+        if (!r.code) missingCourseCodes++;
+        if (r.lab === null) missingLabUnits++;
+        const courseCode = r.code ?? synthCode(p.code, r.title ?? '');
         for (const req of splitPrereqs(r.prereq)) {
           totalLinks++;
-          const selfCodes = splitPrereqs(r.prereq);
-          if (r.code && selfCodes.includes(r.code)) totalSelfRef++;
+          if (req === courseCode) totalSelfRef++;
+          if (!sourceCodeSet.has(req) && !sourceCodeSet.has(req.replace(/\s+/g, ''))) totalUnresolved++;
         }
       }
       continue;
@@ -82,11 +87,14 @@ async function main() {
       const codeToId = new Map<string, string[]>(); // code -> courseIds (duplicates possible)
       for (const r of p.courses) {
         if (!r.title) continue;
+        if (!r.code) missingCourseCodes++;
+        if (r.lab === null) missingLabUnits++;
+        const isCodeSynthesized = !r.code;
         const code = r.code ?? synthCode(p.code, r.title);
         const course = await tx.course.upsert({
           where: { code_title: { code, title: r.title } },
-          update: { units: r.units ?? 0, lecUnits: r.lec ?? 0, labUnits: r.lab ?? 0, subjectArea: r.subjectArea, catNo: r.catNo, prereqText: r.prereq },
-          create: { code, title: r.title, units: r.units ?? 0, lecUnits: r.lec ?? 0, labUnits: r.lab ?? 0, subjectArea: r.subjectArea, catNo: r.catNo, prereqText: r.prereq },
+          update: { isCodeSynthesized, units: r.units ?? 0, lecUnits: r.lec ?? 0, labUnits: r.lab ?? null, subjectArea: r.subjectArea, catNo: r.catNo, prereqText: r.prereq },
+          create: { code, isCodeSynthesized, title: r.title, units: r.units ?? 0, lecUnits: r.lec ?? 0, labUnits: r.lab ?? null, subjectArea: r.subjectArea, catNo: r.catNo, prereqText: r.prereq },
         });
         const arr = codeToId.get(code) ?? [];
         arr.push(course.id);
@@ -95,8 +103,8 @@ async function main() {
 
         await tx.curriculumCourse.upsert({
           where: { curriculumId_courseId: { curriculumId: curriculum.id, courseId: course.id } },
-          update: { yearLevel: r.yearLevel ?? 1, semester: r.termNumber ?? 1, termNumber: r.termNumber, termLabel: r.termLabel, sourceTotal: r.sourceTotal },
-          create: { curriculumId: curriculum.id, courseId: course.id, yearLevel: r.yearLevel ?? 1, semester: r.termNumber ?? 1, termNumber: r.termNumber, termLabel: r.termLabel, sourceTotal: r.sourceTotal },
+          update: { yearLevel: r.yearLevel ?? 1, semester: r.termNumber ?? 1, termNumber: r.termNumber, termLabel: r.termLabel, sourceUnits: r.units ?? 0, sourceLecUnits: r.lec ?? 0, sourceLabUnits: r.lab, sourceTotal: r.sourceTotal },
+          create: { curriculumId: curriculum.id, courseId: course.id, yearLevel: r.yearLevel ?? 1, semester: r.termNumber ?? 1, termNumber: r.termNumber, termLabel: r.termLabel, sourceUnits: r.units ?? 0, sourceLecUnits: r.lec ?? 0, sourceLabUnits: r.lab, sourceTotal: r.sourceTotal },
         });
       }
 
@@ -122,11 +130,11 @@ async function main() {
           });
         }
       }
-    }, { timeout: 30000 });
+    }, { maxWait: 30000, timeout: 120000 });
     console.log(`[ok] ${p.code}: ${p.courses.length} rows committed`);
   }
 
-  console.log(`Done. courses upserted=${totalCourses} prereqLinks=${totalLinks} selfRef=${totalSelfRef} unresolved=${totalUnresolved}`);
+  console.log(`Done. courseRows=${totalCourses} prereqLinks=${totalLinks} selfRef=${totalSelfRef} unresolved=${totalUnresolved} sourceCodesMissing=${missingCourseCodes} labUnitsMissing=${missingLabUnits}`);
 }
 
 main()

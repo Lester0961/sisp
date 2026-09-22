@@ -22,21 +22,29 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     google_ai_api_key: str = ""
     openrouter_api_key: str = ""
-    groq_model: str = "qwen/qwen3.6-27b"
+    nvidia_api_key: str = ""
+    groq_model: str = "qwen/qwen3.8-27b"
     gemini_model: str = "gemini-3.5-flash"
     openrouter_model: str = "openrouter/free"
-    llm_provider_order: str = "groq,gemini,openrouter"
+    nvidia_model: str = "z-ai/glm-5.3-flash"
+    llm_provider_order: str = "nvidia"
     llm_request_timeout_seconds: float = 18.0
-    llm_max_tokens: int = 900
-    groq_enabled: bool = True
-    gemini_enabled: bool = True
-    openrouter_enabled: bool = True
+    nvidia_request_timeout_seconds: float = 18.0
+    llm_max_tokens: int = 280
+    # Paid/third-party providers stay opt-in so a failure never triggers
+    # unexpected billable fallback requests.
+    groq_enabled: bool = False
+    gemini_enabled: bool = False
+    openrouter_enabled: bool = False
+    nvidia_enabled: bool = True
 
     # ML Config
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_dimension: int = 384
     confidence_threshold: float = 0.7
-    retrieval_similarity_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
+    intent_min_confidence: float = Field(default=0.55, ge=0.0, le=1.0)
+    intent_min_margin: float = Field(default=0.15, ge=0.0, le=1.0)
+    retrieval_similarity_threshold: float = Field(default=0.36, ge=0.0, le=1.0)
     require_pgvector: bool = False
     advisory_supported_languages: str = "en,fil,ceb,ilo,hil,war"
 
@@ -48,7 +56,7 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
 
     class Config:
-        env_file = str(env_path)
+        env_file = (str(env_path), str(env_path.with_name(".env.local")))
         env_file_encoding = "utf-8"
         case_sensitive = False
 

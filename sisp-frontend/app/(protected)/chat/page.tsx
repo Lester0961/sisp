@@ -4,8 +4,10 @@ import DOMPurify from 'dompurify';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { AlertCircle, BookOpen, FileText, MessageSquare, RefreshCw, Send, Sparkles, Trash2, UserRound } from 'lucide-react';
 import { useChatStore, type ChatMessage } from '@/stores/chatStore';
+import { chatApi } from '@/lib/api/chat';
 import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 function formatMarkdown(text: string) {
   const escaped = text
@@ -24,7 +26,7 @@ function formatMarkdown(text: string) {
   });
 }
 
-function MessageBubble({ message, onOpenLiveChat }: { message: ChatMessage; onOpenLiveChat: (sessionId: string) => void }) {
+function MessageBubble({ message, onOpenLiveChat, onRequestHuman }: { message: ChatMessage; onOpenLiveChat: (sessionId: string) => void; onRequestHuman: (chatLogId: string) => void }) {
   const [showSources, setShowSources] = useState(false);
   const isStudent = message.role === 'user';
   const isLiveAgent = message.role === 'live_agent';
@@ -70,6 +72,9 @@ function MessageBubble({ message, onOpenLiveChat }: { message: ChatMessage; onOp
           <div className="flex items-start gap-2"><AlertCircle className="mt-0.5 size-4 shrink-0" strokeWidth={1.8} /><p><span className="font-semibold">Human support requested.</span> A school representative can review this concern.</p></div>
           {message.sessionId ? <button type="button" onClick={() => onOpenLiveChat(message.sessionId!)} className="mt-2 font-semibold text-[#7a4a03] underline underline-offset-2">Open support conversation</button> : null}
         </div>
+      )}
+      {!isStudent && !message.escalated && message.chatLogId && (
+        <button type="button" onClick={() => onRequestHuman(message.chatLogId!)} className="max-w-[90%] text-left text-xs font-medium text-[#365a72] underline underline-offset-2 hover:text-[#0a439b] sm:max-w-[72%]">Request human assistance</button>
       )}
     </div>
   );
@@ -135,6 +140,16 @@ export default function ChatPage() {
     void loadLiveMessages(sessionId);
   };
 
+  const requestHumanAssistance = async (chatLogId: string) => {
+    try {
+      const session = await chatApi.requestHumanAssistance(chatLogId);
+      setLiveChatMode(true);
+      void loadLiveMessages(session.id);
+    } catch {
+      toast.error('Could not request human assistance. Please retry.');
+    }
+  };
+
   const visibleMessages = isLiveChatMode ? liveMessages : messages;
   const title = isLiveChatMode ? 'Human support' : 'ARIA advisor';
   const helper = isLiveChatMode ? 'Continue the conversation with a school support representative.' : 'Ask about school procedures, curriculum progress, or official document requests.';
@@ -190,10 +205,17 @@ export default function ChatPage() {
             </header>
 
             {!isLiveChatMode && quota ? (
-              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#dce7ef] bg-[#f7fbfd] px-5 py-2 text-xs text-[#587387]">
-                <span>ARIA messages today</span>
-                <span className="font-semibold text-[#102f49]">{quota.remainingToday} of {quota.dailyLimit} remaining</span>
-              </div>
+              <>
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#dce7ef] bg-[#f7fbfd] px-5 py-2 text-xs text-[#587387]">
+                  <span>ARIA messages today</span>
+                  <span className="font-semibold text-[#102f49]">{quota.remainingToday} of {quota.dailyLimit} remaining</span>
+                </div>
+                {quota.remainingToday === 0 ? (
+                  <p role="status" className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-xs text-amber-900">
+                    Today&apos;s ARIA allowance has been used. The question box will be available again after the daily reset. You can still request human assistance from a reply.
+                  </p>
+                ) : null}
+              </>
             ) : null}
 
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[#fbfdfe] p-4 sm:p-5">
@@ -205,14 +227,14 @@ export default function ChatPage() {
                   <div><h2 className="font-semibold text-[#102f49]">What can I help with?</h2><p className="mt-2 max-w-sm text-sm leading-relaxed text-[#587387]">ARIA explains approved school procedures and refers exceptional cases to a staff member.</p></div>
                   {!isLiveChatMode ? (
                     <div className="grid w-full max-w-xl gap-2 sm:grid-cols-3">
-                      <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I request my Transcript of Records?')}><FileText className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Request records</Button>
-                      <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('What is the late enrollment fee?')}><BookOpen className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Enrollment fees</Button>
-                      <Button variant="outline" className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I appeal a final grade?')}><AlertCircle className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Grade appeal</Button>
+                      <Button variant="outline" disabled={quota?.remainingToday === 0} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I request my Transcript of Records?')}><FileText className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Request records</Button>
+                      <Button variant="outline" disabled={quota?.remainingToday === 0} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('What is the late enrollment fee?')}><BookOpen className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Enrollment fees</Button>
+                      <Button variant="outline" disabled={quota?.remainingToday === 0} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I appeal a final grade?')}><AlertCircle className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Grade appeal</Button>
                     </div>
                   ) : null}
                 </div>
               ) : (
-                visibleMessages.map((message) => <MessageBubble key={message.id} message={message} onOpenLiveChat={openLiveChat} />)
+                visibleMessages.map((message) => <MessageBubble key={message.id} message={message} onOpenLiveChat={openLiveChat} onRequestHuman={requestHumanAssistance} />)
               )}
               {error ? <div className="rounded-xl border border-[#f0c4c4] bg-[#fff4f4] px-3 py-2 text-sm text-[#b42318]">{error}</div> : null}
               <div ref={messagesEndRef} />
@@ -221,16 +243,16 @@ export default function ChatPage() {
             <form onSubmit={handleSubmit} className="shrink-0 border-t border-[#dce7ef] bg-white p-3 sm:p-4">
               <label htmlFor="aria-message" className="sr-only">{isLiveChatMode ? 'Message human support' : 'Ask ARIA a question'}</label>
               <div className="flex items-center gap-2">
-                <input
+              <input
                   id="aria-message"
                   type="text"
                   placeholder={isLiveChatMode ? 'Write a message' : 'Ask ARIA a question'}
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
-                  disabled={isTyping || isLoadingHistory || (isLiveChatMode && !activeSessionId)}
+                  disabled={isTyping || isLoadingHistory || (!isLiveChatMode && quota?.remainingToday === 0) || (isLiveChatMode && !activeSessionId)}
                   className="h-11 min-w-0 flex-1 rounded-xl border border-[#cbdde9] bg-[#fbfdfe] px-4 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"
                 />
-                <Button type="submit" size="icon" disabled={!input.trim() || isTyping || isLoadingHistory || (isLiveChatMode && !activeSessionId)} aria-label="Send message"><Send className="size-4" strokeWidth={1.8} /></Button>
+                <Button type="submit" size="icon" disabled={!input.trim() || isTyping || isLoadingHistory || (!isLiveChatMode && quota?.remainingToday === 0) || (isLiveChatMode && !activeSessionId)} aria-label="Send message"><Send className="size-4" strokeWidth={1.8} /></Button>
               </div>
             </form>
           </section>
