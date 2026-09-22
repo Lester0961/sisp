@@ -54,17 +54,22 @@ describe('PermissionService (Phase 2, P2-02)', () => {
   });
 
   describe('migration parity', () => {
-    const migrationPath = path.resolve(
+    const migrationsDir = path.resolve(
       __dirname,
       '..',
       '..',
       '..',
       'prisma',
       'migrations',
-      '20260920010000_reference_catalog',
-      'migration.sql',
     );
-    const sql = fs.readFileSync(migrationPath, 'utf8');
+    // Concatenate the full migration chain in version order; later migrations
+    // intentionally re-state the complete role mappings they change.
+    const sql = fs
+      .readdirSync(migrationsDir)
+      .filter((entry) => fs.statSync(path.join(migrationsDir, entry)).isDirectory())
+      .sort()
+      .map((entry) => fs.readFileSync(path.join(migrationsDir, entry, 'migration.sql'), 'utf8'))
+      .join('\n');
 
     const parseRoleMappings = (): Record<string, string[]> => {
       const rolePattern =

@@ -57,6 +57,7 @@ model User {
   role               Role     @relation(fields: [roleId], references: [id])
   isActive           Boolean  @default(true) @map("is_active")
   mustChangePassword Boolean  @default(true) @map("must_change_password")
+  archivedAt         DateTime? @map("archived_at")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
@@ -69,6 +70,13 @@ model User {
   escalations    EscalationQueue[]
   chatLogs       ChatLog[]
   chatDailyUsage ChatDailyUsage[]
+
+  // Phase 1 identity/session records
+  authSessions          AuthSession[]
+  mfaChallenges         MfaChallenge[]
+  passwordResetTokens   PasswordResetToken[]
+  reviewedVerifications StudentIdentityVerification[] @relation("IdentityReviewedBy")
+  reviewedVerificationDocuments IdentityVerificationDocument[] @relation("VerificationDocumentReviewedBy")
 
   // Grade workflow relations
   submittedGrades Grade[] @relation("GradeSubmittedBy")
@@ -146,6 +154,7 @@ model StudentProfile {
   programId     String   @map("program_id")
   program       Program  @relation(fields: [programId], references: [id])
   yearLevel     Int      @map("year_level")
+  lifecycleStatus String @default("active") @map("lifecycle_status")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -159,6 +168,7 @@ model StudentProfile {
   studentSemesters  StudentSemester[]
   chatSessions      ChatSession[]
   admissionApplication AdmissionApplication?
+  identityVerifications StudentIdentityVerification[] @relation("MatchedStudentProfile")
 
   // Phase 3 supporting structures
   paymentTransactions PaymentTransaction[]
@@ -638,6 +648,8 @@ model EscalationQueue {
   assignedTo String?  @map("assigned_to")
   assignee   User?    @relation(fields: [assignedTo], references: [id])
   resolution String?
+  routingNote String? @map("routing_note")
+  resolvedAt  DateTime? @map("resolved_at")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -832,4 +844,103 @@ model KnowledgeChunk {
 
   @@unique([documentId, chunkIndex])
   @@map("knowledge_chunks")
+}
+
+// ============================================================
+// PHASE 1 — IDENTITY, SESSIONS, MFA, ONBOARDING
+// ============================================================
+
+model AuthSession {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String    @unique @map("refresh_token_hash")
+  tokenFamilyId    String    @map("token_family_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  lastUsedAt       DateTime? @map("last_used_at")
+  expiresAt        DateTime  @map("expires_at")
+  revokedAt        DateTime? @map("revoked_at")
+  revokeReason     String?   @map("revoke_reason")
+  ipAddress        String?   @map("ip_address")
+  userAgent        String?   @map("user_agent")
+
+  @@index([userId])
+  @@index([tokenFamilyId])
+  @@map("auth_sessions")
+}
+
+model MfaChallenge {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose      String    @default("login")
+  otpHash      String    @map("otp_hash")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  expiresAt    DateTime  @map("expires_at")
+  attemptCount Int       @default(0) @map("attempt_count")
+  maxAttempts  Int       @default(5) @map("max_attempts")
+  consumedAt   DateTime? @map("consumed_at")
+  ipAddress    String?   @map("ip_address")
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+  @@map("mfa_challenges")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  consumedAt  DateTime? @map("consumed_at")
+  requestedIp String?   @map("requested_ip")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model StudentIdentityVerification {
+  id                      String    @id @default(uuid())
+  applicantEmail          String    @map("applicant_email")
+  verificationType        String    @map("verification_type") // returning | alumni
+  claimedStudentNumber    String?   @map("claimed_student_number")
+  claimedFirstName        String    @map("claimed_first_name")
+  claimedMiddleName       String?   @map("claimed_middle_name")
+  claimedLastName         String    @map("claimed_last_name")
+  previousName            String?   @map("previous_name")
+  dateOfBirth             DateTime? @map("date_of_birth") @db.Date
+  status                  String    @default("submitted") // submitted | under_review | approved | rejected | needs_info
+  submittedAt             DateTime  @default(now()) @map("submitted_at")
+  reviewedAt              DateTime? @map("reviewed_at")
+  reviewedByUserId        String?   @map("reviewed_by_user_id")
+  reviewedBy              User?     @relation("IdentityReviewedBy", fields: [reviewedByUserId], references: [id])
+  matchedStudentProfileId String?   @unique @map("matched_student_profile_id")
+  matchedStudentProfile   StudentProfile? @relation("MatchedStudentProfile", fields: [matchedStudentProfileId], references: [id])
+  remarks                 String?
+  documents               IdentityVerificationDocument[]
+
+  @@index([status])
+  @@index([applicantEmail])
+  @@map("student_identity_verifications")
+}
+
+model IdentityVerificationDocument {
+  id               String    @id @default(uuid())
+  verificationId   String    @map("verification_id")
+  verification     StudentIdentityVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  documentType     String    @map("document_type")
+  storageObjectKey String    @map("storage_object_key")
+  originalFileName String    @map("original_file_name")
+  mimeType         String    @map("mime_type")
+  fileSize         Int       @map("file_size")
+  uploadedAt       DateTime  @default(now()) @map("uploaded_at")
+  reviewStatus     String    @default("pending") @map("review_status")
+  reviewedByUserId String?   @map("reviewed_by_user_id")
+  reviewedBy       User?     @relation("VerificationDocumentReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt       DateTime? @map("reviewed_at")
+
+  @@index([verificationId])
+  @@map("identity_verification_documents")
 }

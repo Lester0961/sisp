@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Canonical RBAC catalog for SISP (Phase 2, P2-01/P2-02).
  *
  * This file is the single TypeScript source for the seeded permission data:
@@ -47,6 +47,13 @@ export const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
   { resource: 'audit', action: 'read' },
   { resource: 'system_settings', action: 'manage' },
   { resource: 'security', action: 'manage' },
+  // Human escalation is a staff capability, not a role (Phase 1).
+  { resource: 'escalation', action: 'view_assigned' },
+  { resource: 'escalation', action: 'respond' },
+  { resource: 'escalation', action: 'view_dean_queue' },
+  { resource: 'escalation', action: 'assign' },
+  { resource: 'escalation', action: 'reassign' },
+  { resource: 'escalation', action: 'resolve' },
 ];
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_DEFINITIONS.map(
@@ -54,7 +61,7 @@ export const ALL_PERMISSION_KEYS: string[] = PERMISSION_DEFINITIONS.map(
 );
 
 /**
- * Role → permission mapping derived from the printed thesis permission model
+ * Role â†’ permission mapping derived from the printed thesis permission model
  * (Table 3.10) with the Registrar/Treasury separation from DEC-001:
  *  - Registrar: academic records, enrollment, service requests, reports, KB
  *  - Treasury: financial records, payment verification, financial reports
@@ -70,8 +77,23 @@ export const ROLE_PERMISSIONS: Record<CanonicalRoleName, string[]> = {
     'service_request.create',
     'aria.use',
   ],
-  faculty: ['student_record.read_assigned'],
-  dean: ['student_record.read_assigned', 'aria_trends.read', 'report.read'],
+  faculty: [
+    'student_record.read_assigned',
+    'escalation.view_assigned',
+    'escalation.respond',
+    'escalation.resolve',
+  ],
+  dean: [
+    'student_record.read_assigned',
+    'aria_trends.read',
+    'report.read',
+    'escalation.view_assigned',
+    'escalation.respond',
+    'escalation.view_dean_queue',
+    'escalation.assign',
+    'escalation.reassign',
+    'escalation.resolve',
+  ],
   registrar: [
     'student_record.read_assigned',
     'student_record.update',
@@ -79,8 +101,17 @@ export const ROLE_PERMISSIONS: Record<CanonicalRoleName, string[]> = {
     'service_request.process',
     'knowledge_base.manage',
     'report.read',
+    'escalation.view_assigned',
+    'escalation.respond',
+    'escalation.resolve',
   ],
-  treasury: ['financial.manage', 'report.read'],
+  treasury: [
+    'financial.manage',
+    'report.read',
+    'escalation.view_assigned',
+    'escalation.respond',
+    'escalation.resolve',
+  ],
   sys_admin: [
     'student_record.read_assigned',
     'knowledge_base.manage',
@@ -90,6 +121,9 @@ export const ROLE_PERMISSIONS: Record<CanonicalRoleName, string[]> = {
     'audit.read',
     'system_settings.manage',
     'security.manage',
+    'escalation.view_assigned',
+    'escalation.respond',
+    'escalation.resolve',
   ],
   live_agent: [],
 };

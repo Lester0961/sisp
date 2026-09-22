@@ -47,6 +47,25 @@ describe('Thesis role-permission matrix (Table 3.10)', () => {
     expect(can('faculty', 'user.manage')).toBe(false);
   });
 
+  it('escalation is a staff capability: dean routes, staff respond', () => {
+    for (const role of ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin']) {
+      expect(can(role, 'escalation.view_assigned')).toBe(true);
+      expect(can(role, 'escalation.respond')).toBe(true);
+      expect(can(role, 'escalation.resolve')).toBe(true);
+    }
+
+    expect(can('dean', 'escalation.view_dean_queue')).toBe(true);
+    expect(can('dean', 'escalation.assign')).toBe(true);
+    expect(can('dean', 'escalation.reassign')).toBe(true);
+
+    for (const role of ['faculty', 'registrar', 'treasury', 'sys_admin', 'student']) {
+      expect(can(role, 'escalation.view_dean_queue')).toBe(false);
+      expect(can(role, 'escalation.assign')).toBe(false);
+      expect(can(role, 'escalation.reassign')).toBe(false);
+    }
+    expect(can('student', 'escalation.respond')).toBe(false);
+  });
+
   it('dean: assigned student review, trends, reports', () => {
     expect(can('dean', 'student_record.read_assigned')).toBe(true);
     expect(can('dean', 'aria_trends.read')).toBe(true);
