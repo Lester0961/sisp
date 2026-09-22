@@ -327,6 +327,8 @@ export class StudentsService {
     email: string,
     newPassword: string,
   ) {
+    // Emails are stored lowercase; normalize user input for case-insensitive activation.
+    email = email.trim().toLowerCase();
     // Locate student by studentNumber
     const profile = await this.prisma.studentProfile.findUnique({
       where: { studentNumber },

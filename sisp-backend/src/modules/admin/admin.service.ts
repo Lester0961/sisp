@@ -322,9 +322,12 @@ export class AdminService {
       );
     }
 
+    // Emails are stored lowercase so logins are case-insensitive in practice.
+    const email = dto.email.trim().toLowerCase();
+
     // Check if email already exists
     const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email },
     });
 
     if (existing) {
@@ -349,7 +352,7 @@ export class AdminService {
     // Create the user
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email,
+        email,
         passwordHash,
         firstName: dto.firstName,
         lastName: dto.lastName,

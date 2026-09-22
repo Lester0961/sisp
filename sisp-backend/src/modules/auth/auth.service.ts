@@ -65,8 +65,11 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, ipAddress?: string, userAgent?: string) {
+    // Emails are stored lowercase; normalize so mobile auto-capitalization
+    // ("Student.local@...") or stray spaces never cause false "invalid" errors.
+    const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email },
       include: { role: true },
     });
 
@@ -219,7 +222,8 @@ export class AuthService {
     return { message: 'Password updated successfully', otherSessionsRevoked };
   }
 
-  async forgotPassword(email: string, ipAddress?: string) {
+  async forgotPassword(emailInput: string, ipAddress?: string) {
+    const email = emailInput.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
     // Always the same response: never reveal whether the email exists.
     const message = 'If the account exists, a password reset link has been sent.';
