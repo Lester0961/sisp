@@ -20,6 +20,7 @@ import {
   X,
   FileText,
   Wallet,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -112,9 +113,17 @@ export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
     href: '/admin/enrollments',
     label: 'Course Assignments',
     shortLabel: 'Assignments',
-    icon: UserCheck,
+    icon: BookOpen,
     group: 'academic',
     roles: ['registrar', 'dean'],
+  },
+  {
+    href: '/admin/advisers',
+    label: 'Adviser Assignments',
+    shortLabel: 'Advisers',
+    icon: UserCog,
+    group: 'academic',
+    roles: ['registrar', 'sys_admin'],
   },
   {
     href: '/admin/grades',

@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { DeanService } from './dean.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurriculumService } from '../curriculum/curriculum.service';
@@ -195,6 +195,115 @@ describe('DeanService — adviser scope, standing, concerns (Phase 9)', () => {
     expect(mockPrisma.advisingConcern.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: 'resolved', resolution: 'Done' }),
+      }),
+    );
+  });
+});
+
+describe('DeanService — adviser assignment writer (NEXT 5)', () => {
+  let service: DeanService;
+
+  const mockPrisma: any = {
+    user: { findUnique: jest.fn(), findMany: jest.fn() },
+    studentProfile: { findUnique: jest.fn() },
+    academicTerm: { findUnique: jest.fn() },
+    adviserAssignment: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
+    auditLog: { create: jest.fn() },
+    advisingConcern: {},
+  };
+
+  const mockCurriculum = { getMyProgress: jest.fn() };
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    mockPrisma.auditLog.create.mockResolvedValue({});
+    service = new DeanService(mockPrisma as PrismaService, mockCurriculum as unknown as CurriculumService);
+  });
+
+  it('creates an assignment for an active Dean advising an existing student', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: 'dean-1',
+      isActive: true,
+      role: { name: 'dean' },
+    });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'sp-1' });
+    mockPrisma.adviserAssignment.findFirst
+      .mockResolvedValueOnce(null) // no exact existing row
+      .mockResolvedValueOnce(null); // no conflicting active adviser
+    mockPrisma.adviserAssignment.create.mockResolvedValue({ id: 'assign-1', status: 'active' });
+
+    const result = await service.createAdviserAssignment('registrar-1', {
+      adviserId: 'dean-1',
+      studentId: 'sp-1',
+    });
+
+    expect(result.data.status).toBe('active');
+    expect(mockPrisma.adviserAssignment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ adviserId: 'dean-1', studentId: 'sp-1', status: 'active' }),
+      }),
+    );
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: 'ADVISER_ASSIGNMENT_CREATED' }),
+      }),
+    );
+  });
+
+  it('rejects assigning a non-Dean user', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: 'fac-1',
+      isActive: true,
+      role: { name: 'faculty' },
+    });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'sp-1' });
+
+    await expect(
+      service.createAdviserAssignment('registrar-1', { adviserId: 'fac-1', studentId: 'sp-1' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(mockPrisma.adviserAssignment.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a second active adviser for the same student and term', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      id: 'dean-2',
+      isActive: true,
+      role: { name: 'dean' },
+    });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'sp-1' });
+    mockPrisma.adviserAssignment.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'assign-other',
+        adviser: { firstName: 'Old', lastName: 'Adviser' },
+      });
+
+    await expect(
+      service.createAdviserAssignment('registrar-1', { adviserId: 'dean-2', studentId: 'sp-1' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(mockPrisma.adviserAssignment.create).not.toHaveBeenCalled();
+  });
+
+  it('deactivates an existing assignment with an audit trail', async () => {
+    mockPrisma.adviserAssignment.findUnique.mockResolvedValue({ id: 'assign-1', status: 'active' });
+    mockPrisma.adviserAssignment.update.mockResolvedValue({ id: 'assign-1', status: 'inactive' });
+
+    const result = await service.updateAdviserAssignmentStatus('registrar-1', 'assign-1', 'inactive');
+
+    expect(result.data.status).toBe('inactive');
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'ADVISER_ASSIGNMENT_STATUS_CHANGED',
+          oldValue: '"active"',
+          newValue: '"inactive"',
+        }),
       }),
     );
   });

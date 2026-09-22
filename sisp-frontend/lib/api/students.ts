@@ -5,4 +5,9 @@ export const studentsApi = {
     const response = await apiClient.get('/students/me');
     return response.data;
   },
+
+  listAll: async () => {
+    const response = await apiClient.get('/students');
+    return response.data;
+  },
 };

@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurriculumService } from '../curriculum/curriculum.service';
 import { assertTransition } from '../../common/utils/state-machine';
 import { CreateConcernDto, UpdateConcernDto } from './dto/concern.dto';
+import { CreateAdviserAssignmentDto } from './dto/adviser-assignment.dto';
 
 export const CONCERN_TRANSITIONS: Record<string, string[]> = {
   open: ['in_review', 'resolved'],
@@ -248,5 +249,193 @@ export class DeanService {
     }
     await this.prisma.advisingConcern.delete({ where: { id } });
     return { message: 'Advising concern removed' };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Adviser assignments (Registrar-owned writer; P3-06/P9-01)
+  // ---------------------------------------------------------------------------
+
+  /** Active Dean accounts eligible to be advisers. */
+  async getAdviserCandidates() {
+    const advisers = await this.prisma.user.findMany({
+      where: { isActive: true, role: { name: 'dean' } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        _count: { select: { adviserAssignments: { where: { status: 'active' } } } },
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+    });
+    return { data: advisers };
+  }
+
+  async listAdviserAssignments(search?: string) {
+    const assignments = await this.prisma.adviserAssignment.findMany({
+      where: {
+        ...(search
+          ? {
+              OR: [
+                { student: { studentNumber: { contains: search, mode: 'insensitive' } } },
+                { student: { user: { firstName: { contains: search, mode: 'insensitive' } } } },
+                { student: { user: { lastName: { contains: search, mode: 'insensitive' } } } },
+                { adviser: { lastName: { contains: search, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      include: {
+        adviser: { select: { id: true, firstName: true, lastName: true, email: true } },
+        student: {
+          select: {
+            id: true,
+            studentNumber: true,
+            user: { select: { firstName: true, lastName: true, email: true } },
+            program: { select: { code: true } },
+          },
+        },
+        academicTerm: { select: { code: true, label: true, academicYear: true } },
+      },
+    });
+    return { data: assignments };
+  }
+
+  async createAdviserAssignment(actorId: string, dto: CreateAdviserAssignmentDto) {
+    const [adviser, student] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: dto.adviserId },
+        include: { role: { select: { name: true } } },
+      }),
+      this.prisma.studentProfile.findUnique({ where: { id: dto.studentId } }),
+    ]);
+
+    if (!adviser || adviser.role?.name !== 'dean') {
+      throw new BadRequestException('The selected adviser must be a Dean account.');
+    }
+    if (!adviser.isActive) {
+      throw new BadRequestException('The selected Dean account is not active.');
+    }
+    if (!student) {
+      throw new NotFoundException(`Student profile ${dto.studentId} not found`);
+    }
+    if (dto.academicTermId) {
+      const term = await this.prisma.academicTerm.findUnique({
+        where: { id: dto.academicTermId },
+      });
+      if (!term) {
+        throw new NotFoundException(`Academic term ${dto.academicTermId} not found`);
+      }
+    }
+
+    const termId = dto.academicTermId ?? null;
+    const existing = await this.prisma.adviserAssignment.findFirst({
+      where: { adviserId: dto.adviserId, studentId: dto.studentId, academicTermId: termId },
+    });
+    if (existing?.status === 'active') {
+      throw new ConflictException(
+        'This student is already assigned to the selected adviser for that term.',
+      );
+    }
+
+    // One active adviser per student and term keeps scoping unambiguous.
+    const conflicting = await this.prisma.adviserAssignment.findFirst({
+      where: {
+        studentId: dto.studentId,
+        academicTermId: termId,
+        status: 'active',
+        NOT: { adviserId: dto.adviserId },
+      },
+      include: { adviser: { select: { firstName: true, lastName: true } } },
+    });
+    if (conflicting) {
+      throw new ConflictException(
+        `This student already has an active adviser (${conflicting.adviser.firstName} ${conflicting.adviser.lastName}) for that term. Deactivate the existing assignment first.`,
+      );
+    }
+
+    if (existing) {
+      const reactivated = await this.prisma.adviserAssignment.update({
+        where: { id: existing.id },
+        data: {
+          status: 'active',
+          academicYear: dto.academicYear?.trim() || existing.academicYear,
+        },
+      });
+      await this.recordAdviserAudit(actorId, 'ADVISER_ASSIGNMENT_REACTIVATED', reactivated.id, 'inactive', 'active');
+      return { message: 'Adviser assignment reactivated', data: reactivated };
+    }
+
+    const created = await this.prisma.adviserAssignment.create({
+      data: {
+        adviserId: dto.adviserId,
+        studentId: dto.studentId,
+        academicTermId: termId,
+        academicYear: dto.academicYear?.trim() || null,
+        status: 'active',
+      },
+      include: {
+        adviser: { select: { id: true, firstName: true, lastName: true, email: true } },
+        student: {
+          select: {
+            id: true,
+            studentNumber: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+    });
+
+    await this.recordAdviserAudit(actorId, 'ADVISER_ASSIGNMENT_CREATED', created.id, null, {
+      adviserId: dto.adviserId,
+      studentId: dto.studentId,
+      academicTermId: termId,
+    });
+
+    return { message: 'Adviser assigned', data: created };
+  }
+
+  async updateAdviserAssignmentStatus(actorId: string, id: string, status: 'active' | 'inactive') {
+    const assignment = await this.prisma.adviserAssignment.findUnique({ where: { id } });
+    if (!assignment) {
+      throw new NotFoundException(`Adviser assignment ${id} not found`);
+    }
+    if (assignment.status === status) {
+      return { message: `Adviser assignment is already ${status}`, data: assignment };
+    }
+
+    const updated = await this.prisma.adviserAssignment.update({
+      where: { id },
+      data: { status },
+    });
+
+    await this.recordAdviserAudit(actorId, 'ADVISER_ASSIGNMENT_STATUS_CHANGED', updated.id, assignment.status, status);
+
+    return { message: `Adviser assignment ${status}`, data: updated };
+  }
+
+  private async recordAdviserAudit(
+    actorId: string,
+    action: string,
+    resourceId: string,
+    oldValue: unknown,
+    newValue: unknown,
+  ) {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: actorId,
+          action,
+          resource: 'adviser_assignments',
+          resourceId,
+          oldValue: oldValue === null || oldValue === undefined ? null : JSON.stringify(oldValue),
+          newValue: newValue === null || newValue === undefined ? null : JSON.stringify(newValue),
+        },
+      });
+    } catch {
+      // Best-effort audit; never block the assignment workflow.
+    }
   }
 }
