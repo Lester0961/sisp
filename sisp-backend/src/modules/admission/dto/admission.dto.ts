@@ -1,9 +1,22 @@
-import { IsString, IsNotEmpty, IsEmail, IsOptional, IsInt, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEmail,
+  IsOptional,
+  IsInt,
+  IsIn,
+  Matches,
+  MaxLength,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class CreateAdmissionApplicationDto {
   @IsString()
-  @IsNotEmpty()
-  applicantType!: string; // freshman | transferee | bridging | cross_enrollee
+  @IsIn(['freshman', 'transferee', 'bridging', 'cross_enrollee'], {
+    message: 'applicantType must be freshman, transferee, bridging, or cross_enrollee',
+  })
+  applicantType!: string;
 
   @IsString()
   @IsNotEmpty()
@@ -21,7 +34,7 @@ export class CreateAdmissionApplicationDto {
   @IsOptional()
   suffix?: string;
 
-  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'dob must use the YYYY-MM-DD format' })
   @IsNotEmpty()
   dob!: string; // YYYY-MM-DD
 
@@ -109,12 +122,14 @@ export class CreateAdmissionApplicationDto {
 }
 
 export class ReviewAdmissionApplicationDto {
-  @IsString()
-  @IsNotEmpty()
-  status!: string; // approved | rejected | needs_revision | under_review
+  @IsIn(['under_review', 'needs_revision', 'approved', 'rejected'], {
+    message: 'status must be under_review, needs_revision, approved, or rejected',
+  })
+  status!: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(1000)
   reviewNotes?: string;
 
   @IsString()
@@ -133,17 +148,27 @@ export class SubmitRequirementDto {
 
   @IsString()
   @IsNotEmpty()
-  fileUrl!: string;
+  @MaxLength(255)
+  fileName!: string;
+
+  @IsIn(['application/pdf', 'image/jpeg', 'image/png'], {
+    message: 'Only PDF, JPEG, or PNG requirement documents are accepted',
+  })
+  mimeType!: string;
 
   @IsString()
   @IsNotEmpty()
-  fileName!: string;
+  contentBase64!: string;
+}
 
-  @IsInt()
-  @IsOptional()
-  fileSize?: number;
+export class ReviewAdmissionRequirementDto {
+  @IsIn(['verified', 'rejected', 'resubmission_required'], {
+    message: 'status must be verified, rejected, or resubmission_required',
+  })
+  status!: string;
 
   @IsString()
   @IsOptional()
-  mimeType?: string;
+  @MaxLength(500)
+  reviewNotes?: string;
 }

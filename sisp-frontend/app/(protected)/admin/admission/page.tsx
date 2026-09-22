@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { admissionApi, AdmissionApplication } from '@/lib/api/admission';
+import { admissionApi, AdmissionApplication, RequirementDefinition } from '@/lib/api/admission';
 import { Loader2, UserCheck, Search, Filter, ShieldCheck, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function AdminAdmissionPage() {
@@ -14,6 +14,8 @@ export default function AdminAdmissionPage() {
   const [selectedApp, setSelectedApp] = useState<AdmissionApplication | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [reviewing, setReviewing] = useState(false);
+  const [requiredDefs, setRequiredDefs] = useState<RequirementDefinition[]>([]);
+  const [requirementBusyId, setRequirementBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     loadApplications();
@@ -32,6 +34,62 @@ export default function AdminAdmissionPage() {
       setLoading(false);
     }
   }
+
+  const openReview = async (app: AdmissionApplication) => {
+    setSelectedApp(app);
+    setReviewNotes(app.reviewNotes ?? '');
+    try {
+      const defs = await admissionApi.getRequirementDefinitions(app.applicantType);
+      setRequiredDefs(defs.filter((definition) => definition.isRequired));
+    } catch {
+      setRequiredDefs([]);
+    }
+  };
+
+  const handleRequirementReview = async (
+    appNo: string,
+    submissionId: string,
+    status: 'verified' | 'rejected' | 'resubmission_required',
+  ) => {
+    let requirementNotes: string | undefined;
+    if (status !== 'verified') {
+      requirementNotes =
+        window.prompt(
+          status === 'rejected' ? 'Reason for rejecting this document?' : 'What must be resubmitted?',
+        ) ?? undefined;
+      if (requirementNotes === undefined) return;
+    }
+    setRequirementBusyId(submissionId);
+    try {
+      await admissionApi.reviewRequirement(appNo, submissionId, status, requirementNotes);
+      toast.success(`Requirement marked ${status.replace(/_/g, ' ')}.`);
+      setSelectedApp((current) =>
+        current
+          ? {
+              ...current,
+              requirements: (current.requirements ?? []).map((requirement) =>
+                requirement.id === submissionId
+                  ? { ...requirement, status, reviewNotes: requirementNotes ?? requirement.reviewNotes }
+                  : requirement,
+              ),
+            }
+          : current,
+      );
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Requirement review failed.');
+    } finally {
+      setRequirementBusyId(null);
+    }
+  };
+
+  const missingRequirements = selectedApp
+    ? requiredDefs.filter((definition) => {
+        const submission = (selectedApp.requirements ?? []).find(
+          (requirement) => requirement.definition?.id === definition.id,
+        );
+        return !submission || submission.status !== 'verified';
+      })
+    : [];
 
   const handleReview = async (appNo: string, status: string) => {
     setReviewing(true);
@@ -143,7 +201,7 @@ export default function AdminAdmissionPage() {
 
               <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
                 <button
-                  onClick={() => setSelectedApp(app)}
+                  onClick={() => void openReview(app)}
                   className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-[#0a439b] hover:bg-blue-100"
                 >
                   Review Application
@@ -167,6 +225,98 @@ export default function AdminAdmissionPage() {
               <p><strong>Email:</strong> {selectedApp.email}</p>
               <p><strong>Program:</strong> {selectedApp.program?.name} ({selectedApp.program?.code})</p>
               <p><strong>Last School:</strong> {selectedApp.lastSchoolName}</p>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-slate-100 p-3">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Requirements
+              </h4>
+              {requiredDefs.length === 0 ? (
+                <p className="text-[11px] text-slate-500">No required documents configured.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {requiredDefs.map((definition) => {
+                    const submission = (selectedApp.requirements ?? []).find(
+                      (requirement) => requirement.definition?.id === definition.id,
+                    );
+                    const status = submission?.status ?? 'missing';
+                    return (
+                      <li key={definition.id} className="rounded-lg border border-slate-100 p-2 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-slate-800">
+                            {definition.title}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                              status === 'verified'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : status === 'submitted'
+                                  ? 'bg-blue-50 text-[#0a439b]'
+                                  : status === 'missing'
+                                    ? 'bg-slate-100 text-slate-500'
+                                    : 'bg-amber-50 text-amber-700'
+                            }`}
+                          >
+                            {status.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                        {submission?.fileName && (
+                          <p className="text-[10px] text-slate-500">
+                            {submission.fileName}
+                            {submission.fileSize ? ` · ${Math.round(submission.fileSize / 1024)} KB` : ''}
+                          </p>
+                        )}
+                        {submission?.reviewNotes && (
+                          <p className="text-[10px] text-slate-500">Notes: {submission.reviewNotes}</p>
+                        )}
+                        {submission && status !== 'verified' && (
+                          <div className="flex flex-wrap gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleRequirementReview(selectedApp.applicationNo, submission.id, 'verified')
+                              }
+                              disabled={requirementBusyId === submission.id}
+                              className="rounded-md bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                            >
+                              Verify
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleRequirementReview(
+                                  selectedApp.applicationNo,
+                                  submission.id,
+                                  'resubmission_required',
+                                )
+                              }
+                              disabled={requirementBusyId === submission.id}
+                              className="rounded-md bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700 hover:bg-amber-100"
+                            >
+                              Request resubmission
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleRequirementReview(selectedApp.applicationNo, submission.id, 'rejected')
+                              }
+                              disabled={requirementBusyId === submission.id}
+                              className="rounded-md bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700 hover:bg-red-100"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {missingRequirements.length > 0 && (
+                <p className="text-[11px] text-amber-700">
+                  Approval is blocked until verified: {missingRequirements.map((definition) => definition.code).join(', ')}
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -196,8 +346,13 @@ export default function AdminAdmissionPage() {
               </button>
               <button
                 onClick={() => handleReview(selectedApp.applicationNo, 'approved')}
-                disabled={reviewing}
-                className="rounded-xl bg-[#0a439b] text-white px-5 py-2 text-xs font-semibold hover:bg-[#083980] flex items-center gap-1.5"
+                disabled={reviewing || missingRequirements.length > 0}
+                title={
+                  missingRequirements.length > 0
+                    ? 'Verify all required documents before approving'
+                    : undefined
+                }
+                className="rounded-xl bg-[#0a439b] text-white px-5 py-2 text-xs font-semibold hover:bg-[#083980] disabled:opacity-50 flex items-center gap-1.5"
               >
                 {reviewing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 Approve & Create Student Record

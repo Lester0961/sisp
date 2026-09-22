@@ -28,6 +28,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AuthzModule } from './common/authz/authz.module';
 import { PermissionsGuard } from './common/authz/permissions.guard';
+import { StorageModule } from './common/storage/storage.module';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { getRateLimitConfig } from './common/config/rate-limit.config';
 import { validateConfig } from './common/config/env-validation';
@@ -50,6 +51,7 @@ const rateLimitConfig = getRateLimitConfig();
     ]),
     PrismaModule,
     AuthzModule,
+    StorageModule,
     AuthModule,
     UsersModule,
     AdminModule,

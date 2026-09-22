@@ -39,7 +39,12 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
     jest.clearAllMocks();
     storage.save.mockResolvedValue(undefined);
     storage.createSignedUrl.mockResolvedValue('https://signed.example/doc');
-    service = new IdentityVerificationsService(prisma, storage as any);
+    const config: any = {
+      get: jest.fn((key: string) =>
+        key === 'IDENTITY_STORAGE_BUCKET' ? 'identity-documents' : null,
+      ),
+    };
+    service = new IdentityVerificationsService(prisma, config, storage as any);
   });
 
   it('marks a student-number match as a candidate, not an approval', async () => {
@@ -131,6 +136,7 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
       }),
     ).resolves.toEqual(expect.objectContaining({ message: expect.stringContaining('uploaded') }));
     expect(storage.save).toHaveBeenCalledWith(
+      'identity-documents',
       expect.stringMatching(/^ver-1\/[0-9a-f]{24}\.png$/),
       expect.any(Buffer),
       'image/png',

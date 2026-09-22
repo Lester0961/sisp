@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import { PrismaService } from '../../prisma/prisma.service';
-import { IdentityStorageService } from './identity-storage.service';
+import { ObjectStorageService } from '../../common/storage/object-storage.service';
 import { CreateIdentityVerificationDto } from './dto/create-identity-verification.dto';
 import { ReviewIdentityVerificationDto } from './dto/review-identity-verification.dto';
 import { UploadVerificationDocumentDto } from './dto/upload-verification-document.dto';
@@ -24,8 +25,13 @@ const REVIEW_DECISIONS = ['under_review', 'approved', 'rejected', 'needs_info'];
 export class IdentityVerificationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storage: IdentityStorageService,
+    private readonly config: ConfigService,
+    private readonly storage: ObjectStorageService,
   ) {}
+
+  private bucket(): string {
+    return this.config.get<string>('IDENTITY_STORAGE_BUCKET')?.trim() || 'identity-documents';
+  }
 
   async create(dto: CreateIdentityVerificationDto) {
     if (!['returning', 'alumni'].includes(dto.verificationType)) {
@@ -108,7 +114,7 @@ export class IdentityVerificationsService {
     }
 
     const objectKey = this.buildObjectKey(id, dto.originalFileName);
-    await this.storage.save(objectKey, content, dto.mimeType);
+    await this.storage.save(this.bucket(), objectKey, content, dto.mimeType);
 
     const document = await this.prisma.identityVerificationDocument.create({
       data: {
@@ -143,7 +149,7 @@ export class IdentityVerificationsService {
       where: { id: documentId, verificationId },
     });
     if (!document) throw new NotFoundException('Identification document not found');
-    const url = await this.storage.createSignedUrl(document.storageObjectKey, 300);
+    const url = await this.storage.createSignedUrl(this.bucket(), document.storageObjectKey, 300);
     return {
       documentId: document.id,
       fileName: document.originalFileName,

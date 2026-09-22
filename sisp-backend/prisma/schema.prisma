@@ -387,12 +387,17 @@ model AdmissionRequirementSubmission {
   application   AdmissionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   definitionId  String   @map("definition_id")
   definition    AdmissionRequirementDefinition @relation(fields: [definitionId], references: [id])
+  // Legacy public URL field retained for compatibility; secure uploads store
+  // the private object key in storageObjectKey and leave this empty.
   fileUrl       String   @map("file_url")
   fileName      String   @map("file_name")
   fileSize      Int?     @map("file_size")
   mimeType      String?  @map("mime_type")
+  storageObjectKey String? @map("storage_object_key")
   status        String   @default("submitted") // submitted | verified | rejected | resubmission_required
   reviewNotes   String?  @map("review_notes")
+  reviewedByUserId String? @map("reviewed_by_user_id")
+  reviewedAt    DateTime? @map("reviewed_at")
 
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")

@@ -13,6 +13,13 @@ export default function AdmissionPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [reqDefs, setReqDefs] = useState<RequirementDefinition[]>([]);
   const [applicationNo, setApplicationNo] = useState<string | null>(null);
+  const [requirementUploads, setRequirementUploads] = useState<
+    Record<string, { fileName: string; mimeType: string; contentBase64: string }>
+  >({});
+  const [requirementStatuses, setRequirementStatuses] = useState<Record<string, string>>({});
+  const [uploadingDefinitionId, setUploadingDefinitionId] = useState<string | null>(null);
+  const [trackedApplication, setTrackedApplication] = useState<any>(null);
+  const [tracking, setTracking] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -75,6 +82,68 @@ export default function AdmissionPage() {
 
   const handleInputChange = (field: string, val: any) => {
     setFormData((prev) => ({ ...prev, [field]: val }));
+  };
+
+  const onPickRequirementFile = (definitionId: string, file: File) => {
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Requirement documents must be 5 MB or smaller.');
+      return;
+    }
+    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
+      toast.error('Only PDF, JPEG, or PNG requirement documents are accepted.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const contentBase64 = String(reader.result).split(',')[1] ?? '';
+      setRequirementUploads((prev) => ({
+        ...prev,
+        [definitionId]: { fileName: file.name, mimeType: file.type, contentBase64 },
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadRequirement = async (definitionId: string) => {
+    const upload = requirementUploads[definitionId];
+    if (!applicationNo || !upload) {
+      toast.error('Choose a file first.');
+      return;
+    }
+    setUploadingDefinitionId(definitionId);
+    try {
+      const result = await admissionApi.submitRequirement(applicationNo, {
+        email: formData.email,
+        definitionId,
+        fileName: upload.fileName,
+        mimeType: upload.mimeType,
+        contentBase64: upload.contentBase64,
+      });
+      setRequirementStatuses((prev) => ({ ...prev, [definitionId]: result.status }));
+      toast.success('Document uploaded for Registrar review.');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not upload this document.');
+    } finally {
+      setUploadingDefinitionId(null);
+    }
+  };
+
+  const refreshTrackedStatus = async () => {
+    if (!applicationNo) return;
+    setTracking(true);
+    try {
+      const result = await admissionApi.getApplicationStatus(applicationNo, formData.email);
+      setTrackedApplication(result);
+      const statuses: Record<string, string> = {};
+      (result.requirements ?? []).forEach((requirement: any) => {
+        if (requirement.definition?.id) statuses[requirement.definition.id] = requirement.status;
+      });
+      setRequirementStatuses((prev) => ({ ...prev, ...statuses }));
+    } catch {
+      toast.error('Could not load the application status.');
+    } finally {
+      setTracking(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -441,23 +510,117 @@ export default function AdmissionPage() {
           )}
 
           {step === 5 && applicationNo && (
-            <div className="text-center space-y-4 py-6">
-              <CheckCircle2 className="h-12 w-12 text-emerald-600 mx-auto" />
-              <h2 className="text-xl font-bold text-[#102f49]">Application Submitted!</h2>
-              <p className="text-xs text-slate-600 max-w-md mx-auto">
-                Your application has been received. Please save your Application Number to track your status.
-              </p>
+            <div className="space-y-5 py-6">
+              <div className="text-center space-y-3">
+                <CheckCircle2 className="h-12 w-12 text-emerald-600 mx-auto" />
+                <h2 className="text-xl font-bold text-[#102f49]">Application Submitted!</h2>
+                <p className="text-xs text-slate-600 max-w-md mx-auto">
+                  Save your Application Number. Upload the required documents below for Registrar
+                  verification.
+                </p>
 
-              <div className="inline-block rounded-xl bg-blue-50 border border-blue-200 px-6 py-3 font-mono font-bold text-lg text-[#0a439b]">
-                {applicationNo}
+                <div className="inline-block rounded-xl bg-blue-50 border border-blue-200 px-6 py-3 font-mono font-bold text-lg text-[#0a439b]">
+                  {applicationNo}
+                </div>
               </div>
 
-              <div className="pt-4 flex justify-center gap-3">
+              {reqDefs.length > 0 && (
+                <div className="text-left space-y-2 rounded-xl border border-slate-200 p-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Required documents
+                  </h3>
+                  {reqDefs.map((definition) => {
+                    const status = requirementStatuses[definition.id];
+                    const upload = requirementUploads[definition.id];
+                    return (
+                      <div key={definition.id} className="rounded-lg border border-slate-100 p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-800">
+                              {definition.title}
+                              {definition.isRequired ? (
+                                <span className="ml-2 text-[10px] font-bold text-rose-600">REQUIRED</span>
+                              ) : null}
+                            </p>
+                            {upload && (
+                              <p className="text-[11px] text-slate-500">Selected: {upload.fileName}</p>
+                            )}
+                          </div>
+                          {status && (
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                status === 'verified'
+                                  ? 'bg-emerald-50 text-emerald-700'
+                                  : status === 'submitted'
+                                    ? 'bg-blue-50 text-[#0a439b]'
+                                    : 'bg-amber-50 text-amber-700'
+                              }`}
+                            >
+                              {status.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="file"
+                            accept="application/pdf,image/jpeg,image/png"
+                            onChange={(event) =>
+                              event.target.files?.[0] &&
+                              onPickRequirementFile(definition.id, event.target.files[0])
+                            }
+                            className="block w-full max-w-xs text-[11px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void uploadRequirement(definition.id)}
+                            disabled={
+                              !upload || uploadingDefinitionId === definition.id || status === 'verified'
+                            }
+                            className="rounded-lg bg-[#0a439b] px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                          >
+                            {uploadingDefinitionId === definition.id ? 'Uploading…' : 'Upload'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void refreshTrackedStatus()}
+                  disabled={tracking}
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  {tracking ? 'Checking…' : 'Refresh status'}
+                </button>
+                {trackedApplication && (
+                  <p className="text-[11px] text-slate-600">
+                    Status:{' '}
+                    <strong className="capitalize">
+                      {trackedApplication.status.replace(/_/g, ' ')}
+                    </strong>
+                    {trackedApplication.studentNumber
+                      ? ` · Student number: ${trackedApplication.studentNumber}`
+                      : ''}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2 flex justify-center gap-3">
                 <Link
                   href="/login"
                   className="rounded-xl bg-[#0a439b] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#083980]"
                 >
                   Return to Login
+                </Link>
+                <Link
+                  href="/account-entry"
+                  className="rounded-xl border border-[#bed1e0] px-5 py-2.5 text-xs font-semibold text-[#0a439b] hover:bg-[#eef6fc]"
+                >
+                  Returning or Alumni?
                 </Link>
               </div>
             </div>

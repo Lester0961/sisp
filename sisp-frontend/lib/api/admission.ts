@@ -38,13 +38,17 @@ export interface AdmissionApplication {
   };
   requirements?: Array<{
     id: string;
-    fileUrl: string;
     fileName: string;
+    fileSize?: number | null;
+    mimeType?: string | null;
     status: string;
+    reviewNotes?: string | null;
+    reviewedAt?: string | null;
     definition: {
       id: string;
       code: string;
       title: string;
+      isRequired?: boolean;
     };
   }>;
 }
@@ -79,8 +83,30 @@ export const admissionApi = {
     return response.data;
   },
 
-  submitRequirement: async (applicationNo: string, data: { email: string; definitionId: string; fileUrl: string; fileName: string; fileSize?: number; mimeType?: string }) => {
+  submitRequirement: async (
+    applicationNo: string,
+    data: {
+      email: string;
+      definitionId: string;
+      fileName: string;
+      mimeType: string;
+      contentBase64: string;
+    },
+  ) => {
     const response = await apiClient.post(`/admission/status/${applicationNo}/requirements`, data);
+    return response.data;
+  },
+
+  reviewRequirement: async (
+    applicationNo: string,
+    submissionId: string,
+    status: 'verified' | 'rejected' | 'resubmission_required',
+    reviewNotes?: string,
+  ) => {
+    const response = await apiClient.patch(
+      `/admission/applications/${applicationNo}/requirements/${submissionId}/review`,
+      { status, reviewNotes },
+    );
     return response.data;
   },
 

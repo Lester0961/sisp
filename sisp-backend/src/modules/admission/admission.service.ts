@@ -3,23 +3,37 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  PayloadTooLargeException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ObjectStorageService } from '../../common/storage/object-storage.service';
 import {
   CreateAdmissionApplicationDto,
   ReviewAdmissionApplicationDto,
+  ReviewAdmissionRequirementDto,
   SubmitRequirementDto,
 } from './dto/admission.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+
+const ALLOWED_REQUIREMENT_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
+const MAX_REQUIREMENT_BYTES = 5 * 1024 * 1024;
+const CLOSED_APPLICATION_STATUSES = ['approved', 'rejected', 'withdrawn'];
 
 @Injectable()
 export class AdmissionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly config: ConfigService,
+    private readonly storage: ObjectStorageService,
   ) {}
+
+  private bucket(): string {
+    return this.config.get<string>('ADMISSION_STORAGE_BUCKET')?.trim() || 'admission-requirements';
+  }
 
   async getRequirementDefinitions(applicantType?: string) {
     const definitions = await this.prisma.admissionRequirementDefinition.findMany({
@@ -45,50 +59,61 @@ export class AdmissionService {
       throw new NotFoundException(`Program with ID ${dto.programId} not found.`);
     }
 
-    // Generate Application Number: APP-2026-XXXX
-    const count = await this.prisma.admissionApplication.count();
-    const applicationNo = `APP-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
-
-    const application = await this.prisma.admissionApplication.create({
-      data: {
-        applicationNo,
-        applicantType: dto.applicantType,
-        status: 'submitted',
-        firstName: dto.firstName,
-        middleName: dto.middleName,
-        lastName: dto.lastName,
-        suffix: dto.suffix,
-        dob: new Date(dto.dob),
-        sex: dto.sex,
-        nationality: dto.nationality || 'Filipino',
-        email: dto.email,
-        mobile: dto.mobile,
-        addressLine: dto.addressLine,
-        city: dto.city,
-        province: dto.province,
-        postalCode: dto.postalCode,
-        guardianName: dto.guardianName,
-        guardianRelation: dto.guardianRelation,
-        guardianContact: dto.guardianContact,
-        emergencyName: dto.emergencyName,
-        emergencyRelation: dto.emergencyRelation,
-        emergencyContact: dto.emergencyContact,
-        lastSchoolName: dto.lastSchoolName,
-        lastSchoolType: dto.lastSchoolType,
-        yearGraduated: dto.yearGraduated,
-        previousProgram: dto.previousProgram,
-        strandTrack: dto.strandTrack,
-        programId: dto.programId,
-      },
-      include: {
-        program: true,
-        requirements: {
-          include: { definition: true },
-        },
-      },
+    const currentYear = new Date().getFullYear();
+    const buildData = (applicationNo: string) => ({
+      applicationNo,
+      applicantType: dto.applicantType,
+      status: 'submitted',
+      firstName: dto.firstName,
+      middleName: dto.middleName,
+      lastName: dto.lastName,
+      suffix: dto.suffix,
+      dob: new Date(`${dto.dob}T00:00:00.000Z`),
+      sex: dto.sex,
+      nationality: dto.nationality || 'Filipino',
+      email: dto.email,
+      mobile: dto.mobile,
+      addressLine: dto.addressLine,
+      city: dto.city,
+      province: dto.province,
+      postalCode: dto.postalCode,
+      guardianName: dto.guardianName,
+      guardianRelation: dto.guardianRelation,
+      guardianContact: dto.guardianContact,
+      emergencyName: dto.emergencyName,
+      emergencyRelation: dto.emergencyRelation,
+      emergencyContact: dto.emergencyContact,
+      lastSchoolName: dto.lastSchoolName,
+      lastSchoolType: dto.lastSchoolType,
+      yearGraduated: dto.yearGraduated,
+      previousProgram: dto.previousProgram,
+      strandTrack: dto.strandTrack,
+      programId: dto.programId,
     });
 
-    return application;
+    // The unique application number is the source of truth; retry on the rare
+    // concurrent-submission collision instead of trusting a count snapshot.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const count = await this.prisma.admissionApplication.count();
+      const applicationNo = `APP-${currentYear}-${String(count + 1 + attempt).padStart(4, '0')}`;
+      try {
+        return await this.prisma.admissionApplication.create({
+          data: buildData(applicationNo),
+          include: {
+            program: true,
+            requirements: {
+              include: { definition: true },
+            },
+          },
+        });
+      } catch (error: any) {
+        if (error?.code === 'P2002') continue;
+        throw error;
+      }
+    }
+    throw new ConflictException(
+      'Could not allocate an application number right now. Please submit again.',
+    );
   }
 
   /**
@@ -172,40 +197,96 @@ export class AdmissionService {
     if (!this.emailMatches(application.email, dto.email)) {
       throw new NotFoundException(`Application ${applicationNo} not found.`);
     }
+    if (CLOSED_APPLICATION_STATUSES.includes(application.status)) {
+      throw new BadRequestException('This application is closed and no longer accepts documents.');
+    }
 
     const definition = await this.prisma.admissionRequirementDefinition.findUnique({
       where: { id: dto.definitionId },
     });
-    if (!definition) {
+    if (!definition || !definition.isActive) {
       throw new NotFoundException(`Requirement definition ${dto.definitionId} not found.`);
     }
+    if (definition.applicantType && definition.applicantType !== application.applicantType) {
+      throw new BadRequestException('This requirement does not apply to the selected applicant type.');
+    }
+
+    const existing = await this.prisma.admissionRequirementSubmission.findUnique({
+      where: {
+        applicationId_definitionId: {
+          applicationId: application.id,
+          definitionId: definition.id,
+        },
+      },
+    });
+    // A verified document is final; only a fresh rejection/resubmission
+    // request may replace it, and never silently.
+    if (existing?.status === 'verified') {
+      throw new ConflictException('This requirement has already been verified by the Registrar.');
+    }
+
+    if (!ALLOWED_REQUIREMENT_MIME.includes(dto.mimeType)) {
+      throw new BadRequestException('Only PDF, JPEG, or PNG requirement documents are accepted');
+    }
+    const content = Buffer.from(dto.contentBase64, 'base64');
+    if (content.length === 0) {
+      throw new BadRequestException('The uploaded file is empty');
+    }
+    if (content.length > MAX_REQUIREMENT_BYTES) {
+      throw new PayloadTooLargeException('Requirement documents must be 5 MB or smaller');
+    }
+
+    const extension = (dto.fileName.split('.').pop() || 'bin').toLowerCase().replace(/[^.a-z0-9]/g, '');
+    const digest = createHash('sha256')
+      .update(`${application.id}:${definition.id}:${Date.now()}`)
+      .digest('hex')
+      .slice(0, 24);
+    const objectKey = `${application.id}/${definition.code.toLowerCase()}-${digest}.${extension}`;
+    await this.storage.save(this.bucket(), objectKey, content, dto.mimeType);
 
     const submission = await this.prisma.admissionRequirementSubmission.upsert({
       where: {
         applicationId_definitionId: {
           applicationId: application.id,
-          definitionId: dto.definitionId,
+          definitionId: definition.id,
         },
       },
       update: {
-        fileUrl: dto.fileUrl,
+        storageObjectKey: objectKey,
+        fileUrl: '',
         fileName: dto.fileName,
-        fileSize: dto.fileSize,
+        fileSize: content.length,
         mimeType: dto.mimeType,
         status: 'submitted',
+        reviewNotes: null,
+        reviewedAt: null,
+        reviewedByUserId: null,
       },
       create: {
         applicationId: application.id,
-        definitionId: dto.definitionId,
-        fileUrl: dto.fileUrl,
+        definitionId: definition.id,
+        storageObjectKey: objectKey,
+        fileUrl: '',
         fileName: dto.fileName,
-        fileSize: dto.fileSize,
+        fileSize: content.length,
         mimeType: dto.mimeType,
         status: 'submitted',
       },
     });
 
-    return submission;
+    await this.prisma.auditLog.create({
+      data: {
+        userId: null,
+        actorEmail: application.email,
+        action: 'ADMISSION_REQUIREMENT_SUBMITTED',
+        resource: 'admission_requirements',
+        resourceId: submission.id,
+        oldValue: existing?.status ?? null,
+        newValue: 'submitted',
+      },
+    });
+
+    return this.safeSubmission(submission);
   }
 
   async listApplications(status?: string, programId?: string, applicantType?: string) {
@@ -226,6 +307,47 @@ export class AdmissionService {
     });
   }
 
+  async reviewRequirement(
+    applicationNo: string,
+    submissionId: string,
+    reviewerId: string,
+    dto: ReviewAdmissionRequirementDto,
+  ) {
+    const application = await this.getApplicationByNo(applicationNo);
+    const submission = await this.prisma.admissionRequirementSubmission.findFirst({
+      where: { id: submissionId, applicationId: application.id },
+    });
+    if (!submission) {
+      throw new NotFoundException('Requirement submission not found.');
+    }
+    if (submission.status === dto.status) {
+      return this.safeSubmission(submission);
+    }
+
+    const updated = await this.prisma.admissionRequirementSubmission.update({
+      where: { id: submission.id },
+      data: {
+        status: dto.status,
+        reviewNotes: dto.reviewNotes ?? submission.reviewNotes,
+        reviewedByUserId: reviewerId,
+        reviewedAt: new Date(),
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: reviewerId,
+        action: `ADMISSION_REQUIREMENT_${dto.status.toUpperCase()}`,
+        resource: 'admission_requirements',
+        resourceId: submission.id,
+        oldValue: submission.status,
+        newValue: dto.status,
+      },
+    });
+
+    return this.safeSubmission(updated);
+  }
+
   async reviewApplication(
     applicationNo: string,
     reviewerId: string,
@@ -233,21 +355,28 @@ export class AdmissionService {
   ) {
     const application = await this.getApplicationByNo(applicationNo);
 
-    if (application.status === 'approved') {
-      throw new ConflictException(`Application ${applicationNo} is already approved.`);
+    if (CLOSED_APPLICATION_STATUSES.includes(application.status)) {
+      throw new ConflictException(`Application ${applicationNo} is already ${application.status}.`);
     }
 
-    // If approved, perform atomic conversion into User + StudentProfile + Curriculum assignment
+    // If approved, perform atomic conversion into User + StudentProfile.
     if (dto.status === 'approved') {
-      return this.approveApplicationAndCreateStudent(application, reviewerId, dto.curriculumId);
+      const missing = await this.missingRequiredRequirements(application);
+      if (missing.length > 0) {
+        throw new BadRequestException(
+          `Cannot approve until these required requirements are verified: ${missing
+            .map((requirement) => requirement.code)
+            .join(', ')}`,
+        );
+      }
+      return this.approveApplicationAndCreateStudent(application, reviewerId, dto);
     }
 
-    // Otherwise, update status and review notes
-    return this.prisma.admissionApplication.update({
+    const updated = await this.prisma.admissionApplication.update({
       where: { id: application.id },
       data: {
         status: dto.status,
-        reviewNotes: dto.reviewNotes,
+        reviewNotes: dto.reviewNotes ?? application.reviewNotes,
         reviewedById: reviewerId,
         reviewedAt: new Date(),
       },
@@ -256,12 +385,47 @@ export class AdmissionService {
         requirements: { include: { definition: true } },
       },
     });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: reviewerId,
+        action: 'ADMISSION_APPLICATION_REVIEW',
+        resource: 'admission_applications',
+        resourceId: application.id,
+        oldValue: application.status,
+        newValue: dto.status,
+      },
+    });
+
+    return updated;
+  }
+
+  private async missingRequiredRequirements(application: {
+    id: string;
+    applicantType: string;
+  }): Promise<Array<{ id: string; code: string }>> {
+    const definitions = await this.prisma.admissionRequirementDefinition.findMany({
+      where: {
+        isActive: true,
+        isRequired: true,
+        OR: [{ applicantType: null }, { applicantType: application.applicantType }],
+      },
+      select: { id: true, code: true },
+    });
+    if (definitions.length === 0) return [];
+
+    const verified = await this.prisma.admissionRequirementSubmission.findMany({
+      where: { applicationId: application.id, status: 'verified' },
+      select: { definitionId: true },
+    });
+    const verifiedIds = new Set(verified.map((submission) => submission.definitionId));
+    return definitions.filter((definition) => !verifiedIds.has(definition.id));
   }
 
   private async approveApplicationAndCreateStudent(
     application: any,
     reviewerId: string,
-    customCurriculumId?: string,
+    dto: ReviewAdmissionApplicationDto,
   ) {
     // 1. Resolve student role
     const studentRole = await this.prisma.role.findUnique({
@@ -270,7 +434,7 @@ export class AdmissionService {
     const roleId = studentRole?.id ?? 'role-id-student';
 
     // 2. Resolve Curriculum version for the program
-    let curriculumId = customCurriculumId;
+    let curriculumId = dto.curriculumId;
     if (!curriculumId) {
       const defaultCurriculum = await this.prisma.curriculum.findFirst({
         where: { programId: application.programId },
@@ -279,22 +443,22 @@ export class AdmissionService {
       curriculumId = defaultCurriculum?.id;
     }
 
-    // 3. Generate Student Number: YYYY-XXXX
-    const currentYear = new Date().getFullYear();
-    const studentCount = await this.prisma.studentProfile.count();
-    const studentNumber = `${currentYear}-${String(studentCount + 1001).padStart(4, '0')}`;
-
     // Pre-activation placeholder credential: cryptographically random and
     // never disclosed to anyone. The applicant sets their own password
     // through /api/students/activate, which verifies identity against this
     // admission record. No public or hard-coded default password is used.
     const preActivationPassword = randomBytes(32).toString('hex');
     const passwordHash = await bcrypt.hash(preActivationPassword, 12);
+    const currentYear = new Date().getFullYear();
 
-    // Create User & StudentProfile in transaction
+    // Create or LINK the account atomically. A person with an existing
+    // StudentProfile is never duplicated: the existing record is reactivated
+    // as `returning` and reused for the application.
     const result = await this.prisma.$transaction(async (tx) => {
-      // Create User account if email doesn't already exist
-      let user = await tx.user.findUnique({ where: { email: application.email } });
+      let user = await tx.user.findUnique({
+        where: { email: application.email },
+        include: { studentProfile: true },
+      });
       if (!user) {
         user = await tx.user.create({
           data: {
@@ -305,39 +469,52 @@ export class AdmissionService {
             roleId,
             mustChangePassword: true,
           },
+          include: { studentProfile: true },
         });
       }
 
-      // Create StudentProfile
-      const studentProfile = await tx.studentProfile.create({
-        data: {
-          userId: user.id,
-          studentNumber,
-          programId: application.programId,
-          curriculumId,
-          yearLevel: 1,
-        },
-        include: {
-          user: true,
-          program: true,
-          curriculum: true,
-        },
-      });
+      let linkedExistingProfile = Boolean(user.studentProfile);
+      let studentProfile = user.studentProfile ?? null;
 
-      // Initialize AccountBalance = 0.00
-      await tx.accountBalance.create({
-        data: {
-          studentId: studentProfile.id,
-          balance: 0.0,
-          status: 'active',
-        },
-      });
+      if (studentProfile) {
+        studentProfile = await tx.studentProfile.update({
+          where: { id: studentProfile.id },
+          data: {
+            programId: application.programId,
+            ...(curriculumId ? { curriculumId } : {}),
+            lifecycleStatus: 'returning',
+          },
+          include: { user: true, program: true, curriculum: true },
+        });
+        await tx.accountBalance.upsert({
+          where: { studentId: studentProfile.id },
+          update: {},
+          create: { studentId: studentProfile.id, balance: 0.0, status: 'active' },
+        });
+      } else {
+        const studentNumber = await this.allocateStudentNumber(tx, currentYear);
+        studentProfile = await tx.studentProfile.create({
+          data: {
+            userId: user.id,
+            studentNumber,
+            programId: application.programId,
+            curriculumId,
+            yearLevel: 1,
+            lifecycleStatus: 'active',
+          },
+          include: { user: true, program: true, curriculum: true },
+        });
+        await tx.accountBalance.create({
+          data: { studentId: studentProfile.id, balance: 0.0, status: 'active' },
+        });
+        linkedExistingProfile = false;
+      }
 
-      // Update AdmissionApplication status
       const updatedApp = await tx.admissionApplication.update({
         where: { id: application.id },
         data: {
           status: 'approved',
+          reviewNotes: dto.reviewNotes ?? application.reviewNotes,
           createdStudentId: studentProfile.id,
           reviewedById: reviewerId,
           reviewedAt: new Date(),
@@ -351,28 +528,81 @@ export class AdmissionService {
               curriculumId: true,
               yearLevel: true,
               programId: true,
+              lifecycleStatus: true,
             },
           },
         },
       });
 
-      return updatedApp;
+      await tx.auditLog.create({
+        data: {
+          userId: reviewerId,
+          action: 'ADMISSION_APPLICATION_APPROVED',
+          resource: 'admission_applications',
+          resourceId: application.id,
+          oldValue: application.status,
+          newValue: JSON.stringify({
+            status: 'approved',
+            createdStudentId: studentProfile.id,
+            linkedExistingProfile,
+          }),
+        },
+      });
+
+      return { updatedApp, studentProfile, linkedExistingProfile };
     });
 
-    const studentUser = result.createdStudentId
-      ? await this.prisma.studentProfile.findUnique({
-          where: { id: result.createdStudentId },
-          select: { userId: true },
-        })
-      : null;
-    if (studentUser?.userId) {
-      await this.notificationsService.sendToUser(
-        studentUser.userId,
+    await this.notificationsService
+      .sendToUser(
+        result.studentProfile.userId,
         'Admission Approved',
         'Your admission application has been approved. Activate your account to access SISP.',
-      );
-    }
+      )
+      .catch(() => undefined);
 
-    return result;
+    return {
+      ...result.updatedApp,
+      linkedExistingProfile: result.linkedExistingProfile,
+      curriculumId: result.studentProfile.curriculumId ?? null,
+      yearLevel: result.studentProfile.yearLevel,
+    };
+  }
+
+  private async allocateStudentNumber(tx: any, currentYear: number): Promise<string> {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const count = await tx.studentProfile.count();
+      const candidate = `${currentYear}-${String(1001 + count + attempt).padStart(4, '0')}`;
+      const clash = await tx.studentProfile.findUnique({
+        where: { studentNumber: candidate },
+        select: { id: true },
+      });
+      if (!clash) return candidate;
+    }
+    throw new ConflictException('Could not allocate a student number. Please retry.');
+  }
+
+  /** Public/staff responses never include private object keys or URLs. */
+  private safeSubmission(submission: {
+    id: string;
+    definitionId: string;
+    fileName: string;
+    fileSize: number | null;
+    mimeType: string | null;
+    status: string;
+    reviewNotes: string | null;
+    reviewedAt?: Date | null;
+    updatedAt?: Date;
+  }) {
+    return {
+      id: submission.id,
+      definitionId: submission.definitionId,
+      fileName: submission.fileName,
+      fileSize: submission.fileSize,
+      mimeType: submission.mimeType,
+      status: submission.status,
+      reviewNotes: submission.reviewNotes,
+      reviewedAt: submission.reviewedAt ?? null,
+      updatedAt: submission.updatedAt,
+    };
   }
 }

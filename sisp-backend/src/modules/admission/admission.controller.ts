@@ -8,10 +8,12 @@ import {
   Query,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AdmissionService } from './admission.service';
 import {
   CreateAdmissionApplicationDto,
   ReviewAdmissionApplicationDto,
+  ReviewAdmissionRequirementDto,
   SubmitRequirementDto,
 } from './dto/admission.dto';
 import { Public } from '../../common/decorators/public.decorator';
@@ -30,8 +32,9 @@ export class AdmissionController {
     return this.admissionService.getRequirementDefinitions(applicantType);
   }
 
-  // Public: Submit a new admission application
+  // Public: Submit a new admission application (rate-limited against spam)
   @Public()
+  @Throttle({ default: { ttl: 15 * 60_000, limit: 5 } })
   @Post('apply')
   async createApplication(@Body() dto: CreateAdmissionApplicationDto) {
     return this.admissionService.createApplication(dto);
@@ -54,8 +57,9 @@ export class AdmissionController {
     return this.admissionService.getPublicApplicationStatus(applicationNo, email);
   }
 
-  // Public/Applicant: Submit required document for an application
+  // Public/Applicant: Submit a secure requirement upload (base64, 5 MB cap)
   @Public()
+  @Throttle({ default: { ttl: 15 * 60_000, limit: 20 } })
   @Post('status/:applicationNo/requirements')
   async submitRequirement(
     @Param('applicationNo') applicationNo: string,
@@ -84,5 +88,22 @@ export class AdmissionController {
     @Body() dto: ReviewAdmissionApplicationDto,
   ) {
     return this.admissionService.reviewApplication(applicationNo, user.sub, dto);
+  }
+
+  // Admin / Admission Staff: Verify or reject an uploaded requirement
+  @Patch('applications/:applicationNo/requirements/:submissionId/review')
+  @Roles('registrar', 'sys_admin', 'dean')
+  async reviewRequirement(
+    @CurrentUser() user: JwtPayload,
+    @Param('applicationNo') applicationNo: string,
+    @Param('submissionId') submissionId: string,
+    @Body() dto: ReviewAdmissionRequirementDto,
+  ) {
+    return this.admissionService.reviewRequirement(
+      applicationNo,
+      submissionId,
+      user.sub,
+      dto,
+    );
   }
 }
