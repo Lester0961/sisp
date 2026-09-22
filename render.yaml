@@ -24,6 +24,8 @@ services:
         sync: false # Keep the previous Vercel alias during migration
       - key: MFA_ENABLED
         value: "true"
+      - key: MFA_REQUIRED_ROLES
+        value: sys_admin,dean,registrar,treasury
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SENDER_EMAIL

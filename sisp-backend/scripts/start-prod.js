@@ -28,9 +28,18 @@ function fail(message) {
 }
 
 function validateEnv() {
+  if (!process.env.NODE_ENV) {
+    process.env.NODE_ENV = 'production';
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    fail('start:prod requires NODE_ENV=production (mock/demo fallbacks are disabled in production).');
+  }
   const missing = REQUIRED_ENV.filter((key) => !process.env[key] || !process.env[key].trim());
   if (missing.length > 0) {
     fail(`Missing required environment variable(s): ${missing.join(', ')}`);
+  }
+  if (process.env.JWT_SECRET.trim() === process.env.JWT_REFRESH_SECRET.trim()) {
+    fail('JWT_SECRET and JWT_REFRESH_SECRET must be different values.');
   }
 }
 

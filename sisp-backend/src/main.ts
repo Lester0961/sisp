@@ -35,22 +35,22 @@ async function bootstrap() {
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
   const isProd = process.env.NODE_ENV === 'production';
+  if (isProd && configuredOrigins.length === 0) {
+    throw new Error(
+      'FRONTEND_URL (or ADDITIONAL_CORS_ORIGINS) must be configured in production CORS.',
+    );
+  }
 
+  // Production trusts only explicitly configured origins; development keeps
+  // local helpers. No deployment aliases are hardcoded here.
   const allowedOrigins = isProd
-    ? [
-        ...configuredOrigins,
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'https://sisp-rmc.vercel.app', // Hardcoded fallback for production Vercel deployment
-      ]
+    ? configuredOrigins
     : [
         ...configuredOrigins,
         'http://localhost:3000',
         'http://localhost:3001',
         'http://localhost:3002',
         'http://localhost:3014',
-        'https://sisp-theta.vercel.app',
-        'https://sisp-rmc.vercel.app',
       ];
 
   app.enableCors({
