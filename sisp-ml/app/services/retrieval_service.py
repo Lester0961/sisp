@@ -55,9 +55,13 @@ class RetrievalService:
         self.is_loaded = False
         self.model_load_attempted = False
         # Load the small local index synchronously, but defer the heavyweight
-        # embedding import/model download until after the API binds.
+        # embedding import/model download until after the API binds. When
+        # pgvector is mandatory (production), load eagerly so readiness is
+        # accurate and the first student question has no cold-start latency.
         self.load_local_index()
         self.load_text_documents()
+        if settings.require_pgvector:
+            self.load_model()
 
     def load_model(self):
         """Load the embedding model: sentence-transformers when available,
@@ -84,6 +88,7 @@ class RetrievalService:
 
         try:
             self._embed_text_documents()
+            self.is_loaded = True
             print("[RETRIEVAL] Embedding model loaded successfully!")
         except Exception as e:
             print(f"[RETRIEVAL] [ERROR] Failed to embed local documents: {e}")
