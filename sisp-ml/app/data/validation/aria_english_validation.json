@@ -1,0 +1,2736 @@
+{
+  "schema_version": 1,
+  "dataset": "ARIA English intent-classification holdout",
+  "language": "en",
+  "split": "validation",
+  "source": {
+    "member": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+    "sha256": "30513f1589d5b3f9506db1fe6b6982f4d9c1418bdef53048083b14891404275e"
+  },
+  "row_count": 300,
+  "declared_row_count": 300,
+  "intent_counts": {
+    "enrollment_inquiry": 50,
+    "grade_inquiry": 50,
+    "payment_inquiry": 50,
+    "document_request": 50,
+    "general_inquiry": 50,
+    "curriculum_inquiry": 50
+  },
+  "validation": {
+    "row_count": 300,
+    "intent_counts": {
+      "enrollment_inquiry": 50,
+      "grade_inquiry": 50,
+      "payment_inquiry": 50,
+      "document_request": 50,
+      "general_inquiry": 50,
+      "curriculum_inquiry": 50
+    },
+    "unique_row_ids": true,
+    "unique_normalized_texts": 300,
+    "normalized_training_overlap": 0
+  },
+  "records": [
+    {
+      "id": "VAL-ENROLLMENT-EN-001",
+      "text": "Can you tell me what I need to do to complete class registration?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "procedure",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-002",
+      "text": "Can you tell me the proper way to register my subjects for this term?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "procedure",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-003",
+      "text": "Can you tell me how students complete enrollment on my student account?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "procedure",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-004",
+      "text": "Can you tell me when class registration becomes available through the portal?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "opening",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-005",
+      "text": "Can you tell me whether enrollment has started already before I proceed?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "opening",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-006",
+      "text": "Can you tell me the date students can begin registering?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "opening",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-007",
+      "text": "Can you tell me the final day I can submit my registration for this term?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-008",
+      "text": "Can you tell me when the enrollment period closes on my student account?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-009",
+      "text": "Can you tell me the cut-off date for class registration through the portal?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-010",
+      "text": "Can you tell me whether I can still register after missing the normal period before I proceed?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "late",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-011",
+      "text": "Can you tell me what happens if I need to enroll after classes begin?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "late",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-012",
+      "text": "Can you tell me whether late registration is still possible for this term?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "late",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-013",
+      "text": "Can you tell me how to put one more class into my registered load on my student account?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "add",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-014",
+      "text": "Can you tell me whether I can add another subject after registering through the portal?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "add",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-015",
+      "text": "Can you tell me where to add a missing class to my enrollment before I proceed?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "add",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-016",
+      "text": "Can you tell me how to remove one registered subject?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "drop",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-017",
+      "text": "Can you tell me whether I can take a class off my current registration for this term?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "drop",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-018",
+      "text": "Can you tell me how to drop a course I already selected on my student account?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "drop",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-019",
+      "text": "Can you tell me how to revise the set of classes I registered through the portal?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "change_load",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-020",
+      "text": "Can you tell me whether I can swap one registered subject for another before I proceed?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "change_load",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-021",
+      "text": "Can you tell me how to edit my current course load?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "change_load",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-022",
+      "text": "Can you tell me whether my registration was successfully completed for this term?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-023",
+      "text": "Can you tell me how to verify that I am officially enrolled on my student account?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-024",
+      "text": "Can you tell me where my current enrollment status is shown through the portal?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-025",
+      "text": "Can you tell me where the registration form can be found before I proceed?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "form",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-026",
+      "text": "Can you tell me how to access the form used for enrollment?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "form",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-027",
+      "text": "Can you tell me what to do when class registration will not submit for this term?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "error",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-028",
+      "text": "Can you tell me why the enrollment page keeps rejecting my registration on my student account?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "error",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-029",
+      "text": "Can you tell me what must be prepared before I can register through the portal?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "requirements",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-030",
+      "text": "Can you tell me which requirements are needed before enrollment before I proceed?",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "requirements",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-031",
+      "text": "I need to know what I need to do to complete class registration for this term.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "procedure",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-032",
+      "text": "I need to know the proper way to register my subjects on my student account.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "procedure",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-033",
+      "text": "I need to know how students complete enrollment through the portal.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "procedure",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-034",
+      "text": "I need to know when class registration becomes available before I proceed.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "opening",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-035",
+      "text": "I need to know whether enrollment has started already.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "opening",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-036",
+      "text": "I need to know the date students can begin registering for this term.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "opening",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-037",
+      "text": "I need to know the final day I can submit my registration on my student account.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-038",
+      "text": "I need to know when the enrollment period closes through the portal.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-039",
+      "text": "I need to know the cut-off date for class registration before I proceed.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-040",
+      "text": "I need to know whether I can still register after missing the normal period.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "late",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-041",
+      "text": "I need to know what happens if I need to enroll after classes begin for this term.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "late",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-042",
+      "text": "I need to know whether late registration is still possible on my student account.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "late",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-043",
+      "text": "I need to know how to put one more class into my registered load through the portal.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "add",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-044",
+      "text": "I need to know whether I can add another subject after registering before I proceed.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "add",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-045",
+      "text": "I need to know where to add a missing class to my enrollment.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "add",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-046",
+      "text": "I need to know how to remove one registered subject for this term.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "drop",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-047",
+      "text": "I need to know whether I can take a class off my current registration on my student account.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "drop",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-048",
+      "text": "I need to know how to drop a course I already selected through the portal.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "drop",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-049",
+      "text": "I need to know how to revise the set of classes I registered before I proceed.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "change_load",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-ENROLLMENT-EN-050",
+      "text": "I need to know whether I can swap one registered subject for another.",
+      "intent": "enrollment_inquiry",
+      "language": "en",
+      "scenario": "change_load",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-001",
+      "text": "Can you tell me where the results for my subjects are displayed?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "view",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-002",
+      "text": "Can you tell me how to review the grades recorded in my classes for this term?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "view",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-003",
+      "text": "Can you tell me which page shows my academic marks on my student account?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "view",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-004",
+      "text": "Can you tell me why one of my subject results is blank through the portal?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "missing",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-005",
+      "text": "Can you tell me what to do when a grade is missing from my record before I proceed?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "missing",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-006",
+      "text": "Can you tell me why a class has no recorded mark?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "missing",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-007",
+      "text": "Can you tell me whether the latest grades have been released for this term?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "release",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-008",
+      "text": "Can you tell me when newly posted class results should appear on my student account?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "release",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-009",
+      "text": "Can you tell me whether my academic results are available already through the portal?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "release",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-010",
+      "text": "Can you tell me where my preliminary grade is shown before I proceed?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "prelim",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-011",
+      "text": "Can you tell me whether my prelim result has been entered?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "prelim",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-012",
+      "text": "Can you tell me where I can see my midterm result for this term?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "midterm",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-013",
+      "text": "Can you tell me whether my midterm mark is available on my student account?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "midterm",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-014",
+      "text": "Can you tell me whether my final grade has been recorded through the portal?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "final",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-015",
+      "text": "Can you tell me where my end-of-term result appears before I proceed?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "final",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-016",
+      "text": "Can you tell me the grade recorded for Database Management System 2?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "specific",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-017",
+      "text": "Can you tell me whether my result in Data Communication and Networking 2 has been posted for this term?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "specific",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-018",
+      "text": "Can you tell me where to check my mark in Automata Theory and Formal Language on my student account?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "specific",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-019",
+      "text": "Can you tell me how the weighted average on my account was calculated through the portal?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "gwa",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-020",
+      "text": "Can you tell me where to see my current overall average before I proceed?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "gwa",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-021",
+      "text": "Can you tell me what is used to compute my GWA?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "gwa",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-022",
+      "text": "Can you tell me what to do if a recorded grade appears incorrect for this term?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "change",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-023",
+      "text": "Can you tell me how to ask for a grade correction on my student account?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "change",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-024",
+      "text": "Can you tell me whether my instructor has submitted the class grade through the portal?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "posting",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-025",
+      "text": "Can you tell me how to know if my professor encoded my result before I proceed?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "posting",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-026",
+      "text": "Can you tell me why access to my grades is restricted?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "locked",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-027",
+      "text": "Can you tell me what it means when my results are unavailable for this term?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "locked",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-028",
+      "text": "Can you tell me why the grade page does not load on my student account?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "portal",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-029",
+      "text": "Can you tell me what to do if the portal shows no academic results through the portal?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "portal",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-030",
+      "text": "Can you tell me why my previously visible grades disappeared before I proceed?",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "portal",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-031",
+      "text": "I need to know where the results for my subjects are displayed for this term.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "view",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-032",
+      "text": "I need to know how to review the grades recorded in my classes on my student account.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "view",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-033",
+      "text": "I need to know which page shows my academic marks through the portal.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "view",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-034",
+      "text": "I need to know why one of my subject results is blank before I proceed.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "missing",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-035",
+      "text": "I need to know what to do when a grade is missing from my record.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "missing",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-036",
+      "text": "I need to know why a class has no recorded mark for this term.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "missing",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-037",
+      "text": "I need to know whether the latest grades have been released on my student account.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "release",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-038",
+      "text": "I need to know when newly posted class results should appear through the portal.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "release",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-039",
+      "text": "I need to know whether my academic results are available already before I proceed.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "release",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-040",
+      "text": "I need to know where my preliminary grade is shown.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "prelim",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-041",
+      "text": "I need to know whether my prelim result has been entered for this term.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "prelim",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-042",
+      "text": "I need to know where I can see my midterm result on my student account.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "midterm",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-043",
+      "text": "I need to know whether my midterm mark is available through the portal.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "midterm",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-044",
+      "text": "I need to know whether my final grade has been recorded before I proceed.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "final",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-045",
+      "text": "I need to know where my end-of-term result appears.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "final",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-046",
+      "text": "I need to know the grade recorded for Database Management System 2 for this term.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "specific",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-047",
+      "text": "I need to know whether my result in Data Communication and Networking 2 has been posted on my student account.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "specific",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-048",
+      "text": "I need to know where to check my mark in Automata Theory and Formal Language through the portal.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "specific",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-049",
+      "text": "I need to know how the weighted average on my account was calculated before I proceed.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "gwa",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GRADE-EN-050",
+      "text": "I need to know where to see my current overall average.",
+      "intent": "grade_inquiry",
+      "language": "en",
+      "scenario": "gwa",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-001",
+      "text": "Can you tell me the tuition amount charged for my current term?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "tuition",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-002",
+      "text": "Can you tell me where my tuition total is shown for this term?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "tuition",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-003",
+      "text": "Can you tell me how much tuition I need to settle on my student account?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "tuition",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-004",
+      "text": "Can you tell me how much remains unpaid on my school account through the portal?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "balance",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-005",
+      "text": "Can you tell me whether I still owe the college anything before I proceed?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "balance",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-006",
+      "text": "Can you tell me where my outstanding balance is displayed?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "balance",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-007",
+      "text": "Can you tell me the due date for my tuition payment for this term?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-008",
+      "text": "Can you tell me the final date I can settle my school charges on my student account?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-009",
+      "text": "Can you tell me when payment for the term must be completed through the portal?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-010",
+      "text": "Can you tell me which payment methods the school accepts before I proceed?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "methods",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-011",
+      "text": "Can you tell me whether school fees can be paid online?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "methods",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-012",
+      "text": "Can you tell me what options I have for paying tuition for this term?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "methods",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-013",
+      "text": "Can you tell me where I should go to settle my school account on my student account?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "where_pay",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-014",
+      "text": "Can you tell me how to complete a tuition payment through the portal?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "where_pay",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-015",
+      "text": "Can you tell me which portal section is used for payment before I proceed?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "where_pay",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-016",
+      "text": "Can you tell me whether I can divide tuition into several payments?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "installment",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-017",
+      "text": "Can you tell me how partial tuition payments work for this term?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "installment",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-018",
+      "text": "Can you tell me where to check my installment arrangement on my student account?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "installment",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-019",
+      "text": "Can you tell me whether my recent payment was received through the portal?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "confirmation",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-020",
+      "text": "Can you tell me how to verify that a payment was recorded before I proceed?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "confirmation",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-021",
+      "text": "Can you tell me where to confirm that my tuition payment went through?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "confirmation",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-022",
+      "text": "Can you tell me why my account still says unpaid after I paid for this term?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "not_reflected",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-023",
+      "text": "Can you tell me what to do when a payment has not appeared on my account on my student account?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "not_reflected",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-024",
+      "text": "Can you tell me why my balance did not update after payment through the portal?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "not_reflected",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-025",
+      "text": "Can you tell me where to upload my payment receipt before I proceed?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "proof",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-026",
+      "text": "Can you tell me how to submit evidence of my tuition transfer?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "proof",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-027",
+      "text": "Can you tell me where previous payments on my account are listed for this term?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "history",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-028",
+      "text": "Can you tell me how to review my past school transactions on my student account?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "history",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-029",
+      "text": "Can you tell me whether an extra charge applies to late payment through the portal?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "penalty",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-030",
+      "text": "Can you tell me what happens if I pay after the deadline before I proceed?",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "penalty",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-031",
+      "text": "I need to know the tuition amount charged for my current term for this term.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "tuition",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-032",
+      "text": "I need to know where my tuition total is shown on my student account.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "tuition",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-033",
+      "text": "I need to know how much tuition I need to settle through the portal.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "tuition",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-034",
+      "text": "I need to know how much remains unpaid on my school account before I proceed.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "balance",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-035",
+      "text": "I need to know whether I still owe the college anything.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "balance",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-036",
+      "text": "I need to know where my outstanding balance is displayed for this term.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "balance",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-037",
+      "text": "I need to know the due date for my tuition payment on my student account.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-038",
+      "text": "I need to know the final date I can settle my school charges through the portal.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-039",
+      "text": "I need to know when payment for the term must be completed before I proceed.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "deadline",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-040",
+      "text": "I need to know which payment methods the school accepts.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "methods",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-041",
+      "text": "I need to know whether school fees can be paid online for this term.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "methods",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-042",
+      "text": "I need to know what options I have for paying tuition on my student account.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "methods",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-043",
+      "text": "I need to know where I should go to settle my school account through the portal.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "where_pay",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-044",
+      "text": "I need to know how to complete a tuition payment before I proceed.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "where_pay",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-045",
+      "text": "I need to know which portal section is used for payment.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "where_pay",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-046",
+      "text": "I need to know whether I can divide tuition into several payments for this term.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "installment",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-047",
+      "text": "I need to know how partial tuition payments work on my student account.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "installment",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-048",
+      "text": "I need to know where to check my installment arrangement through the portal.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "installment",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-049",
+      "text": "I need to know whether my recent payment was received before I proceed.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "confirmation",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-PAYMENT-EN-050",
+      "text": "I need to know how to verify that a payment was recorded.",
+      "intent": "payment_inquiry",
+      "language": "en",
+      "scenario": "confirmation",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-001",
+      "text": "Can you tell me how to obtain an official Transcript of Records?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "tor",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-002",
+      "text": "Can you tell me where an official TOR request is filed for this term?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "tor",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-003",
+      "text": "Can you tell me what to do to request my transcript on my student account?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "tor",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-004",
+      "text": "Can you tell me how to obtain a Certificate of Enrollment through the portal?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "coe",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-005",
+      "text": "Can you tell me where I can request an official COE before I proceed?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "coe",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-006",
+      "text": "Can you tell me how to get a school-issued enrollment certificate?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "coe",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-007",
+      "text": "Can you tell me where to request a Certificate of Good Moral for this term?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "good_moral",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-008",
+      "text": "Can you tell me how to obtain my Good Moral certificate on my student account?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "good_moral",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-009",
+      "text": "Can you tell me how to get an official copy of my grades through the portal?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "copy_grades",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-010",
+      "text": "Can you tell me where to request a certified grade copy before I proceed?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "copy_grades",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-011",
+      "text": "Can you tell me how to obtain another formal copy of my grades?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "copy_grades",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-012",
+      "text": "Can you tell me the request charge for a TOR for this term?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "fee",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-013",
+      "text": "Can you tell me how much a Certificate of Enrollment request costs on my student account?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "fee",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-014",
+      "text": "Can you tell me whether there is a fee for a Certificate of Good Moral through the portal?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "fee",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-015",
+      "text": "Can you tell me how to track my TOR request before I proceed?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-016",
+      "text": "Can you tell me whether my Certificate of Enrollment request is still pending?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-017",
+      "text": "Can you tell me where the status of an official document request is shown for this term?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-018",
+      "text": "Can you tell me whether my TOR is ready to claim on my student account?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "ready",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-019",
+      "text": "Can you tell me how to tell if my Certificate of Good Moral is ready for pickup through the portal?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "ready",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-020",
+      "text": "Can you tell me whether the registrar has finished preparing my document before I proceed?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "ready",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-021",
+      "text": "Can you tell me which office handles requests for the TOR?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "where_request",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-022",
+      "text": "Can you tell me where to file a request for the Certificate of Good Moral for this term?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "where_request",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-023",
+      "text": "Can you tell me whether the TOR can be requested online on my student account?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "online",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-024",
+      "text": "Can you tell me whether there is a portal request for the Certificate of Enrollment through the portal?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "online",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-025",
+      "text": "Can you tell me how to request an additional Certificate of Good Moral before I proceed?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "extra_copy",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-026",
+      "text": "Can you tell me whether another official copy can be issued?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "extra_copy",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-027",
+      "text": "Can you tell me which official document proves that I am enrolled for this term?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "proof_enrollment",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-028",
+      "text": "Can you tell me how to get formal proof of my current enrollment on my student account?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "proof_enrollment",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-029",
+      "text": "Can you tell me how to request an official student record from the registrar through the portal?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "other",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-030",
+      "text": "Can you tell me where to obtain a registrar-issued school document before I proceed?",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "other",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-031",
+      "text": "I need to know how to obtain an official Transcript of Records for this term.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "tor",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-032",
+      "text": "I need to know where an official TOR request is filed on my student account.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "tor",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-033",
+      "text": "I need to know what to do to request my transcript through the portal.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "tor",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-034",
+      "text": "I need to know how to obtain a Certificate of Enrollment before I proceed.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "coe",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-035",
+      "text": "I need to know where I can request an official COE.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "coe",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-036",
+      "text": "I need to know how to get a school-issued enrollment certificate for this term.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "coe",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-037",
+      "text": "I need to know where to request a Certificate of Good Moral on my student account.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "good_moral",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-038",
+      "text": "I need to know how to obtain my Good Moral certificate through the portal.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "good_moral",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-039",
+      "text": "I need to know how to get an official copy of my grades before I proceed.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "copy_grades",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-040",
+      "text": "I need to know where to request a certified grade copy.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "copy_grades",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-041",
+      "text": "I need to know how to obtain another formal copy of my grades for this term.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "copy_grades",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-042",
+      "text": "I need to know the request charge for a TOR on my student account.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "fee",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-043",
+      "text": "I need to know how much a Certificate of Enrollment request costs through the portal.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "fee",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-044",
+      "text": "I need to know whether there is a fee for a Certificate of Good Moral before I proceed.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "fee",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-045",
+      "text": "I need to know how to track my TOR request.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-046",
+      "text": "I need to know whether my Certificate of Enrollment request is still pending for this term.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-047",
+      "text": "I need to know where the status of an official document request is shown on my student account.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "status",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-048",
+      "text": "I need to know whether my TOR is ready to claim through the portal.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "ready",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-049",
+      "text": "I need to know how to tell if my Certificate of Good Moral is ready for pickup before I proceed.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "ready",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-DOCUMENT-EN-050",
+      "text": "I need to know whether the registrar has finished preparing my document.",
+      "intent": "document_request",
+      "language": "en",
+      "scenario": "ready",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-001",
+      "text": "Can you tell me how to contact the college for a general concern?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "school_contact",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-002",
+      "text": "Can you tell me where the school's main contact information is listed for this term?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "school_contact",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-003",
+      "text": "Can you tell me what phone or contact details the college provides on my student account?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "school_contact",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-004",
+      "text": "Can you tell me where the Registrar's Office is located through the portal?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "registrar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-005",
+      "text": "Can you tell me how to contact the registrar before I proceed?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "registrar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-006",
+      "text": "Can you tell me where to find the registrar on campus?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "registrar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-007",
+      "text": "Can you tell me how to reach Student Services for this term?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "student_services",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-008",
+      "text": "Can you tell me where the Student Services office is on my student account?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "student_services",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-009",
+      "text": "Can you tell me who to contact for Student Services help through the portal?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "student_services",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-010",
+      "text": "Can you tell me when school offices are open before I proceed?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "hours",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-011",
+      "text": "Can you tell me what time students can visit administrative offices?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "hours",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-012",
+      "text": "Can you tell me the operating hours of campus offices for this term?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "hours",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-013",
+      "text": "Can you tell me how to contact my department dean on my student account?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "dean",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-014",
+      "text": "Can you tell me where the dean's office is located through the portal?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "dean",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-015",
+      "text": "Can you tell me where the academic calendar is published before I proceed?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "calendar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-016",
+      "text": "Can you tell me how to check important school-year dates?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "calendar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-017",
+      "text": "Can you tell me where official academic dates are listed for this term?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "calendar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-018",
+      "text": "Can you tell me where school-wide class announcements are posted on my student account?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "class_schedule",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-019",
+      "text": "Can you tell me how to check whether classes are suspended through the portal?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "class_schedule",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-020",
+      "text": "Can you tell me how to recover my student portal password before I proceed?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "password",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-021",
+      "text": "Can you tell me what to do when I cannot log in?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "password",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-022",
+      "text": "Can you tell me how to regain access to my student account for this term?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "password",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-023",
+      "text": "Can you tell me what library services are available to students on my student account?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "library",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-024",
+      "text": "Can you tell me whether the school has digital library access through the portal?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "library",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-025",
+      "text": "Can you tell me which degree programs the college offers before I proceed?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "programs",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-026",
+      "text": "Can you tell me where to find the list of academic programs?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "programs",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-027",
+      "text": "Can you tell me what ARIA is designed to help students with for this term?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "aria",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-028",
+      "text": "Can you tell me what kind of assistant ARIA is on my student account?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "aria",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-029",
+      "text": "Can you tell me which school office handles general student concerns through the portal?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "office_help",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-030",
+      "text": "Can you tell me where to go when I do not know which office can help before I proceed?",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "office_help",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-031",
+      "text": "I need to know how to contact the college for a general concern for this term.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "school_contact",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-032",
+      "text": "I need to know where the school's main contact information is listed on my student account.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "school_contact",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-033",
+      "text": "I need to know what phone or contact details the college provides through the portal.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "school_contact",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-034",
+      "text": "I need to know where the Registrar's Office is located before I proceed.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "registrar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-035",
+      "text": "I need to know how to contact the registrar.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "registrar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-036",
+      "text": "I need to know where to find the registrar on campus for this term.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "registrar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-037",
+      "text": "I need to know how to reach Student Services on my student account.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "student_services",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-038",
+      "text": "I need to know where the Student Services office is through the portal.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "student_services",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-039",
+      "text": "I need to know who to contact for Student Services help before I proceed.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "student_services",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-040",
+      "text": "I need to know when school offices are open.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "hours",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-041",
+      "text": "I need to know what time students can visit administrative offices for this term.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "hours",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-042",
+      "text": "I need to know the operating hours of campus offices on my student account.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "hours",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-043",
+      "text": "I need to know how to contact my department dean through the portal.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "dean",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-044",
+      "text": "I need to know where the dean's office is located before I proceed.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "dean",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-045",
+      "text": "I need to know where the academic calendar is published.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "calendar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-046",
+      "text": "I need to know how to check important school-year dates for this term.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "calendar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-047",
+      "text": "I need to know where official academic dates are listed on my student account.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "calendar",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-048",
+      "text": "I need to know where school-wide class announcements are posted through the portal.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "class_schedule",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-049",
+      "text": "I need to know how to check whether classes are suspended before I proceed.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "class_schedule",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-GENERAL-EN-050",
+      "text": "I need to know how to recover my student portal password.",
+      "intent": "general_inquiry",
+      "language": "en",
+      "scenario": "password",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-001",
+      "text": "Can you tell me the complete BSCS curriculum from start to finish?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "full",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-002",
+      "text": "Can you tell me every course listed in the Computer Science program for this term?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "full",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-003",
+      "text": "Can you tell me the entire course plan for BSMA on my student account?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "full",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-004",
+      "text": "Can you tell me which subjects belong to BSCS through the portal?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "subjects",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-005",
+      "text": "Can you tell me the course list for BSCrim before I proceed?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "subjects",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-006",
+      "text": "Can you tell me which classes students take in BEED?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "subjects",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-007",
+      "text": "Can you tell me the BSCS subjects grouped by year level for this term?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "by_year",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-008",
+      "text": "Can you tell me which courses BSCS students take in second year on my student account?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "by_year",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-009",
+      "text": "Can you tell me the BSCS subjects arranged by trimester through the portal?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "by_term",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-010",
+      "text": "Can you tell me which courses appear in the third trimester of BSCS before I proceed?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "by_term",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-011",
+      "text": "Can you tell me the planned order of courses in BSCS?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "sequence",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-012",
+      "text": "Can you tell me how subjects progress through the BSCS program for this term?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "sequence",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-013",
+      "text": "Can you tell me whether Database Management System 2 belongs to the BSCS curriculum on my student account?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "exists",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-014",
+      "text": "Can you tell me whether Automata Theory and Formal Language is part of BSCS through the portal?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "exists",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-015",
+      "text": "Can you tell me whether Computer Animation is included in BSCS before I proceed?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "exists",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-016",
+      "text": "Can you tell me which year and term contains Database Management System 2?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "placement",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-017",
+      "text": "Can you tell me where Automata Theory and Formal Language appears in the BSCS sequence for this term?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "placement",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-018",
+      "text": "Can you tell me when CS Thesis Writing 1 is taken in BSCS on my student account?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "placement",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-019",
+      "text": "Can you tell me how many units Database Management System 2 carries through the portal?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "units",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-020",
+      "text": "Can you tell me the unit value assigned to Automata Theory and Formal Language before I proceed?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "units",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-021",
+      "text": "Can you tell me how many units are listed for Computer Animation?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "units",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-022",
+      "text": "Can you tell me the prerequisite listed for Database Management System 2 for this term?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "prereq",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-023",
+      "text": "Can you tell me what must be completed before Automata Theory and Formal Language on my student account?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "prereq",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-024",
+      "text": "Can you tell me whether Data Communication and Networking 2 requires another course first through the portal?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "prereq",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-025",
+      "text": "Can you tell me the total number of courses in BSCS before I proceed?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "count",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-026",
+      "text": "Can you tell me how many subjects make up the BSCrim curriculum?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "count",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-027",
+      "text": "Can you tell me which comes earlier, Database Management System 2 or Data Communication and Networking 2 for this term?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "compare",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-028",
+      "text": "Can you tell me whether Automata Theory and Formal Language and Computer Animation are in the same year on my student account?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "compare",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-029",
+      "text": "Can you tell me how the BSCS curriculum is structured through the portal?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "general",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-030",
+      "text": "Can you tell me where to review the Multimedia Arts program plan before I proceed?",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "general",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-031",
+      "text": "I need to know the complete BSCS curriculum from start to finish for this term.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "full",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-032",
+      "text": "I need to know every course listed in the Computer Science program on my student account.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "full",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-033",
+      "text": "I need to know the entire course plan for BSMA through the portal.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "full",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-034",
+      "text": "I need to know which subjects belong to BSCS before I proceed.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "subjects",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-035",
+      "text": "I need to know the course list for BSCrim.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "subjects",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-036",
+      "text": "I need to know which classes students take in BEED for this term.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "subjects",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-037",
+      "text": "I need to know the BSCS subjects grouped by year level on my student account.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "by_year",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-038",
+      "text": "I need to know which courses BSCS students take in second year through the portal.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "by_year",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-039",
+      "text": "I need to know the BSCS subjects arranged by trimester before I proceed.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "by_term",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-040",
+      "text": "I need to know which courses appear in the third trimester of BSCS.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "by_term",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-041",
+      "text": "I need to know the planned order of courses in BSCS for this term.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "sequence",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-042",
+      "text": "I need to know how subjects progress through the BSCS program on my student account.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "sequence",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-043",
+      "text": "I need to know whether Database Management System 2 belongs to the BSCS curriculum through the portal.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "exists",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-044",
+      "text": "I need to know whether Automata Theory and Formal Language is part of BSCS before I proceed.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "exists",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-045",
+      "text": "I need to know whether Computer Animation is included in BSCS.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "exists",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-046",
+      "text": "I need to know which year and term contains Database Management System 2 for this term.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "placement",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-047",
+      "text": "I need to know where Automata Theory and Formal Language appears in the BSCS sequence on my student account.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "placement",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-048",
+      "text": "I need to know when CS Thesis Writing 1 is taken in BSCS through the portal.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "placement",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-049",
+      "text": "I need to know how many units Database Management System 2 carries before I proceed.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "units",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    },
+    {
+      "id": "VAL-CURRICULUM-EN-050",
+      "text": "I need to know the unit value assigned to Automata Theory and Formal Language.",
+      "intent": "curriculum_inquiry",
+      "language": "en",
+      "scenario": "units",
+      "source": "final_working_set/ARIA_English_Validation_Test_and_Evaluation.md",
+      "split": "validation"
+    }
+  ]
+}

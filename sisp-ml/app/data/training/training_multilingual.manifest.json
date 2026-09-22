@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "dataset": "ARIA multilingual intent-classification training corpus",
+  "archive_name": "ARIA_Multilingual_Dataset_Package_Verified_18K.zip",
+  "archive_sha256": "4c485b193ad60957fd0b9442416d22ae9126a0f3eeda6851b9748af613b84168",
+  "source_files": {
+    "final_working_set/ARIA_English_Master_3000_Training_Dataset.md": {
+      "language": "en",
+      "bytes": 523096,
+      "sha256": "27cb9926471f9dabae58b028e92098334f8ec43987a2b6801dce321f5c4ee036",
+      "rows": 3000,
+      "split_provenance": "explicit_source_metadata"
+    },
+    "final_working_set/ARIA_FIL_Filipino_Taglish_Master_3000.md": {
+      "language": "fil",
+      "bytes": 519566,
+      "sha256": "17315aac8bd45c1afc4bbfa1d3ec4610a6ef4644f0a4b786e4607b2ba1929a8e",
+      "rows": 3000,
+      "split_provenance": "explicit_source_metadata"
+    },
+    "final_working_set/ARIA_CEB_Cebuano_Bisaya_Master_3000.md": {
+      "language": "ceb",
+      "bytes": 546411,
+      "sha256": "1f4488a16dee75acd4440c3a1984fb1d85f4758635a6121e2006a0d833682c36",
+      "rows": 3000,
+      "split_provenance": "inferred_from_training_dataset_title_and_training_total"
+    },
+    "final_working_set/ARIA_ILO_Ilocano_Master_3000.md": {
+      "language": "ilo",
+      "bytes": 560228,
+      "sha256": "88d00b17282b4c1c70a848cb147028840f3b6366d4c63d2abc8d04adb3a247ab",
+      "rows": 3000,
+      "split_provenance": "inferred_from_training_dataset_title_and_training_total"
+    },
+    "final_working_set/ARIA_HIL_Hiligaynon_Ilonggo_Master_3000.md": {
+      "language": "hil",
+      "bytes": 555921,
+      "sha256": "4a9b2563c460523c32000bb45a06f13e79dccb3b913f39ce79b457fdbbe09820",
+      "rows": 3000,
+      "split_provenance": "inferred_from_training_dataset_title_and_training_total"
+    },
+    "final_working_set/ARIA_WAR_Waray_Master_3000.md": {
+      "language": "war",
+      "bytes": 546260,
+      "sha256": "c963aeb1e967a1a3d2237cdd3a95c9ee1da22a2adedeb480a7a57a48df2e58c4",
+      "rows": 3000,
+      "split_provenance": "inferred_from_training_dataset_title_and_training_total"
+    }
+  },
+  "validation": {
+    "total_rows": 18000,
+    "row_ids_unique": true,
+    "unique_semantic_ids_per_language": {
+      "en": 3000,
+      "fil": 3000,
+      "ceb": 3000,
+      "ilo": 3000,
+      "hil": 3000,
+      "war": 3000
+    },
+    "semantic_id_sets_aligned_across_languages": true,
+    "semantic_ids_shared_across_languages_by_design": true,
+    "normalized_texts_unique_within_language": {
+      "en": 3000,
+      "fil": 3000,
+      "ceb": 3000,
+      "ilo": 3000,
+      "hil": 3000,
+      "war": 3000
+    },
+    "rows_per_language_and_intent": {
+      "en": {
+        "enrollment_inquiry": 500,
+        "grade_inquiry": 500,
+        "payment_inquiry": 500,
+        "document_request": 500,
+        "general_inquiry": 500,
+        "curriculum_inquiry": 500
+      },
+      "fil": {
+        "enrollment_inquiry": 500,
+        "grade_inquiry": 500,
+        "payment_inquiry": 500,
+        "document_request": 500,
+        "general_inquiry": 500,
+        "curriculum_inquiry": 500
+      },
+      "ceb": {
+        "enrollment_inquiry": 500,
+        "grade_inquiry": 500,
+        "payment_inquiry": 500,
+        "document_request": 500,
+        "general_inquiry": 500,
+        "curriculum_inquiry": 500
+      },
+      "ilo": {
+        "enrollment_inquiry": 500,
+        "grade_inquiry": 500,
+        "payment_inquiry": 500,
+        "document_request": 500,
+        "general_inquiry": 500,
+        "curriculum_inquiry": 500
+      },
+      "hil": {
+        "enrollment_inquiry": 500,
+        "grade_inquiry": 500,
+        "payment_inquiry": 500,
+        "document_request": 500,
+        "general_inquiry": 500,
+        "curriculum_inquiry": 500
+      },
+      "war": {
+        "enrollment_inquiry": 500,
+        "grade_inquiry": 500,
+        "payment_inquiry": 500,
+        "document_request": 500,
+        "general_inquiry": 500,
+        "curriculum_inquiry": 500
+      }
+    }
+  },
+  "semantic_id_note": "Semantic IDs are unique within each language and intentionally shared across languages to link aligned utterances. They are not globally unique row identifiers.",
+  "split_note": "All exported rows are marked train. Where a source does not state the split explicitly, split_provenance records the inference from its training-dataset title and training total.",
+  "outputs": {
+    "training_multilingual.jsonl": {
+      "bytes": 7836295,
+      "sha256": "3be02638a72a6a84e2929c84b7a134c7da3147d681d4d227f9463042108ba155"
+    },
+    "training_multilingual.json": {
+      "bytes": 7836297,
+      "sha256": "2dee26021ea6d4a92045b4c0189ddc586c029bd5155049753c538c5c787f7e98"
+    }
+  }
+}

@@ -1,0 +1,2178 @@
+{
+  "dataset_version": "aria_multilingual_18k_v1",
+  "evaluation_note": "All non-English holdouts are generated semantic-group splits and are not native-speaker reviewed.",
+  "split_method": "deterministic 70/15/15 split by semantic ID, with exact normalized text duplicates joined to one group",
+  "split_counts": {
+    "train": 12588,
+    "validation": 2610,
+    "test": 2802
+  },
+  "baseline_109_on_legacy_22": {
+    "rows": 22,
+    "accuracy": 1.0,
+    "macro_precision": 1.0,
+    "macro_recall": 1.0,
+    "macro_f1": 1.0,
+    "labels": [
+      "enrollment_inquiry",
+      "grade_inquiry",
+      "payment_inquiry",
+      "document_request",
+      "general_inquiry",
+      "curriculum_inquiry"
+    ],
+    "confusion_matrix": [
+      [
+        5,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        5
+      ]
+    ],
+    "per_intent": {
+      "enrollment_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 5
+      },
+      "grade_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 3
+      },
+      "payment_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 3
+      },
+      "document_request": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 3
+      },
+      "general_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 3
+      },
+      "curriculum_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 5
+      }
+    }
+  },
+  "multilingual_holdout_model_on_legacy_22": {
+    "rows": 22,
+    "accuracy": 1.0,
+    "macro_precision": 1.0,
+    "macro_recall": 1.0,
+    "macro_f1": 1.0,
+    "labels": [
+      "enrollment_inquiry",
+      "grade_inquiry",
+      "payment_inquiry",
+      "document_request",
+      "general_inquiry",
+      "curriculum_inquiry"
+    ],
+    "confusion_matrix": [
+      [
+        5,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        3,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        3,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        3,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        3,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        5
+      ]
+    ],
+    "per_intent": {
+      "enrollment_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 5
+      },
+      "grade_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 3
+      },
+      "payment_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 3
+      },
+      "document_request": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 3
+      },
+      "general_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 3
+      },
+      "curriculum_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 5
+      }
+    }
+  },
+  "multilingual_group_validation": {
+    "overall": {
+      "rows": 2610,
+      "accuracy": 0.9980842911877394,
+      "macro_precision": 0.9981474439072092,
+      "macro_recall": 0.9980546450505446,
+      "macro_f1": 0.9980970849506009,
+      "labels": [
+        "enrollment_inquiry",
+        "grade_inquiry",
+        "payment_inquiry",
+        "document_request",
+        "general_inquiry",
+        "curriculum_inquiry"
+      ],
+      "confusion_matrix": [
+        [
+          425,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          473,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          390,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          461,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          394,
+          2
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          462
+        ]
+      ],
+      "per_intent": {
+        "enrollment_inquiry": {
+          "precision": 1.0,
+          "recall": 0.9976525821596244,
+          "f1": 0.9988249118683902,
+          "support": 426
+        },
+        "grade_inquiry": {
+          "precision": 1.0,
+          "recall": 0.9978902953586498,
+          "f1": 0.9989440337909187,
+          "support": 474
+        },
+        "payment_inquiry": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 390
+        },
+        "document_request": {
+          "precision": 1.0,
+          "recall": 0.9978354978354979,
+          "f1": 0.9989165763813651,
+          "support": 462
+        },
+        "general_inquiry": {
+          "precision": 0.9974683544303797,
+          "recall": 0.9949494949494949,
+          "f1": 0.9962073324905183,
+          "support": 396
+        },
+        "curriculum_inquiry": {
+          "precision": 0.9914163090128756,
+          "recall": 1.0,
+          "f1": 0.9956896551724138,
+          "support": 462
+        }
+      }
+    },
+    "by_language": {
+      "en": {
+        "rows": 435,
+        "accuracy": 0.9885057471264368,
+        "macro_precision": 0.9892054447610003,
+        "macro_recall": 0.9883278703032671,
+        "macro_f1": 0.9886308679832413,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            70,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            78,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            65,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            76,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            64,
+            2
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            77
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 0.9859154929577465,
+            "f1": 0.9929078014184397,
+            "support": 71
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 0.9873417721518988,
+            "f1": 0.9936305732484076,
+            "support": 79
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 65
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 0.987012987012987,
+            "f1": 0.9934640522875817,
+            "support": 77
+          },
+          "general_inquiry": {
+            "precision": 0.9846153846153847,
+            "recall": 0.9696969696969697,
+            "f1": 0.9770992366412213,
+            "support": 66
+          },
+          "curriculum_inquiry": {
+            "precision": 0.9506172839506173,
+            "recall": 1.0,
+            "f1": 0.9746835443037974,
+            "support": 77
+          }
+        }
+      },
+      "fil": {
+        "rows": 435,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            71,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            79,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            65,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            77,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            66,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            77
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 71
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 65
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 66
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          }
+        }
+      },
+      "ceb": {
+        "rows": 435,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            71,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            79,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            65,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            77,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            66,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            77
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 71
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 65
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 66
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          }
+        }
+      },
+      "ilo": {
+        "rows": 435,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            71,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            79,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            65,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            77,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            66,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            77
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 71
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 65
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 66
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          }
+        }
+      },
+      "hil": {
+        "rows": 435,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            71,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            79,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            65,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            77,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            66,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            77
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 71
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 65
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 66
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          }
+        }
+      },
+      "war": {
+        "rows": 435,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            71,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            79,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            65,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            77,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            66,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            77
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 71
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 65
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 66
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 77
+          }
+        }
+      }
+    },
+    "threshold_tuning": {
+      "criterion": "highest selective macro-F1 with at least 80% coverage on synthetic validation split",
+      "recommended": {
+        "confidence_threshold": 0.55,
+        "margin_threshold": 0.15,
+        "coverage": 0.9946360153256705,
+        "clarification_rate": 0.005363984674329525,
+        "selective_accuracy": 1.0,
+        "selective_macro_f1": 1.0
+      },
+      "top_candidates": [
+        {
+          "confidence_threshold": 0.55,
+          "margin_threshold": 0.15,
+          "coverage": 0.9946360153256705,
+          "clarification_rate": 0.005363984674329525,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.55,
+          "margin_threshold": 0.2,
+          "coverage": 0.9946360153256705,
+          "clarification_rate": 0.005363984674329525,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.55,
+          "margin_threshold": 0.25,
+          "coverage": 0.9946360153256705,
+          "clarification_rate": 0.005363984674329525,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.55,
+          "margin_threshold": 0.3,
+          "coverage": 0.9946360153256705,
+          "clarification_rate": 0.005363984674329525,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.6,
+          "margin_threshold": 0.0,
+          "coverage": 0.9927203065134099,
+          "clarification_rate": 0.0072796934865900775,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.6,
+          "margin_threshold": 0.05,
+          "coverage": 0.9927203065134099,
+          "clarification_rate": 0.0072796934865900775,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.6,
+          "margin_threshold": 0.1,
+          "coverage": 0.9927203065134099,
+          "clarification_rate": 0.0072796934865900775,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.6,
+          "margin_threshold": 0.15,
+          "coverage": 0.9927203065134099,
+          "clarification_rate": 0.0072796934865900775,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.6,
+          "margin_threshold": 0.2,
+          "coverage": 0.9927203065134099,
+          "clarification_rate": 0.0072796934865900775,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        },
+        {
+          "confidence_threshold": 0.6,
+          "margin_threshold": 0.25,
+          "coverage": 0.9927203065134099,
+          "clarification_rate": 0.0072796934865900775,
+          "selective_accuracy": 1.0,
+          "selective_macro_f1": 1.0
+        }
+      ]
+    }
+  },
+  "multilingual_group_test": {
+    "overall": {
+      "rows": 2802,
+      "accuracy": 0.9996431120628123,
+      "macro_precision": 0.9996986136226642,
+      "macro_recall": 0.9995210727969349,
+      "macro_f1": 0.9996093622839286,
+      "labels": [
+        "enrollment_inquiry",
+        "grade_inquiry",
+        "payment_inquiry",
+        "document_request",
+        "general_inquiry",
+        "curriculum_inquiry"
+      ],
+      "confusion_matrix": [
+        [
+          384,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          468,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          474,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          347,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          552,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          576
+        ]
+      ],
+      "per_intent": {
+        "enrollment_inquiry": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 384
+        },
+        "grade_inquiry": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 468
+        },
+        "payment_inquiry": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 474
+        },
+        "document_request": {
+          "precision": 1.0,
+          "recall": 0.9971264367816092,
+          "f1": 0.9985611510791367,
+          "support": 348
+        },
+        "general_inquiry": {
+          "precision": 0.9981916817359855,
+          "recall": 1.0,
+          "f1": 0.9990950226244344,
+          "support": 552
+        },
+        "curriculum_inquiry": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 576
+        }
+      }
+    },
+    "by_language": {
+      "en": {
+        "rows": 467,
+        "accuracy": 0.9978586723768736,
+        "macro_precision": 0.9982078853046595,
+        "macro_recall": 0.9971264367816092,
+        "macro_f1": 0.9976498237367802,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            64,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            78,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            79,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            57,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            92,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            96
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 64
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 78
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 0.9827586206896551,
+            "f1": 0.991304347826087,
+            "support": 58
+          },
+          "general_inquiry": {
+            "precision": 0.989247311827957,
+            "recall": 1.0,
+            "f1": 0.9945945945945946,
+            "support": 92
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 96
+          }
+        }
+      },
+      "fil": {
+        "rows": 467,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            64,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            78,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            79,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            58,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            92,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            96
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 64
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 78
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 58
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 92
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 96
+          }
+        }
+      },
+      "ceb": {
+        "rows": 467,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            64,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            78,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            79,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            58,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            92,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            96
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 64
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 78
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 58
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 92
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 96
+          }
+        }
+      },
+      "ilo": {
+        "rows": 467,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            64,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            78,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            79,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            58,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            92,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            96
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 64
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 78
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 58
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 92
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 96
+          }
+        }
+      },
+      "hil": {
+        "rows": 467,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            64,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            78,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            79,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            58,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            92,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            96
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 64
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 78
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 58
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 92
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 96
+          }
+        }
+      },
+      "war": {
+        "rows": 467,
+        "accuracy": 1.0,
+        "macro_precision": 1.0,
+        "macro_recall": 1.0,
+        "macro_f1": 1.0,
+        "labels": [
+          "enrollment_inquiry",
+          "grade_inquiry",
+          "payment_inquiry",
+          "document_request",
+          "general_inquiry",
+          "curriculum_inquiry"
+        ],
+        "confusion_matrix": [
+          [
+            64,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            78,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            79,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            58,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            92,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            96
+          ]
+        ],
+        "per_intent": {
+          "enrollment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 64
+          },
+          "grade_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 78
+          },
+          "payment_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 79
+          },
+          "document_request": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 58
+          },
+          "general_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 92
+          },
+          "curriculum_inquiry": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 96
+          }
+        }
+      }
+    }
+  },
+  "package_english_validation": {
+    "rows": 300,
+    "accuracy": 0.9966666666666667,
+    "macro_precision": 0.9967320261437909,
+    "macro_recall": 0.9966666666666667,
+    "macro_f1": 0.9966663332999968,
+    "labels": [
+      "enrollment_inquiry",
+      "grade_inquiry",
+      "payment_inquiry",
+      "document_request",
+      "general_inquiry",
+      "curriculum_inquiry"
+    ],
+    "confusion_matrix": [
+      [
+        50,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        50,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        50,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        49,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        50,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        50
+      ]
+    ],
+    "per_intent": {
+      "enrollment_inquiry": {
+        "precision": 0.9803921568627451,
+        "recall": 1.0,
+        "f1": 0.9900990099009901,
+        "support": 50
+      },
+      "grade_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 50
+      },
+      "payment_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 50
+      },
+      "document_request": {
+        "precision": 1.0,
+        "recall": 0.98,
+        "f1": 0.98989898989899,
+        "support": 50
+      },
+      "general_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 50
+      },
+      "curriculum_inquiry": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 50
+      }
+    }
+  },
+  "package_english_test": {
+    "rows": 600,
+    "accuracy": 0.98,
+    "macro_precision": 0.9809376336204263,
+    "macro_recall": 0.98,
+    "macro_f1": 0.9801471915448617,
+    "labels": [
+      "enrollment_inquiry",
+      "grade_inquiry",
+      "payment_inquiry",
+      "document_request",
+      "general_inquiry",
+      "curriculum_inquiry"
+    ],
+    "confusion_matrix": [
+      [
+        98,
+        0,
+        0,
+        0,
+        2,
+        0
+      ],
+      [
+        0,
+        97,
+        0,
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        0,
+        96,
+        0,
+        4,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        98,
+        1,
+        0
+      ],
+      [
+        1,
+        0,
+        0,
+        0,
+        99,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        100
+      ]
+    ],
+    "per_intent": {
+      "enrollment_inquiry": {
+        "precision": 0.98,
+        "recall": 0.98,
+        "f1": 0.98,
+        "support": 100
+      },
+      "grade_inquiry": {
+        "precision": 1.0,
+        "recall": 0.97,
+        "f1": 0.9847715736040609,
+        "support": 100
+      },
+      "payment_inquiry": {
+        "precision": 1.0,
+        "recall": 0.96,
+        "f1": 0.9795918367346939,
+        "support": 100
+      },
+      "document_request": {
+        "precision": 1.0,
+        "recall": 0.98,
+        "f1": 0.98989898989899,
+        "support": 100
+      },
+      "general_inquiry": {
+        "precision": 0.9252336448598131,
+        "recall": 0.99,
+        "f1": 0.9565217391304348,
+        "support": 100
+      },
+      "curriculum_inquiry": {
+        "precision": 0.9803921568627451,
+        "recall": 1.0,
+        "f1": 0.9900990099009901,
+        "support": 100
+      }
+    }
+  },
+  "candidate_evaluation": {
+    "model_version": "v9",
+    "dataset_version": "aria_multilingual_18k_v1",
+    "training_samples": 18000,
+    "training_data_sha256": "2dee26021ea6d4a92045b4c0189ddc586c029bd5155049753c538c5c787f7e98",
+    "validation": {
+      "rows": 300,
+      "accuracy": 0.99,
+      "macro_precision": 0.9901960784313726,
+      "macro_recall": 0.9899999999999999,
+      "macro_f1": 0.9899989998999902,
+      "labels": [
+        "enrollment_inquiry",
+        "grade_inquiry",
+        "payment_inquiry",
+        "document_request",
+        "general_inquiry",
+        "curriculum_inquiry"
+      ],
+      "confusion_matrix": [
+        [
+          50,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          49,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          49,
+          0,
+          1,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          49,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          50,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          50
+        ]
+      ],
+      "per_intent": {
+        "enrollment_inquiry": {
+          "precision": 0.9803921568627451,
+          "recall": 1.0,
+          "f1": 0.9900990099009901,
+          "support": 50
+        },
+        "grade_inquiry": {
+          "precision": 1.0,
+          "recall": 0.98,
+          "f1": 0.98989898989899,
+          "support": 50
+        },
+        "payment_inquiry": {
+          "precision": 1.0,
+          "recall": 0.98,
+          "f1": 0.98989898989899,
+          "support": 50
+        },
+        "document_request": {
+          "precision": 1.0,
+          "recall": 0.98,
+          "f1": 0.98989898989899,
+          "support": 50
+        },
+        "general_inquiry": {
+          "precision": 0.9803921568627451,
+          "recall": 1.0,
+          "f1": 0.9900990099009901,
+          "support": 50
+        },
+        "curriculum_inquiry": {
+          "precision": 0.9803921568627451,
+          "recall": 1.0,
+          "f1": 0.9900990099009901,
+          "support": 50
+        }
+      }
+    },
+    "test": {
+      "rows": 600,
+      "accuracy": 0.98,
+      "macro_precision": 0.9811332853889487,
+      "macro_recall": 0.98,
+      "macro_f1": 0.9801016562346612,
+      "labels": [
+        "enrollment_inquiry",
+        "grade_inquiry",
+        "payment_inquiry",
+        "document_request",
+        "general_inquiry",
+        "curriculum_inquiry"
+      ],
+      "confusion_matrix": [
+        [
+          99,
+          0,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          96,
+          0,
+          0,
+          1,
+          3
+        ],
+        [
+          0,
+          0,
+          95,
+          0,
+          5,
+          0
+        ],
+        [
+          1,
+          0,
+          0,
+          98,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          100,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          100
+        ]
+      ],
+      "per_intent": {
+        "enrollment_inquiry": {
+          "precision": 0.99,
+          "recall": 0.99,
+          "f1": 0.99,
+          "support": 100
+        },
+        "grade_inquiry": {
+          "precision": 1.0,
+          "recall": 0.96,
+          "f1": 0.9795918367346939,
+          "support": 100
+        },
+        "payment_inquiry": {
+          "precision": 1.0,
+          "recall": 0.95,
+          "f1": 0.9743589743589743,
+          "support": 100
+        },
+        "document_request": {
+          "precision": 1.0,
+          "recall": 0.98,
+          "f1": 0.98989898989899,
+          "support": 100
+        },
+        "general_inquiry": {
+          "precision": 0.9259259259259259,
+          "recall": 1.0,
+          "f1": 0.9615384615384616,
+          "support": 100
+        },
+        "curriculum_inquiry": {
+          "precision": 0.970873786407767,
+          "recall": 1.0,
+          "f1": 0.9852216748768473,
+          "support": 100
+        }
+      }
+    },
+    "note": "The 600-row English test set is external to the 18K training corpus. Regional language package quality still needs native-speaker review."
+  }
+}

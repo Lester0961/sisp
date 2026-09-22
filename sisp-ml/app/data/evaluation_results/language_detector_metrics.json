@@ -1,0 +1,98 @@
+{
+  "dataset_version": "aria_multilingual_18k_v1",
+  "split_method": "deterministic semantic-group split; translations and repeated text stay in one partition",
+  "split_counts": {
+    "train": 12588,
+    "validation": 2610,
+    "test": 2802
+  },
+  "heldout_test": {
+    "rows": 2802,
+    "accuracy": 0.9821556031406139,
+    "by_language": {
+      "en": {
+        "rows": 467,
+        "accuracy": 0.9957173447537473
+      },
+      "fil": {
+        "rows": 467,
+        "accuracy": 0.9850107066381156
+      },
+      "ceb": {
+        "rows": 467,
+        "accuracy": 0.9250535331905781
+      },
+      "ilo": {
+        "rows": 467,
+        "accuracy": 1.0
+      },
+      "hil": {
+        "rows": 467,
+        "accuracy": 0.987152034261242
+      },
+      "war": {
+        "rows": 467,
+        "accuracy": 1.0
+      }
+    },
+    "labels": [
+      "en",
+      "fil",
+      "ceb",
+      "ilo",
+      "hil",
+      "war"
+    ],
+    "confusion_matrix": [
+      [
+        465,
+        0,
+        2,
+        0,
+        0,
+        0
+      ],
+      [
+        2,
+        460,
+        2,
+        0,
+        3,
+        0
+      ],
+      [
+        20,
+        0,
+        432,
+        0,
+        15,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        467,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        6,
+        0,
+        461,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        467
+      ]
+    ],
+    "note": "Semantic-group holdout from the supplied generated multilingual corpus. Non-English text has not been reviewed by native speakers, so these scores are diagnostic and do not certify real-world dialect accuracy."
+  }
+}
