@@ -64,7 +64,7 @@ services:
     name: sisp-ml
     env: python
     rootDir: sisp-ml
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python -m app.ml.prepare_embedding_model
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PORT
