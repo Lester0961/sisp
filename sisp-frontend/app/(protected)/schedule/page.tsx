@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, CalendarDays, Clock, MapPin, RefreshCw, User } from 'lucide-react';
 import { enrollmentsApi } from '@/lib/api/enrollments';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 
 interface ScheduleSlot {
@@ -56,7 +55,6 @@ export default function SchedulePage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
       <main className="portal-main pb-8">
         <div className="portal-page-header">
           <div>

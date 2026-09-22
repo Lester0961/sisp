@@ -7,7 +7,7 @@ import { Menu, LogOut, Shield, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import { Button } from '@/components/ui/button';
-import { ADMIN_NAV_ITEMS } from './AdminSidebar';
+import { navItemsForRole, roleHomePath, isStaffRole } from '@/lib/navigation';
 
 interface AdminTopHeaderProps {
   onOpenMobile: () => void;
@@ -17,12 +17,14 @@ export function AdminTopHeader({ onOpenMobile }: AdminTopHeaderProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  // Find active item
-  const currentItem = ADMIN_NAV_ITEMS.find((item) =>
-    item.href === '/admin/dashboard'
-      ? pathname === '/admin/dashboard'
-      : pathname.startsWith(item.href)
-  );
+  const navItems = navItemsForRole(user?.role);
+  const homeHref = roleHomePath(user?.role);
+  const homeLabel = isStaffRole(user?.role) ? 'Admin Dashboard' : 'SISP';
+
+  // Longest matching prefix wins so nested routes map to the deepest item.
+  const currentItem = navItems
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0];
 
   const roleLabel = user?.role
     ? user.role.split('_').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
@@ -42,10 +44,10 @@ export function AdminTopHeader({ onOpenMobile }: AdminTopHeaderProps) {
         </button>
 
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-[#587387]">
-          <Link href="/admin/dashboard" className="font-semibold text-[#102f49] hover:text-[#0a439b] transition-colors">
-            Admin Dashboard
+          <Link href={homeHref} className="font-semibold text-[#102f49] hover:text-[#0a439b] transition-colors">
+            {homeLabel}
           </Link>
-          {currentItem && currentItem.href !== '/admin/dashboard' && (
+          {currentItem && currentItem.href !== homeHref && (
             <>
               <ChevronRight className="size-3.5 text-[#86add0]" />
               <span className="font-semibold text-[#0a439b]">{currentItem.label}</span>

@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { gradesApi, GradeItem } from '@/lib/api/grades';
 import { academicTermsApi, AcademicTerm } from '@/lib/api/academicTerms';
 import { Button } from '@/components/ui/button';
-import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
 
 function score(value: number | null | undefined) {
@@ -111,7 +110,6 @@ export default function DeanGradesPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
       <main className="portal-main">
         <div className="portal-page-header">
           <div><h1 className="portal-title">Grade approvals</h1><p className="portal-description mt-2">Review faculty-submitted grades, approve them for registrar publication, or return them with clear remarks.</p></div>

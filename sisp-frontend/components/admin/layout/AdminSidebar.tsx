@@ -4,167 +4,17 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Users,
-  UserCheck,
-  BookOpen,
-  CreditCard,
-  Sparkles,
-  BookMarked,
-  Shield,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  X,
-  FileText,
-  Wallet,
-  UserCog,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-
-export interface NavItemConfig {
-  href: string;
-  label: string;
-  shortLabel?: string;
-  icon: typeof LayoutDashboard;
-  badge?: string | number;
-  roles?: string[];
-  group?: 'main' | 'operations' | 'academic' | 'system';
-}
-
-export const ADMIN_NAV_ITEMS: NavItemConfig[] = [
-  {
-    href: '/admin/dashboard',
-    label: 'Overview',
-    shortLabel: 'Overview',
-    icon: LayoutDashboard,
-    group: 'main',
-    roles: ['registrar', 'treasury', 'sys_admin', 'dean'],
-  },
-  {
-    href: '/admin/users',
-    label: 'User Management',
-    shortLabel: 'Users',
-    icon: Users,
-    group: 'operations',
-    roles: ['sys_admin'],
-  },
-  {
-    href: '/admin/admission',
-    label: 'Admission Review',
-    shortLabel: 'Admissions',
-    icon: UserCheck,
-    group: 'operations',
-    roles: ['registrar', 'sys_admin', 'dean'],
-  },
-  {
-    href: '/admin/financials',
-    label: 'Financial Records',
-    shortLabel: 'Financials',
-    icon: Wallet,
-    group: 'operations',
-    roles: ['treasury', 'sys_admin'],
-  },
-  {
-    href: '/admin/requests',
-    label: 'Payment Approvals',
-    shortLabel: 'Payments',
-    icon: CreditCard,
-    group: 'operations',
-    roles: ['treasury'],
-  },
-  {
-    href: '/admin/identity-verifications',
-    label: 'Identity Verifications',
-    shortLabel: 'Verify',
-    icon: UserCheck,
-    group: 'operations',
-    roles: ['registrar', 'sys_admin'],
-  },
-  {
-    href: '/admin/document-requests',
-    label: 'Document Requests',
-    shortLabel: 'Requests',
-    icon: FileText,
-    group: 'operations',
-    roles: ['registrar', 'sys_admin'],
-  },
-  {
-    href: '/admin/documents',
-    label: 'Document Catalog',
-    shortLabel: 'Catalog',
-    icon: FileText,
-    group: 'operations',
-    roles: ['registrar', 'sys_admin'],
-  },
-  {
-    href: '/tickets',
-    label: 'Escalations',
-    shortLabel: 'Tickets',
-    icon: Sparkles,
-    group: 'operations',
-    roles: ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'],
-  },
-  {
-    href: '/admin/enrollments',
-    label: 'Course Assignments',
-    shortLabel: 'Assignments',
-    icon: BookOpen,
-    group: 'academic',
-    roles: ['registrar', 'dean'],
-  },
-  {
-    href: '/admin/advisers',
-    label: 'Adviser Assignments',
-    shortLabel: 'Advisers',
-    icon: UserCog,
-    group: 'academic',
-    roles: ['registrar', 'sys_admin'],
-  },
-  {
-    href: '/admin/grades',
-    label: 'Grade Review',
-    shortLabel: 'Grades',
-    icon: BookOpen,
-    group: 'academic',
-    roles: ['registrar'],
-  },
-  {
-    href: '/admin/kb',
-    label: 'Knowledge Base',
-    shortLabel: 'Policies',
-    icon: BookMarked,
-    group: 'system',
-    roles: ['registrar', 'sys_admin'],
-  },
-  {
-    href: '/admin/audit',
-    label: 'System Audit Logs',
-    shortLabel: 'Audit',
-    icon: Shield,
-    group: 'system',
-    roles: ['sys_admin'],
-  },
-  {
-    href: '/settings',
-    label: 'Admin Settings',
-    shortLabel: 'Settings',
-    icon: Settings,
-    group: 'system',
-    roles: ['registrar', 'treasury', 'sys_admin', 'dean', 'faculty'],
-  },
-];
-
-const GROUP_LABELS: Record<string, string> = {
-  main: 'Dashboard',
-  operations: 'Operations',
-  academic: 'Academic Records',
-  system: 'Administration',
-};
+import {
+  PortalNavItem,
+  PORTAL_GROUP_LABELS,
+  navItemsForRole,
+  roleHomePath,
+  rolePortalLabel,
+} from '@/lib/navigation';
 
 interface AdminSidebarProps {
   isCollapsed: boolean;
@@ -173,6 +23,11 @@ interface AdminSidebarProps {
   onCloseMobile: () => void;
 }
 
+/**
+ * Role-aware portal side navigation (single source: lib/navigation.ts).
+ * Used by every role — students, faculty, dean, registrar, treasury, sys_admin
+ * — so each role only sees the modules its permissions actually allow.
+ */
 export function AdminSidebar({
   isCollapsed,
   onToggleCollapse,
@@ -181,11 +36,15 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const role = user?.role ?? 'registrar';
+  const role = user?.role ?? 'student';
 
-  const accessibleItems = ADMIN_NAV_ITEMS.filter(
-    (item) => !item.roles || item.roles.includes(role)
-  );
+  const accessibleItems = navItemsForRole(role);
+
+  // Longest matching prefix wins so nested routes (e.g. /faculty/grades)
+  // do not light up their parent item (/faculty) at the same time.
+  const activeHref = accessibleItems
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   // Group items
   const groupedItems = accessibleItems.reduce((acc, item) => {
@@ -193,7 +52,7 @@ export function AdminSidebar({
     if (!acc[groupKey]) acc[groupKey] = [];
     acc[groupKey].push(item);
     return acc;
-  }, {} as Record<string, NavItemConfig[]>);
+  }, {} as Record<string, PortalNavItem[]>);
 
   const sidebarContent = (
     <aside
@@ -201,17 +60,17 @@ export function AdminSidebar({
         'relative flex h-full flex-col border-r border-[#dce7ef] bg-white transition-all duration-300 ease-in-out',
         isCollapsed ? 'w-[76px]' : 'w-[260px]'
       )}
-      aria-label="Admin Side Navigation"
+      aria-label="Portal Side Navigation"
     >
       {/* Brand Header */}
       <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-[#dce7ef] px-4">
         <Link
-          href="/admin/dashboard"
+          href={roleHomePath(role)}
           className={cn(
             'flex items-center gap-3 overflow-hidden transition-all',
             isCollapsed && 'justify-center w-full'
           )}
-          title="Regis Marie College SISP Admin"
+          title="Regis Marie College SISP"
         >
           <div className="relative flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf3fa] p-1 shadow-xs border border-[#cbdde9]">
             <Image
@@ -228,7 +87,7 @@ export function AdminSidebar({
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-[15px] tracking-tight text-[#102f49]">SISP</span>
                 <span className="rounded bg-[#0a439b]/10 px-1.5 py-0.2 text-[10px] font-bold tracking-wide text-[#0a439b]">
-                  ADMIN
+                  {rolePortalLabel(role)}
                 </span>
               </div>
               <p className="truncate text-[11px] font-medium text-[#587387]">Regis Marie College</p>
@@ -253,7 +112,7 @@ export function AdminSidebar({
           <div key={groupKey} className="space-y-1">
             {!isCollapsed ? (
               <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#6c879a]">
-                {GROUP_LABELS[groupKey] ?? groupKey}
+                {PORTAL_GROUP_LABELS[groupKey as keyof typeof PORTAL_GROUP_LABELS] ?? groupKey}
               </p>
             ) : (
               <div className="mx-auto my-1.5 h-px w-6 bg-[#e2edf4]" />
@@ -261,14 +120,11 @@ export function AdminSidebar({
 
             {items.map((item) => {
               const Icon = item.icon;
-              const isActive =
-                item.href === '/admin/dashboard'
-                  ? pathname === '/admin/dashboard'
-                  : pathname.startsWith(item.href);
+              const isActive = item.href === activeHref;
 
               return (
                 <Link
-                  key={item.href}
+                  key={`${item.roles.join('-')}-${item.href}`}
                   href={item.href}
                   onClick={onCloseMobile}
                   title={isCollapsed ? item.label : undefined}

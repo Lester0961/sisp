@@ -5,7 +5,6 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { AlertCircle, BookOpen, FileText, MessageSquare, RefreshCw, Send, Sparkles, Trash2, UserRound } from 'lucide-react';
 import { useChatStore, type ChatMessage } from '@/stores/chatStore';
 import { chatApi } from '@/lib/api/chat';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -159,7 +158,6 @@ export default function ChatPage() {
 
   return (
     <div className="portal-page flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden">
-      <Navbar />
       <main className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 flex-col overflow-hidden p-3 sm:p-4 lg:px-8 lg:py-5">
         <div className="grid h-full min-h-0 flex-1 gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_18rem]">
           <section className="portal-surface flex h-full min-h-0 flex-1 flex-col overflow-hidden shadow-sm">

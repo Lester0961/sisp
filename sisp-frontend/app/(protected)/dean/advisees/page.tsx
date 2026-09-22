@@ -18,7 +18,6 @@ import {
   type AdviseeDetail,
   type AdvisingConcern,
 } from '@/lib/api/dean';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -114,7 +113,6 @@ export default function DeanAdviseesPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
       <main className="portal-main max-w-6xl pb-8">
         <div className="portal-page-header">
           <div>

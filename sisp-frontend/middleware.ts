@@ -3,22 +3,56 @@ import type { NextRequest } from 'next/server';
 
 const PUBLIC_ROUTES = ['/login', '/register', '/about', '/services', '/support', '/admission', '/activate', '/reset-password', '/account-entry'];
 
-const ROLE_ROUTES: Record<string, string[]> = {
-  '/admin': ['registrar', 'treasury', 'sys_admin'],
-  '/faculty': ['faculty'],
-  '/dean': ['dean'],
-  '/tickets': ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'],
-  '/dashboard': ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin'],
-  '/grades': ['student'],
-  '/financials': ['student'],
-  '/requests': ['student'],
-  '/chat': ['student'],
-  '/enrollment': ['student'],
-  '/curriculum': ['student', 'registrar', 'dean', 'faculty'],
+const ALL_STAFF = ['registrar', 'treasury', 'sys_admin', 'dean'];
+const ALL_ROLES = ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin'];
+
+/** Where each role lands when a route rule denies access. */
+const ROLE_HOME: Record<string, string> = {
+  student: '/dashboard',
+  faculty: '/faculty',
+  dean: '/admin/dashboard',
+  registrar: '/admin/dashboard',
+  treasury: '/admin/dashboard',
+  sys_admin: '/admin/dashboard',
 };
 
 /**
- * UX-ONLY route guard (Phase 1).
+ * Role → route prefixes. Ordered most-specific first; the first matching
+ * prefix decides. Mirrors the backend authorization matrix (NestJS @Roles /
+ * @RequirePermissions) and lib/navigation.ts so no role is shown a module its
+ * permissions cannot complete.
+ */
+const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
+  { prefix: '/admin/dashboard', roles: ALL_STAFF },
+  { prefix: '/admin/admission', roles: ['registrar', 'sys_admin', 'dean'] },
+  { prefix: '/admin/advisers', roles: ['registrar', 'sys_admin'] },
+  { prefix: '/admin/document-requests', roles: ['registrar'] },
+  { prefix: '/admin/documents', roles: ['registrar'] },
+  { prefix: '/admin/identity-verifications', roles: ['registrar'] },
+  { prefix: '/admin/enrollments', roles: ['registrar'] },
+  { prefix: '/admin/grades', roles: ['registrar'] },
+  { prefix: '/admin/kb', roles: ['registrar', 'sys_admin'] },
+  { prefix: '/admin/audit', roles: ['sys_admin'] },
+  { prefix: '/admin/users', roles: ['sys_admin'] },
+  { prefix: '/admin/financials', roles: ['treasury'] },
+  { prefix: '/admin/requests', roles: ['treasury'] },
+  { prefix: '/admin', roles: ['registrar', 'treasury', 'sys_admin'] },
+  { prefix: '/faculty', roles: ['faculty'] },
+  { prefix: '/dean', roles: ['dean'] },
+  { prefix: '/tickets', roles: ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'] },
+  { prefix: '/dashboard', roles: ALL_ROLES },
+  { prefix: '/grades', roles: ['student'] },
+  { prefix: '/financials', roles: ['student'] },
+  { prefix: '/requests', roles: ['student'] },
+  { prefix: '/chat', roles: ['student'] },
+  { prefix: '/enrollment', roles: ['student'] },
+  { prefix: '/schedule', roles: ['student'] },
+  { prefix: '/curriculum', roles: ['student', 'registrar', 'dean', 'faculty'] },
+  { prefix: '/settings', roles: ALL_ROLES },
+];
+
+/**
+ * UX-ONLY route guard (Phase 1, aligned to the role/module matrix).
  *
  * Reads the non-sensitive `sisp-session-hint` cookie (role + expiry only, no
  * credential). It is not an authorization boundary: every API enforces
@@ -61,14 +95,9 @@ export function middleware(request: NextRequest) {
     }
 
     const role = hint.role ?? '';
-    for (const [route, allowedRoles] of Object.entries(ROLE_ROUTES)) {
-      if (pathname.startsWith(route) && !allowedRoles.includes(role)) {
-        // Allow the dean to reach /admin/dashboard (faculty uses /faculty)
-        if (route === '/admin' && pathname.startsWith('/admin/dashboard') && role === 'dean') {
-          continue;
-        }
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
+    const rule = ROLE_ROUTES.find((entry) => pathname.startsWith(entry.prefix));
+    if (rule && !rule.roles.includes(role)) {
+      return NextResponse.redirect(new URL(ROLE_HOME[role] ?? '/login', request.url));
     }
   } catch {
     const loginUrl = new URL('/login', request.url);

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, BookOpenCheck, RefreshCw, TriangleAlert } from 'lucide-react';
 import { curriculaApi, type CurriculumProgress } from '@/lib/api/curricula';
 import CurriculumChecklist from '@/components/curriculum/CurriculumChecklist';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 
 export default function CurriculumPage() {
@@ -34,7 +33,6 @@ export default function CurriculumPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
       <main className="portal-main pb-8">
         <div className="portal-page-header">
           <div>

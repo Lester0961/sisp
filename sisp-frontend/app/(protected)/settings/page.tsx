@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudentStore } from '@/stores/studentStore';
-import { Navbar } from '@/components/shared/Navbar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { authApi } from '@/lib/api/auth';
@@ -62,7 +61,6 @@ export default function SettingsPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
 
       <main className="portal-main max-w-2xl pb-8">
         <div className="portal-page-header"><div><h1 className="portal-title flex items-center gap-2"><SettingsIcon className="size-6 text-[#0a439b]" strokeWidth={1.8} />Settings</h1><p className="portal-description mt-2">Manage your account and security preferences.</p></div></div>

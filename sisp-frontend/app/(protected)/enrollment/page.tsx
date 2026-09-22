@@ -15,7 +15,6 @@ import {
 import { toast } from 'sonner';
 import { enrollmentsApi } from '@/lib/api/enrollments';
 import { useStudentStore } from '@/stores/studentStore';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 
 interface AvailableCourse {
@@ -153,7 +152,6 @@ export default function EnrollmentPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
       <main className="portal-main pb-8">
         <div className="portal-page-header">
           <div>

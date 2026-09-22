@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRequestStore } from '@/stores/requestStore';
-import { Navbar } from '@/components/shared/Navbar';
 import { RequestStatusTracker } from '@/components/shared/RequestStatusTracker';
 import {
   Card,
@@ -193,7 +192,6 @@ export default function RequestsPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
 
       <main className="portal-main max-w-4xl">
         <div className="portal-page-header flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

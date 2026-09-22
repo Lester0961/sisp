@@ -11,7 +11,6 @@ import {
   Users,
 } from 'lucide-react';
 import { facultyApi, type AssignedClass, type ClassRoster } from '@/lib/api/faculty';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 
 export default function FacultyDashboardPage() {
@@ -54,7 +53,6 @@ export default function FacultyDashboardPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
       <main className="portal-main max-w-6xl pb-8">
         <div className="portal-page-header">
           <div>

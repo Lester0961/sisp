@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useStudentStore } from '@/stores/studentStore';
-import { Navbar } from '@/components/shared/Navbar';
 import {
   Card,
   CardContent,
@@ -44,7 +43,6 @@ export default function GradesPage() {
 
   return (
     <div className="portal-page">
-      <Navbar/>
 
       <main className="portal-main max-w-6xl">
         <div className="portal-page-header">

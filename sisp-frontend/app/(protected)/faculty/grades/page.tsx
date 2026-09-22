@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { gradesApi, GradeItem } from '@/lib/api/grades';
 import { academicTermsApi, AcademicTerm } from '@/lib/api/academicTerms';
 import { Button } from '@/components/ui/button';
-import { Navbar } from '@/components/shared/Navbar';
 import { toast } from 'sonner';
 import { PageFooter } from '@/components/shared/PageFooter';
 import {
@@ -259,7 +258,6 @@ export default function FacultyGradesPage() {
 
   return (
     <div className="portal-page flex min-h-[100dvh] w-full flex-col">
-      <Navbar />
 
       <main className="portal-main flex-1 space-y-5">
         

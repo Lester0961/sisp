@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw, Wallet } from 'lucide-react';
 import { financeApi, type FinanceSummary } from '@/lib/api/finance';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 
 const peso = (value: number | null | undefined) =>
@@ -36,7 +35,6 @@ export default function FinancialsPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
       <main className="portal-main max-w-6xl pb-8">
         <div className="portal-page-header">
           <div>

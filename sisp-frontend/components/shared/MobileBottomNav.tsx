@@ -2,63 +2,26 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, FileText, LayoutDashboard, MessageSquare, Settings, Sparkles, Users, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
+import { mobileNavItemsForRole } from '@/lib/navigation';
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  isCenter?: boolean;
-};
-
-const roleNavs: Record<string, NavItem[]> = {
-  student: [
-    { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/enrollment', label: 'Enroll', icon: BookOpen },
-    { href: '/chat', label: 'ARIA', icon: Sparkles, isCenter: true },
-    { href: '/grades', label: 'Grades', icon: BookOpen },
-    { href: '/financials', label: 'Fees', icon: Wallet },
-  ],
-  faculty: [
-    { href: '/faculty', label: 'Home', icon: LayoutDashboard },
-    { href: '/faculty/grades', label: 'Grades', icon: BookOpen },
-    { href: '/tickets', label: 'Tickets', icon: Sparkles, isCenter: true },
-    { href: '/settings', label: 'Settings', icon: Settings },
-  ],
-  dean: [
-    { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/dean/advisees', label: 'Advisees', icon: Users },
-    { href: '/dean/grades', label: 'Approvals', icon: BookOpen },
-    { href: '/tickets', label: 'Tickets', icon: Sparkles },
-    { href: '/settings', label: 'Settings', icon: Settings },
-  ],
-  registrar: [
-    { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/tickets', label: 'Tickets', icon: Sparkles, isCenter: true },
-    { href: '/admin/kb', label: 'Policies', icon: BookOpen },
-    { href: '/settings', label: 'Settings', icon: Settings },
-  ],
-  treasury: [
-    { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/admin/requests', label: 'Payments', icon: FileText, isCenter: true },
-    { href: '/tickets', label: 'Tickets', icon: Sparkles },
-    { href: '/settings', label: 'Settings', icon: Settings },
-  ],
-  sys_admin: [
-    { href: '/admin/dashboard', label: 'Home', icon: LayoutDashboard },
-    { href: '/admin/users', label: 'Users', icon: Users },
-    { href: '/admin/audit', label: 'Audit', icon: FileText, isCenter: true },
-    { href: '/tickets', label: 'Tickets', icon: Sparkles },
-    { href: '/settings', label: 'Settings', icon: Settings },
-  ],
-};
-
+/**
+ * Mobile quick navigation derived from the shared portal nav config so it can
+ * never drift from the sidebar. Hidden on lg+ where the side nav is visible.
+ */
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const navItems = roleNavs[user?.role ?? 'student'] ?? roleNavs.student;
+  const navItems = mobileNavItemsForRole(user?.role);
+
+  if (navItems.length === 0) {
+    return null;
+  }
+
+  const activeHref = navItems
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#dce7ef] bg-white lg:hidden">
@@ -68,7 +31,7 @@ export function MobileBottomNav() {
       >
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = item.href === activeHref;
 
           return (
             <Link
@@ -83,14 +46,14 @@ export function MobileBottomNav() {
               <span
                 className={cn(
                   'flex size-8 items-center justify-center rounded-xl',
-                  item.isCenter && 'size-10 -mt-4 border-4 border-[#f8fbfd] bg-[#0a439b] text-white shadow-[0_8px_20px_rgb(10_67_155_/_0.22)]',
-                  isActive && !item.isCenter && 'bg-[#eaf3fa]',
+                  item.center && 'size-10 -mt-4 border-4 border-[#f8fbfd] bg-[#0a439b] text-white shadow-[0_8px_20px_rgb(10_67_155_/_0.22)]',
+                  isActive && !item.center && 'bg-[#eaf3fa]',
                 )}
               >
-                <Icon className={cn(item.isCenter ? 'size-5' : 'size-[18px]')} strokeWidth={1.9} />
+                <Icon className={cn(item.center ? 'size-5' : 'size-[18px]')} strokeWidth={1.9} />
               </span>
               <span className={cn('max-w-full truncate text-[10px] leading-none', isActive && 'font-bold')}>
-                {item.label}
+                {item.shortLabel ?? item.label}
               </span>
             </Link>
           );

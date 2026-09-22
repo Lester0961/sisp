@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Bell, BookOpen, FileText, Sparkles, AlertCircle, CheckCircle2, ShieldAlert, Info } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useStudentStore } from '@/stores/studentStore';
-import { Navbar } from '@/components/shared/Navbar';
 import { Button } from '@/components/ui/button';
 import { notificationsApi } from '@/lib/api/notifications';
 import { Notification } from '@/types';
@@ -99,7 +98,6 @@ export default function DashboardPage() {
 
   return (
     <div className="portal-page">
-      <Navbar />
       <main className="portal-main">
         <div className="portal-page-header">
           <div>
