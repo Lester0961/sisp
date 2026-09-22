@@ -54,4 +54,10 @@ export class IdentityVerificationsAdminController {
   ) {
     return this.service.review(id, user.sub, dto);
   }
+
+  @Get(':id/documents/:documentId/url')
+  @RequirePermissions('student_record.update')
+  async documentUrl(@Param('id') id: string, @Param('documentId') documentId: string) {
+    return this.service.getDocumentSignedUrl(id, documentId);
+  }
 }

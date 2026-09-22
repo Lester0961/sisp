@@ -241,18 +241,20 @@ export class AdminService {
     return updated;
   }
 
-  async activateUser(userId: string) {
+  async activateUser(userId: string, actorId: string) {
     const target = await this.getTargetUser(userId);
     if (target.archivedAt) {
       throw new BadRequestException(
         'This account is archived. Clear the archive flag before reactivating.',
       );
     }
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { isActive: true },
       select: userSafeSelect,
     });
+    await this.writeAccountAudit(actorId, userId, 'ACCOUNT_ACTIVATED', target.isActive, true);
+    return updated;
   }
 
   async archiveUser(userId: string, actorId: string) {
@@ -268,14 +270,44 @@ export class AdminService {
       select: userSafeSelect,
     });
     await this.sessionService.revokeAllForUser(userId, 'account_archived');
+    await this.writeAccountAudit(actorId, userId, 'ACCOUNT_ARCHIVED', target.isActive, false);
     return updated;
   }
 
-  async revokeSessions(userId: string) {
+  async revokeSessions(userId: string, actorId: string) {
     const target = await this.getTargetUser(userId);
     if (!target) throw new NotFoundException(`User with ID ${userId} not found`);
     const revoked = await this.sessionService.revokeAllForUser(userId, 'admin_revoke');
+    await this.prisma.auditLog.create({
+      data: {
+        userId: actorId,
+        action: 'SESSION_REVOKED_ALL',
+        resource: 'auth_sessions',
+        resourceId: userId,
+        oldValue: null,
+        newValue: JSON.stringify({ revoked }),
+      },
+    });
     return { message: 'Active sessions revoked', revoked };
+  }
+
+  private async writeAccountAudit(
+    actorId: string,
+    targetUserId: string,
+    action: string,
+    oldValue: unknown,
+    newValue: unknown,
+  ): Promise<void> {
+    await this.prisma.auditLog.create({
+      data: {
+        userId: actorId,
+        action,
+        resource: 'users',
+        resourceId: targetUserId,
+        oldValue: oldValue === undefined ? null : JSON.stringify(oldValue),
+        newValue: newValue === undefined ? null : JSON.stringify(newValue),
+      },
+    });
   }
 
   async createUser(dto: CreateUserDto) {

@@ -1,5 +1,7 @@
-import * as ExcelJS from 'exceljs';
+﻿import * as ExcelJS from 'exceljs';
 import { AnalyticsService } from './analytics.service';
+
+const access: any = { assertCanReadStudent: jest.fn().mockResolvedValue(undefined) };
 
 describe('AnalyticsService enrollment exports', () => {
   it('exports the dashboard enrollment aggregates with the student detail sheet', async () => {
@@ -17,7 +19,7 @@ describe('AnalyticsService enrollment exports', () => {
         ]),
       },
     };
-    const service = new AnalyticsService(prisma);
+    const service = new AnalyticsService(prisma, access);
 
     const buffer = await service.exportEnrollmentExcel();
     const workbook = new ExcelJS.Workbook();
@@ -53,7 +55,7 @@ describe('AnalyticsService chatbot analytics', () => {
         count: jest.fn((args: any) => Promise.resolve(args?.where?.status === 'resolved' ? 3 : 5)),
       },
     };
-    const service = new AnalyticsService(prisma);
+    const service = new AnalyticsService(prisma, access);
 
     await expect(service.getChatbotAnalytics()).resolves.toEqual({
       totalLogs: 0,
@@ -77,7 +79,7 @@ describe('AnalyticsService finance summary', () => {
       accountBalance: { aggregate: jest.fn().mockResolvedValue({ _sum: { balance: 3500 } }) },
       documentRequest: { aggregate: jest.fn().mockResolvedValue({ _sum: { fee: 800 } }) },
     };
-    const service = new AnalyticsService(prisma);
+    const service = new AnalyticsService(prisma, access);
 
     await expect(service.getFinanceSummary()).resolves.toEqual({
       totalAssessed: 10000,
@@ -99,7 +101,7 @@ describe('AnalyticsService grade export visibility parity', () => {
         ]),
       },
     };
-    const service = new AnalyticsService(prisma);
+    const service = new AnalyticsService(prisma, access);
 
     await expect(service.getPublishedGradeCount()).resolves.toEqual({ publishedGradeCount: 1 });
     expect(prisma.grade.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -121,7 +123,7 @@ describe('AnalyticsService grade export visibility parity', () => {
     const prisma: any = {
       studentProfile: { findUnique: jest.fn().mockResolvedValue(student) },
     };
-    const service = new AnalyticsService(prisma);
+    const service = new AnalyticsService(prisma, access);
 
     const reportStudent = await service.getGradeReportStudent('student-1');
 
@@ -136,7 +138,7 @@ describe('AnalyticsService grade export visibility parity', () => {
 
   it('builds the PDF from the shared visibility-filtered student report', async () => {
     const prisma: any = { studentProfile: { findUnique: jest.fn() } };
-    const service = new AnalyticsService(prisma);
+    const service = new AnalyticsService(prisma, access);
     const reportStudent: any = {
       studentNumber: 'RMC-1', yearLevel: '1',
       user: { firstName: 'Test', lastName: 'Student', email: 'student@example.test' },
@@ -147,8 +149,31 @@ describe('AnalyticsService grade export visibility parity', () => {
 
     const pdf = await service.exportGradesPdf('student-1');
 
-    expect(reportSpy).toHaveBeenCalledWith('student-1');
+    expect(reportSpy).toHaveBeenCalledWith('student-1', undefined);
     expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
     reportSpy.mockRestore();
+  });
+
+  it('scopes dean/faculty transcript access through the shared record check', async () => {
+    const prisma: any = { studentProfile: { findUnique: jest.fn() } };
+    const service = new AnalyticsService(prisma, access);
+    const denied = jest.fn().mockRejectedValueOnce(new Error('You are not authorized'));
+    (service as any).studentAccess = { assertCanReadStudent: denied };
+
+    await expect(
+      service.getGradeReportStudent('student-1', { sub: 'dean-1', role: 'dean' }),
+    ).rejects.toThrow('You are not authorized');
+    expect(prisma.studentProfile.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('lets the registrar read without a scoping lookup', async () => {
+    const prisma: any = { studentProfile: { findUnique: jest.fn().mockResolvedValue(null) } };
+    const service = new AnalyticsService(prisma, access);
+    access.assertCanReadStudent.mockClear();
+
+    await expect(
+      service.getGradeReportStudent('student-1', { sub: 'reg-1', role: 'registrar' }),
+    ).rejects.toThrow(/not found/i);
+    expect(access.assertCanReadStudent).not.toHaveBeenCalled();
   });
 });

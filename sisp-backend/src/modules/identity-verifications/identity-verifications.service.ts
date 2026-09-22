@@ -1,9 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createHash, randomBytes } from 'node:crypto';
-import * as fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import { PrismaService } from '../../prisma/prisma.service';
+import { IdentityStorageService } from './identity-storage.service';
 import { CreateIdentityVerificationDto } from './dto/create-identity-verification.dto';
 import { ReviewIdentityVerificationDto } from './dto/review-identity-verification.dto';
 import { UploadVerificationDocumentDto } from './dto/upload-verification-document.dto';
@@ -18,13 +17,14 @@ const REVIEW_DECISIONS = ['under_review', 'approved', 'rejected', 'needs_info'];
  * A public applicant submits historical identity details; staff review and
  * approve the linkage to an existing StudentProfile. Uploaded IDs are stored
  * privately (object key only, never a public URL) and are returned to staff as
- * metadata; no document bytes are ever serialized through the API list.
+ * metadata; document bytes are only reachable through short-lived signed URLs
+ * created by the backend.
  */
 @Injectable()
 export class IdentityVerificationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
+    private readonly storage: IdentityStorageService,
   ) {}
 
   async create(dto: CreateIdentityVerificationDto) {
@@ -108,7 +108,7 @@ export class IdentityVerificationsService {
     }
 
     const objectKey = this.buildObjectKey(id, dto.originalFileName);
-    this.writePrivateFile(objectKey, content);
+    await this.storage.save(objectKey, content, dto.mimeType);
 
     const document = await this.prisma.identityVerificationDocument.create({
       data: {
@@ -131,6 +131,26 @@ export class IdentityVerificationsService {
     });
 
     return { message: 'Identification document uploaded for review', document };
+  }
+
+  /**
+   * Short-lived signed link so a reviewer can open the uploaded ID. When the
+   * local fallback storage is active (development), url is null and only
+   * metadata is returned.
+   */
+  async getDocumentSignedUrl(verificationId: string, documentId: string) {
+    const document = await this.prisma.identityVerificationDocument.findFirst({
+      where: { id: documentId, verificationId },
+    });
+    if (!document) throw new NotFoundException('Identification document not found');
+    const url = await this.storage.createSignedUrl(document.storageObjectKey, 300);
+    return {
+      documentId: document.id,
+      fileName: document.originalFileName,
+      mimeType: document.mimeType,
+      url,
+      expiresInSeconds: url ? 300 : 0,
+    };
   }
 
   async listForReview(status?: string) {
@@ -231,12 +251,5 @@ export class IdentityVerificationsService {
     const extension = path.extname(originalFileName).toLowerCase().replace(/[^.a-z0-9]/g, '') || '.bin';
     const digest = createHash('sha256').update(`${verificationId}:${originalFileName}:${Date.now()}`).digest('hex').slice(0, 24);
     return `${verificationId}/${digest}${extension}`;
-  }
-
-  private writePrivateFile(objectKey: string, content: Buffer): void {
-    const root = this.config.get<string>('IDENTITY_STORAGE_DIR') || path.join(process.cwd(), 'storage', 'identity');
-    const target = path.join(root, objectKey);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, content, { mode: 0o600 });
   }
 }

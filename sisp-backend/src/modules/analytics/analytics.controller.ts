@@ -1,7 +1,9 @@
 import { Controller, Get, Param, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { AnalyticsService } from './analytics.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
+import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 @Controller('analytics')
 export class AnalyticsController {
@@ -57,9 +59,16 @@ export class AnalyticsController {
   }
 
   @Get('export/grades/:studentId')
-  @RequirePermissions('report.read')
-  async exportGradesPdf(@Param('studentId') studentId: string, @Res() res: Response) {
-    const buffer = await this.analyticsService.exportGradesPdf(studentId);
+  @RequirePermissions('report.read', 'student_record.read_assigned')
+  async exportGradesPdf(
+    @Param('studentId') studentId: string,
+    @CurrentUser() user: JwtPayload,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.analyticsService.exportGradesPdf(studentId, {
+      sub: user.sub,
+      role: user.role,
+    });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=grades-${studentId}.pdf`);
     res.send(buffer);

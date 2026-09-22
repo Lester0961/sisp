@@ -3,7 +3,12 @@ import { IdentityVerificationsService } from './identity-verifications.service';
 
 describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
   let service: IdentityVerificationsService;
-  let storageDir: string;
+
+  const storage = {
+    save: jest.fn().mockResolvedValue(undefined),
+    createSignedUrl: jest.fn().mockResolvedValue('https://signed.example/doc'),
+    isRemoteEnabled: jest.fn().mockReturnValue(true),
+  };
 
   const verification = {
     id: 'ver-1',
@@ -26,20 +31,15 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
-    identityVerificationDocument: { create: jest.fn() },
+    identityVerificationDocument: { create: jest.fn(), findFirst: jest.fn() },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    storageDir = require('node:path').join(
-      require('node:os').tmpdir(),
-      `sisp-identity-test-${Date.now()}`,
-    );
-    const config: any = {
-      get: jest.fn((key: string) => (key === 'IDENTITY_STORAGE_DIR' ? storageDir : null)),
-    };
-    service = new IdentityVerificationsService(prisma, config);
+    storage.save.mockResolvedValue(undefined);
+    storage.createSignedUrl.mockResolvedValue('https://signed.example/doc');
+    service = new IdentityVerificationsService(prisma, storage as any);
   });
 
   it('marks a student-number match as a candidate, not an approval', async () => {
@@ -130,6 +130,11 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
         contentBase64: tinyPng,
       }),
     ).resolves.toEqual(expect.objectContaining({ message: expect.stringContaining('uploaded') }));
+    expect(storage.save).toHaveBeenCalledWith(
+      expect.stringMatching(/^ver-1\/[0-9a-f]{24}\.png$/),
+      expect.any(Buffer),
+      'image/png',
+    );
 
     await expect(
       service.uploadDocument('ver-1', {
@@ -149,5 +154,35 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
         contentBase64: oversized,
       }),
     ).rejects.toBeInstanceOf(PayloadTooLargeException);
+  });
+
+  it('returns a short-lived signed link for a reviewer without exposing the object key', async () => {
+    prisma.identityVerificationDocument.findFirst.mockResolvedValue({
+      id: 'doc-1',
+      storageObjectKey: 'ver-1/abc.png',
+      originalFileName: 'id.png',
+      mimeType: 'image/png',
+    });
+
+    const result: any = await service.getDocumentSignedUrl('ver-1', 'doc-1');
+
+    expect(result.url).toBe('https://signed.example/doc');
+    expect(result.expiresInSeconds).toBe(300);
+    expect(JSON.stringify(result)).not.toContain('ver-1/abc.png');
+  });
+
+  it('reports metadata only when remote storage is not configured', async () => {
+    prisma.identityVerificationDocument.findFirst.mockResolvedValue({
+      id: 'doc-1',
+      storageObjectKey: 'ver-1/abc.png',
+      originalFileName: 'id.png',
+      mimeType: 'image/png',
+    });
+    storage.createSignedUrl.mockResolvedValueOnce(null);
+
+    const result: any = await service.getDocumentSignedUrl('ver-1', 'doc-1');
+
+    expect(result.url).toBeNull();
+    expect(result.expiresInSeconds).toBe(0);
   });
 });

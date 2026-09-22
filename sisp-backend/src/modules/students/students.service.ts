@@ -6,13 +6,17 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StudentAccessService, StudentActor } from '../../common/authz/student-access.service';
 import { CreateStudentProfileDto } from './dto/create-student-profile.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly studentAccess: StudentAccessService,
+  ) {}
 
   async getMyProfile(userId: string) {
     const profile = await this.prisma.studentProfile.findUnique({
@@ -68,7 +72,10 @@ export class StudentsService {
     return profile;
   }
 
-  async getProfileById(id: string) {
+  async getProfileById(id: string, actor?: StudentActor) {
+    if (actor) {
+      await this.studentAccess.assertCanReadStudent(actor, id);
+    }
     const profile = await this.prisma.studentProfile.findUnique({
       where: { id },
       include: {
@@ -281,8 +288,10 @@ export class StudentsService {
     };
   }
 
-  async listAll() {
+  async listAll(actor?: StudentActor) {
+    const accessibleIds = actor ? await this.studentAccess.accessibleStudentIds(actor) : null;
     const profiles = await this.prisma.studentProfile.findMany({
+      where: accessibleIds === null ? undefined : { id: { in: accessibleIds } },
       include: {
         user: {
           select: {

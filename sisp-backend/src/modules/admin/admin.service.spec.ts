@@ -28,6 +28,7 @@ describe('AdminService — privilege safeguards and Phase 1 account lifecycle', 
       create: jest.fn(),
     },
     role: { findUnique: jest.fn() },
+    auditLog: { create: jest.fn().mockResolvedValue({}) },
   };
   const mockPermissions = { invalidate: jest.fn() };
   const mockSessions = { revokeAllForUser: jest.fn().mockResolvedValue(1) };

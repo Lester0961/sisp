@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { StudentAccessService, StudentActor } from '../../common/authz/student-access.service';
 import * as ExcelJS from 'exceljs';
 import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly studentAccess: StudentAccessService,
+  ) {}
 
   async getEnrollmentStats() {
     const programStats = await this.prisma.studentProfile.groupBy({
@@ -235,8 +239,8 @@ export class AnalyticsService {
     return buffer;
   }
 
-  async exportGradesPdf(studentId: string): Promise<Buffer> {
-    const student = await this.getGradeReportStudent(studentId);
+  async exportGradesPdf(studentId: string, actor?: StudentActor): Promise<Buffer> {
+    const student = await this.getGradeReportStudent(studentId, actor);
 
     return new Promise<Buffer>((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
@@ -317,7 +321,12 @@ export class AnalyticsService {
     });
   }
 
-  async getGradeReportStudent(studentId: string) {
+  async getGradeReportStudent(studentId: string, actor?: StudentActor) {
+    // Registrar keeps institutional access; sys_admin is audited support read.
+    // Deans/faculty must be scoped to advisees / assigned classes.
+    if (actor && actor.role !== 'registrar' && actor.role !== 'sys_admin') {
+      await this.studentAccess.assertCanReadStudent(actor, studentId);
+    }
     const student = await this.prisma.studentProfile.findUnique({
       where: { id: studentId },
       include: {

@@ -66,8 +66,8 @@ export class AdminController {
 
   @Post('users/:id/activate')
   @RequirePermissions('user.manage')
-  async activateUser(@Param('id') id: string) {
-    return this.adminService.activateUser(id);
+  async activateUser(@Param('id') id: string, @CurrentUser() actor: JwtPayload) {
+    return this.adminService.activateUser(id, actor.sub);
   }
 
   @Post('users/:id/archive')
@@ -78,8 +78,8 @@ export class AdminController {
 
   @Post('users/:id/revoke-sessions')
   @RequirePermissions('user.manage')
-  async revokeSessions(@Param('id') id: string) {
-    return this.adminService.revokeSessions(id);
+  async revokeSessions(@Param('id') id: string, @CurrentUser() actor: JwtPayload) {
+    return this.adminService.revokeSessions(id, actor.sub);
   }
 
   @Post('users/create')

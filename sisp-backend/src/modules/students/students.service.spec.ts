@@ -28,7 +28,11 @@ describe('StudentsService — activation hardening (Phase 1, P1-09)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new StudentsService(mockPrisma as PrismaService);
+    service = new StudentsService(mockPrisma as PrismaService, {
+      canReadStudent: jest.fn().mockResolvedValue(true),
+      assertCanReadStudent: jest.fn().mockResolvedValue(undefined),
+      accessibleStudentIds: jest.fn().mockResolvedValue(null),
+    } as any);
   });
 
   it('loads the profile for the authenticated user id only (P4-02)', async () => {

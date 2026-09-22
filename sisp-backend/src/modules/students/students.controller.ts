@@ -5,6 +5,7 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 import { ActivateStudentAccountDto } from './dto/activate-student.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 import { Public } from '../../common/decorators/public.decorator';
@@ -34,30 +35,31 @@ export class StudentsController {
     return this.studentsService.getMyProfile(user.sub);
   }
 
-  // Admin creates a student profile for a user
+  // Registrar creates a student profile for a user
   @Post('profile')
-  @Roles('registrar', 'dean')
+  @RequirePermissions('student_record.update')
   async createProfile(@Body() dto: AdminCreateStudentProfileDto) {
     return this.studentsService.createProfile(dto.userId, dto);
   }
 
-  // Admin lists all student profiles
+  // Staff list student profiles. Registrar/sys_admin see every profile;
+  // dean/faculty are scoped to advisees / assigned classes.
   @Get()
-  @Roles('registrar', 'dean')
-  async listAll() {
-    return this.studentsService.listAll();
+  @Roles('registrar', 'dean', 'faculty', 'sys_admin')
+  async listAll(@CurrentUser() user: JwtPayload) {
+    return this.studentsService.listAll({ sub: user.sub, role: user.role });
   }
 
-  // Admin views any student profile by profile ID
+  // Staff view a student profile with record-level scope enforcement.
   @Get(':id')
-  @Roles('registrar', 'dean')
-  async getProfileById(@Param('id') id: string) {
-    return this.studentsService.getProfileById(id);
+  @Roles('registrar', 'dean', 'faculty', 'sys_admin')
+  async getProfileById(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    return this.studentsService.getProfileById(id, { sub: user.sub, role: user.role });
   }
 
-  // Admin updates a student profile
+  // Registrar updates a student profile (student_record.update).
   @Patch(':id')
-  @Roles('registrar', 'dean')
+  @RequirePermissions('student_record.update')
   async updateProfile(@Param('id') id: string, @Body() dto: UpdateStudentDto) {
     return this.studentsService.updateProfile(id, dto);
   }
