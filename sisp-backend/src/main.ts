@@ -77,6 +77,10 @@ async function bootstrap() {
   // Cookie parser middleware
   app.use(cookieParser());
 
+  // Behind the Render/HTTPS proxy, trust the first proxy hop so secure
+  // cookies and client IPs are interpreted correctly.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
 

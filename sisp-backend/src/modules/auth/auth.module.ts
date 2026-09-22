@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { MfaService } from './mfa.service';
+import { MailService } from './mail.service';
+import { SessionService } from './session.service';
 
 @Module({
   imports: [
@@ -20,7 +22,8 @@ import { MfaService } from './mfa.service';
         return {
           secret,
           signOptions: {
-            expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1d',
+            // Short-lived access tokens (Phase 1); refresh lives in AuthSession.
+            expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '15m',
           },
         };
       },
@@ -28,7 +31,7 @@ import { MfaService } from './mfa.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, MfaService, JwtStrategy],
-  exports: [AuthService, MfaService, JwtModule],
+  providers: [AuthService, MfaService, MailService, SessionService, JwtStrategy],
+  exports: [AuthService, MfaService, MailService, SessionService, JwtModule],
 })
 export class AuthModule {}

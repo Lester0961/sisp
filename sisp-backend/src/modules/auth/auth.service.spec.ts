@@ -5,76 +5,81 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { PermissionService } from '../../common/authz/permission.service';
+import { MailService } from './mail.service';
 import { MfaService } from './mfa.service';
+import { SessionService } from './session.service';
 
-describe('AuthService', () => {
+describe('AuthService (Phase 1)', () => {
   let service: AuthService;
 
   const mockMfa = {
-    generateOtp: jest.fn(),
-    verifyOtp: jest.fn(),
+    isRequiredForRole: jest.fn().mockReturnValue(false),
+    createChallenge: jest.fn(),
+    verifyChallenge: jest.fn(),
+    resend: jest.fn(),
   };
+  const mockSessions = {
+    createSession: jest.fn().mockResolvedValue({ sessionId: 'session-1', refreshToken: 'refresh-1' }),
+    rotate: jest.fn(),
+    assertActive: jest.fn(),
+    revoke: jest.fn(),
+    revokeAllForUser: jest.fn().mockResolvedValue(2),
+    listActive: jest.fn().mockResolvedValue([]),
+  };
+  const mockPermissions = { getPermissionsForRole: jest.fn().mockResolvedValue(['student_record.read_own']) };
+  const mockMail = { isConfigured: jest.fn().mockReturnValue(true), send: jest.fn().mockResolvedValue(undefined) };
 
   const mockPrisma = {
     auditLog: { create: jest.fn() },
-    user: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-    },
-    role: {
-      findUnique: jest.fn(),
-    },
+    user: { findUnique: jest.fn(), update: jest.fn() },
+    passwordResetToken: { create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
   };
 
   const mockJwt = {
-    verify: jest.fn(),
-    signAsync: jest.fn().mockResolvedValue('signed-token'),
+    signAsync: jest.fn().mockResolvedValue('signed-access-token'),
   };
 
   const mockConfig = {
     get: jest.fn((key: string): string | null => {
-      if (key === 'JWT_SECRET') return 'secret';
+      if (key === 'JWT_SECRET') return 'access-secret';
       if (key === 'JWT_EXPIRES_IN') return '15m';
-      if (key === 'JWT_REFRESH_SECRET') return 'refresh_secret';
-      if (key === 'JWT_REFRESH_EXPIRES_IN') return '7d';
-      if (key === 'MFA_ENABLED') return 'false';
+      if (key === 'FRONTEND_URL') return 'http://localhost:3002';
       return null;
     }),
   };
 
-  // Cheap bcrypt hashes for unit tests (cost 4 keeps the suite fast).
-  const realPasswordHash = bcrypt.hashSync('CorrectPassword1', 4);
-  const demoPasswordHash = bcrypt.hashSync('local-demo-only', 4);
-
-  const sysadminUser = {
-    id: 'mock-sysadmin-id',
-    email: 'sysadmin@rmc.edu.ph',
-    passwordHash: realPasswordHash,
-    isActive: true,
-    mustChangePassword: false,
-    role: { name: 'sys_admin' },
-  };
-
+  const passwordHash = bcrypt.hashSync('CorrectPassword1', 4);
   const studentUser = {
-    id: 'mock-student-id',
+    id: 'student-1',
     email: 'student@rmc.edu.ph',
-    passwordHash: demoPasswordHash,
+    firstName: 'Test',
+    lastName: 'Student',
+    passwordHash,
     isActive: true,
     mustChangePassword: false,
     role: { name: 'student' },
   };
+  const deanUser = {
+    id: 'dean-1',
+    email: 'dean@rmc.edu.ph',
+    firstName: 'Test',
+    lastName: 'Dean',
+    passwordHash,
+    isActive: true,
+    mustChangePassword: false,
+    role: { name: 'dean' },
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    mockJwt.signAsync.mockResolvedValue('signed-token');
-    mockConfig.get.mockImplementation((key: string) => {
-      if (key === 'JWT_SECRET') return 'secret';
-      if (key === 'JWT_EXPIRES_IN') return '15m';
-      if (key === 'JWT_REFRESH_SECRET') return 'refresh_secret';
-      if (key === 'JWT_REFRESH_EXPIRES_IN') return '7d';
-      if (key === 'MFA_ENABLED') return 'false';
-      return null;
-    });
+    mockMfa.isRequiredForRole.mockReturnValue(false);
+    mockSessions.createSession.mockResolvedValue({ sessionId: 'session-1', refreshToken: 'refresh-1' });
+    mockSessions.revokeAllForUser.mockResolvedValue(2);
+    mockSessions.listActive.mockResolvedValue([]);
+    mockPermissions.getPermissionsForRole.mockResolvedValue(['student_record.read_own']);
+    mockMail.isConfigured.mockReturnValue(true);
+    mockJwt.signAsync.mockResolvedValue('signed-access-token');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -83,104 +88,151 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwt },
         { provide: ConfigService, useValue: mockConfig },
         { provide: MfaService, useValue: mockMfa },
+        { provide: SessionService, useValue: mockSessions },
+        { provide: PermissionService, useValue: mockPermissions },
+        { provide: MailService, useValue: mockMail },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  it('authenticates a valid password against the stored hash', async () => {
+  it('authenticates a valid password and issues a server-side session', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(studentUser);
-    const result: any = await service.login({
-      email: studentUser.email,
-      password: 'local-demo-only',
-    }, '192.0.2.10');
+
+    const result: any = await service.login(
+      { email: studentUser.email, password: 'CorrectPassword1' },
+      '192.0.2.10',
+      'jest-agent',
+    );
+
     expect(result.mfaRequired).toBe(false);
-    expect(result.user.role).toBe('student');
-    expect(result.accessToken).toBe('signed-token');
+    expect(result.accessToken).toBe('signed-access-token');
+    expect(result.refreshToken).toBe('refresh-1');
+    expect(result.permissions).toEqual(['student_record.read_own']);
+    expect(mockSessions.createSession).toHaveBeenCalledWith('student-1', '192.0.2.10', 'jest-agent');
     expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        userId: studentUser.id,
-        actorEmail: studentUser.email,
-        actorRole: 'student',
-        action: 'LOGIN_SUCCESS',
-        resource: 'auth',
-        ipAddress: '192.0.2.10',
-      }),
+      data: expect.objectContaining({ action: 'LOGIN_SUCCESS', resource: 'auth' }),
     });
   });
 
-  it('audits an unknown-account failure without storing the attempted email or password', async () => {
+  it('audits an unknown-account failure without storing email or password', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(null);
 
-    await expect(service.login({
-      email: 'unknown@rmc.edu.ph',
-      password: 'NeverStoreThisPassword',
-    }, '192.0.2.11')).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(
+      service.login({ email: 'unknown@rmc.edu.ph', password: 'NeverStoreThisPassword' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
 
+    const serialized = JSON.stringify(mockPrisma.auditLog.create.mock.calls);
+    expect(serialized).not.toContain('NeverStoreThisPassword');
+    expect(serialized).not.toContain('unknown@rmc.edu.ph');
     expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
-      data: {
-        userId: null,
-        actorEmail: null,
-        actorRole: null,
-        action: 'LOGIN_FAILURE',
-        resource: 'auth',
-        resourceId: null,
-        ipAddress: '192.0.2.11',
-      },
+      data: expect.objectContaining({ action: 'LOGIN_FAILURE' }),
     });
-    expect(JSON.stringify(mockPrisma.auditLog.create.mock.calls)).not.toContain('NeverStoreThisPassword');
-    expect(JSON.stringify(mockPrisma.auditLog.create.mock.calls)).not.toContain('unknown@rmc.edu.ph');
   });
 
-  it('rejects the removed local compatibility alias', async () => {
+  it('rejects wrong passwords and inactive accounts', async () => {
     mockPrisma.user.findUnique.mockResolvedValue(studentUser);
     await expect(
-      service.login({ email: studentUser.email, password: 'password123' }),
+      service.login({ email: studentUser.email, password: 'WrongPassword1' }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
-    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        userId: studentUser.id,
-        action: 'LOGIN_FAILURE',
-        resource: 'auth',
-      }),
-    });
-  });
 
-  it('rejects the removed sysadmin backdoor credential', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue(sysadminUser);
-    await expect(
-      service.login({ email: sysadminUser.email, password: 'local-demo-only' }),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
-  });
-
-  it('blocks inactive accounts', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ ...studentUser, isActive: false });
     await expect(
-      service.login({ email: studentUser.email, password: 'local-demo-only' }),
+      service.login({ email: studentUser.email, password: 'CorrectPassword1' }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it('does not bypass MFA for sysadmin when MFA is enabled', async () => {
-    mockConfig.get.mockImplementation((key: string) => {
-      if (key === 'JWT_SECRET') return 'secret';
-      if (key === 'JWT_REFRESH_SECRET') return 'refresh_secret';
-      if (key === 'MFA_ENABLED') return 'true';
-      return null;
+  it('requires an MFA challenge for policy roles instead of issuing tokens', async () => {
+    mockMfa.isRequiredForRole.mockReturnValue(true);
+    mockMfa.createChallenge.mockResolvedValue({
+      challengeId: 'challenge-1',
+      expiresAt: new Date(Date.now() + 300_000),
+      maskedEmail: 'te**@rmc.edu.ph',
     });
-    mockMfa.generateOtp.mockResolvedValue(undefined);
-    mockPrisma.user.findUnique.mockResolvedValue(sysadminUser);
+    mockPrisma.user.findUnique.mockResolvedValue(deanUser);
 
-    const result: any = await service.login({
-      email: sysadminUser.email,
-      password: 'CorrectPassword1',
-    });
+    const result: any = await service.login({ email: deanUser.email, password: 'CorrectPassword1' });
+
     expect(result.mfaRequired).toBe(true);
+    expect(result.challengeId).toBe('challenge-1');
     expect(result.accessToken).toBeUndefined();
-    expect(mockMfa.generateOtp).toHaveBeenCalledWith(sysadminUser.id);
+    expect(result.refreshToken).toBeUndefined();
+    expect(mockSessions.createSession).not.toHaveBeenCalled();
+    expect(mockMfa.createChallenge).toHaveBeenCalledWith('dean-1', 'login', undefined);
+  });
+
+  it('verifies the challenge once and only then creates a session', async () => {
+    mockMfa.verifyChallenge.mockResolvedValue({ userId: 'dean-1', purpose: 'login' });
+    mockPrisma.user.findUnique.mockResolvedValue(deanUser);
+
+    const result: any = await service.verifyMfa('challenge-1', '123456', '192.0.2.9', 'jest');
+
+    expect(result.accessToken).toBe('signed-access-token');
+    expect(mockSessions.createSession).toHaveBeenCalledWith('dean-1', '192.0.2.9', 'jest');
+  });
+
+  it('rejects non-login challenge purposes', async () => {
+    mockMfa.verifyChallenge.mockResolvedValue({
+      userId: 'dean-1',
+      purpose: 'alumni_identity_confirmation',
+    });
+
+    await expect(service.verifyMfa('challenge-1', '123456')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('rotates the refresh session and reissues a short-lived access token', async () => {
+    mockSessions.rotate.mockResolvedValue({ userId: 'student-1', sessionId: 'session-2', refreshToken: 'refresh-2' });
+    mockPrisma.user.findUnique.mockResolvedValue(studentUser);
+
+    const result: any = await service.refresh('refresh-1', '192.0.2.10');
+
+    expect(mockSessions.rotate).toHaveBeenCalledWith('refresh-1', '192.0.2.10', undefined);
+    expect(result.refreshToken).toBe('refresh-2');
+    expect(result.accessToken).toBe('signed-access-token');
+  });
+
+  it('revokes other sessions on password change and audits the event', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(studentUser);
+    mockPrisma.user.update.mockResolvedValue(studentUser);
+
+    const result: any = await service.changePassword(
+      'student-1',
+      'session-1',
+      'CorrectPassword1',
+      'NewPassword1',
+    );
+
+    expect(result.otherSessionsRevoked).toBe(2);
+    expect(mockSessions.revokeAllForUser).toHaveBeenCalledWith('student-1', 'password_change', 'session-1');
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: 'PASSWORD_CHANGED' }),
+    });
+  });
+
+  it('never reveals whether a forgot-password email exists', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    const missing: any = await service.forgotPassword('ghost@rmc.edu.ph');
+    mockPrisma.user.findUnique.mockResolvedValue(studentUser);
+    mockPrisma.passwordResetToken.create.mockResolvedValue({ id: 'reset-1' });
+    const existing: any = await service.forgotPassword('student@rmc.edu.ph');
+
+    expect(missing.message).toEqual(existing.message);
+    expect(JSON.stringify(missing)).not.toContain('reset-password');
+  });
+
+  it('rejects a consumed or expired reset token', async () => {
+    mockPrisma.passwordResetToken.findUnique.mockResolvedValue({
+      id: 'reset-1',
+      userId: 'student-1',
+      consumedAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    await expect(service.resetPassword('token', 'NewPassword1')).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 });

@@ -3,11 +3,14 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { SessionService } from '../session.service';
 
 export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  sid?: string;
+  purpose?: string;
   mustChangePassword?: boolean;
 }
 
@@ -16,6 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly sessionService: SessionService,
   ) {
     const secret = configService.get<string>('JWT_SECRET');
     if (!secret) {
@@ -29,6 +33,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload): Promise<JwtPayload> {
+    // Only access tokens may authenticate protected routes. MFA challenge
+    // credentials are database records, never JWTs, and are rejected here.
+    if (payload.purpose !== 'access') {
+      throw new UnauthorizedException('Invalid token purpose');
+    }
+    if (!payload.sid) {
+      throw new UnauthorizedException('Invalid session token');
+    }
+    await this.sessionService.assertActive(payload.sid, payload.sub);
+
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       include: { role: true },
@@ -45,6 +59,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       sub: payload.sub,
       email: payload.email,
       role: user.role?.name ?? payload.role,
+      sid: payload.sid,
+      purpose: 'access',
       mustChangePassword: user.mustChangePassword,
     };
   }

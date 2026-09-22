@@ -29,8 +29,19 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     if (user && user.mustChangePassword) {
       const path = request.path;
-      // Match exact path (with or without /api prefix) to prevent suffix-bypass
-      const allowedPaths = ['/api/auth/change-password', '/auth/change-password'];
+      // Match exact paths (with or without /api prefix) to prevent
+      // suffix-bypass. A temporary-password account may only inspect its own
+      // session, sign out, or change the password.
+      const allowedPaths = [
+        '/api/auth/change-password',
+        '/auth/change-password',
+        '/api/auth/me',
+        '/auth/me',
+        '/api/auth/logout',
+        '/auth/logout',
+        '/api/auth/logout-all',
+        '/auth/logout-all',
+      ];
       if (!allowedPaths.includes(path)) {
         throw new ForbiddenException(
           'Password change required. You must call POST /api/auth/change-password first.',

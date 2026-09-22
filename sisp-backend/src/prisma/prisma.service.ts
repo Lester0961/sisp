@@ -905,6 +905,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       advisingConcern: [] as any[],
       knowledgeDocument: [] as any[],
       knowledgeChunk: [] as any[],
+      // Phase 1 identity/session records
+      authSession: [] as any[],
+      mfaChallenge: [] as any[],
+      passwordResetToken: [] as any[],
+      studentIdentityVerification: [] as any[],
+      identityVerificationDocument: [] as any[],
     };
 
     const dbFilePath = path.join(__dirname, '..', '..', 'mock-db.json');

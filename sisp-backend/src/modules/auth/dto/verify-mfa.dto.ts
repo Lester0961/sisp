@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString, Length } from 'class-validator';
 export class VerifyMfaDto {
   @IsString()
   @IsNotEmpty()
-  mfaToken: string;
+  challengeId: string;
 
   @IsString()
   @IsNotEmpty()

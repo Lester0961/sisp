@@ -10,6 +10,8 @@ import {
   WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { PrismaService } from '../../prisma/prisma.service';
+import { SessionService } from '../auth/session.service';
 import { ChatSessionService } from './chat-session.service';
 
 @WebSocketGateway({
@@ -29,9 +31,11 @@ export class ChatGateway {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly sessionService: ChatSessionService,
+    private readonly sessions: SessionService,
+    private readonly prisma: PrismaService,
   ) {}
 
-  handleConnection(client: Socket): void {
+  async handleConnection(client: Socket): Promise<void> {
     const token = client.handshake.auth?.token;
     const secret = this.config.get<string>('JWT_SECRET');
     if (!token || !secret) {
@@ -39,7 +43,19 @@ export class ChatGateway {
       return;
     }
     try {
-      client.data.user = this.jwtService.verify(token, { secret });
+      const payload: any = this.jwtService.verify(token, { secret });
+      if (payload.purpose !== 'access' || !payload.sid) {
+        throw new Error('invalid token purpose');
+      }
+      await this.sessions.assertActive(payload.sid, payload.sub);
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: { role: true },
+      });
+      if (!user || !user.isActive || user.mustChangePassword) {
+        throw new Error('account not permitted for realtime sessions');
+      }
+      client.data.user = { sub: user.id, role: user.role?.name ?? payload.role, sid: payload.sid };
     } catch {
       this.logger.warn('Rejected an unauthenticated academic advisor socket connection');
       client.disconnect(true);

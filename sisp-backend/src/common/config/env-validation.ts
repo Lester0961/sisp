@@ -46,4 +46,31 @@ export function validateEnvironment(env: NodeJS.ProcessEnv = process.env): void 
         'Set them in the environment or .env file before starting SISP.',
     );
   }
+
+  // Access and refresh tokens must never share a signing secret, otherwise an
+  // access token would also be a valid refresh credential (Phase 1).
+  const jwtSecret = env.JWT_SECRET?.trim();
+  const refreshSecret = env.JWT_REFRESH_SECRET?.trim();
+  if (jwtSecret && refreshSecret && jwtSecret === refreshSecret) {
+    throw new Error(
+      'JWT_SECRET and JWT_REFRESH_SECRET must be different values before starting SISP.',
+    );
+  }
+
+  const mfaRoles = (env.MFA_REQUIRED_ROLES || '').trim();
+  if (mfaRoles && mfaRoles.toLowerCase() !== 'none') {
+    const invalidRoles = mfaRoles
+      .split(',')
+      .map((role) => role.trim().toLowerCase())
+      .filter(Boolean)
+      .filter((role) =>
+        !['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin'].includes(role),
+      );
+    if (invalidRoles.length) {
+      throw new Error(
+        `MFA_REQUIRED_ROLES contains unknown role(s): ${invalidRoles.join(', ')}. ` +
+          'Allowed values: student, faculty, dean, registrar, treasury, sys_admin, none.',
+      );
+    }
+  }
 }
