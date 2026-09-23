@@ -6,6 +6,7 @@ import { PageFooter } from '@/components/shared/PageFooter';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { adminApi } from '@/lib/api/admin';
+import { knowledgeBaseErrorMessage } from '@/lib/knowledgeBaseErrors';
 import {
   BookOpen,
   Archive,
@@ -65,8 +66,9 @@ export default function KbManagementPage() {
       setLoadError(null);
     } catch (err) {
       console.error('Failed to load KB documents:', err);
-      setLoadError('Knowledge-base records are unavailable. Check the database connection and reviewed migration state, then try again.');
-      toast.error('Failed to load knowledge-base records.');
+      const message = knowledgeBaseErrorMessage(err, 'load');
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -91,7 +93,7 @@ export default function KbManagementPage() {
       loadDocuments();
     } catch (err) {
       console.error('Failed to save document:', err);
-      toast.error('Failed to save document modifications.');
+      toast.error(knowledgeBaseErrorMessage(err, 'save'));
     }
   };
 
@@ -121,7 +123,7 @@ export default function KbManagementPage() {
       loadDocuments();
     } catch (err) {
       console.error('Failed to create document:', err);
-      toast.error('Failed to create knowledge base document.');
+      toast.error(knowledgeBaseErrorMessage(err, 'create'));
     }
   };
 
@@ -136,7 +138,7 @@ export default function KbManagementPage() {
       loadDocuments();
     } catch (err) {
       console.error('Failed to delete document:', err);
-      toast.error('Failed to delete document.');
+      toast.error(knowledgeBaseErrorMessage(err, 'archive'));
     }
   };
 
@@ -157,8 +159,9 @@ export default function KbManagementPage() {
       await loadDocuments();
     } catch (err) {
       console.error('Reindexing failed:', err);
-      toast.error('Failed to trigger KB re-indexing.');
-      setIndexStatusMessage('Indexing request failed.');
+      const message = knowledgeBaseErrorMessage(err, 'reindex');
+      toast.error(message);
+      setIndexStatusMessage(message);
     } finally {
       setReindexing(false);
     }
@@ -282,7 +285,7 @@ export default function KbManagementPage() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">
-                        No policy documents found
+                        No stored policy documents. The database list loaded successfully.
                       </TableCell>
                     </TableRow>
                   )}

@@ -4,21 +4,10 @@ import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/lib/api/auth';
+import { roleHomePath } from '@/lib/navigation';
 
 export function homeForRole(role?: string | null): string {
-  switch (role) {
-    case 'faculty':
-      return '/faculty';
-    case 'dean':
-      return '/dean/grades';
-    case 'registrar':
-    case 'treasury':
-    case 'sys_admin':
-      return '/admin/dashboard';
-    case 'student':
-    default:
-      return '/dashboard';
-  }
+  return roleHomePath(role);
 }
 
 export function useAuth() {
@@ -85,7 +74,7 @@ export function useAuth() {
   );
 
   const hasPermission = useCallback(
-    (permission: string) => permissions.includes(permission),
+    (permission: string) => Array.isArray(permissions) && permissions.includes(permission),
     [permissions],
   );
 

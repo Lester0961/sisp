@@ -1,10 +1,11 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { aggregateMockRows } from './mock-aggregate';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
 import * as path from 'path';
 import { DOCUMENT_CATALOG } from '../common/constants/document-catalog';
-import { PERMISSION_DEFINITIONS, ROLE_PERMISSIONS } from '../common/authz/rbac';
+import { APPLICATION_ROLE_NAMES, PERMISSION_DEFINITIONS, ROLE_PERMISSIONS } from '../common/authz/rbac';
 
 const FALLBACK_DATABASE_URL =
   'postgresql://invalid:invalid@127.0.0.1:1/invalid?connect_timeout=2';
@@ -42,6 +43,26 @@ function supabasePoolerUrl(directUrl: string | undefined): string | undefined {
 }
 
 const CREDENTIAL_FIELDS = new Set(['passwordHash', 'mfaSecret']);
+const MOCK_DATE_FIELD = /(?:At|On|Date|Time)$/i;
+
+/** JSON snapshots stringify Prisma Date values; restore them before services run. */
+function restoreMockDates(value: any): any {
+  if (Array.isArray(value)) return value.map((entry) => restoreMockDates(entry));
+  if (!value || typeof value !== 'object') return value;
+  for (const [key, entry] of Object.entries(value)) {
+    if (
+      typeof entry === 'string' &&
+      MOCK_DATE_FIELD.test(key) &&
+      /^\d{4}-\d{2}-\d{2}(?:T|$)/.test(entry)
+    ) {
+      const date = new Date(entry);
+      value[key] = Number.isNaN(date.getTime()) ? entry : date;
+    } else if (entry && typeof entry === 'object') {
+      value[key] = restoreMockDates(entry);
+    }
+  }
+  return value;
+}
 
 /**
  * Pure credential sanitizer for mock-resolved payloads: returns an object
@@ -89,6 +110,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private mockDb: any = {};
   private mockFlushTimer?: NodeJS.Timeout;
   private flushMockDb: () => void = () => {};
+  private mockTransaction: ((callback: (tx: any) => Promise<any>, receiver: any) => Promise<any>) | null = null;
 
   constructor() {
     super(prismaClientOptions());
@@ -109,7 +131,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               if (Array.isArray(arg)) {
                 return Promise.all(arg);
               }
-              return arg(receiver);
+              return target.mockTransaction ? target.mockTransaction(arg, receiver) : arg(receiver);
             };
           }
           if (
@@ -160,6 +182,133 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
   }
 
+  /** Idempotently merges only the checked-in, verified curricula artifact into local mock data. */
+  private mergeVerifiedCurriculaIntoMock(store: Record<string, any[]>): boolean {
+    const sourcePath = path.join(__dirname, '..', '..', 'prisma', 'curricula-verified.json');
+    if (!fs.existsSync(sourcePath)) return false;
+    let changed = false;
+    try {
+      const payload = JSON.parse(fs.readFileSync(sourcePath, 'utf8'));
+      const programs = Array.isArray(payload.programs) ? payload.programs : [];
+      const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const synthCode = (programCode: string, title: string) => {
+        const titleSlug = title.toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
+        return `${programCode}-${titleSlug || 'ELECTIVE'}`;
+      };
+      const splitPrereqs = (raw: string | null | undefined) =>
+        raw ? raw.split(/[,;]/).map((part) => part.trim().replace(/\s+/g, ' ')).filter(Boolean) : [];
+
+      for (const sourceProgram of programs) {
+        if (!sourceProgram?.code || !sourceProgram?.effectiveYear) continue;
+        let program = store.program.find((item: any) => item.code === sourceProgram.code);
+        if (!program) {
+          program = {
+            id: `mock-program-${slug(sourceProgram.code)}`,
+            code: sourceProgram.code,
+            name: sourceProgram.heading,
+            createdAt: new Date(),
+          };
+          store.program.push(program);
+          changed = true;
+        }
+
+        let curriculum = store.curriculum.find(
+          (item: any) => item.programId === program.id && item.effectiveYear === sourceProgram.effectiveYear,
+        );
+        if (!curriculum) {
+          curriculum = {
+            id: `mock-curriculum-${slug(sourceProgram.code)}-${sourceProgram.effectiveYear}`,
+            programId: program.id,
+            program,
+            effectiveYear: sourceProgram.effectiveYear,
+            schoolYear: sourceProgram.schoolYear ?? null,
+            cmo: sourceProgram.cmo ?? null,
+            sourceFile: sourceProgram.sourceFile ?? null,
+            createdAt: new Date(),
+          };
+          store.curriculum.push(curriculum);
+          changed = true;
+        }
+
+        const sourceRows = Array.isArray(sourceProgram.courses) ? sourceProgram.courses : [];
+        const codeToId = new Map<string, string[]>();
+        for (const row of sourceRows) {
+          if (!row?.title) continue;
+          const isCodeSynthesized = !row.code;
+          const code = row.code ?? synthCode(sourceProgram.code, row.title);
+          let course = store.course.find((item: any) => item.code === code && item.title === row.title);
+          if (!course) {
+            course = {
+              id: `mock-course-${slug(code)}-${slug(row.title).slice(0, 32)}`,
+              code,
+              isCodeSynthesized,
+              title: row.title,
+              units: row.units ?? 0,
+              lecUnits: row.lec ?? 0,
+              labUnits: row.lab ?? null,
+              subjectArea: row.subjectArea ?? null,
+              catNo: row.catNo ?? null,
+              prereqText: row.prereq ?? null,
+              createdAt: new Date(),
+            };
+            store.course.push(course);
+            changed = true;
+          }
+          const ids = codeToId.get(code) ?? [];
+          ids.push(course.id);
+          codeToId.set(code, ids);
+
+          if (!store.curriculumCourse.some((link: any) => link.curriculumId === curriculum.id && link.courseId === course.id)) {
+            store.curriculumCourse.push({
+              curriculumId: curriculum.id,
+              courseId: course.id,
+              course,
+              yearLevel: row.yearLevel ?? 1,
+              semester: row.termNumber ?? 1,
+              termNumber: row.termNumber ?? null,
+              termLabel: row.termLabel ?? null,
+              sourceUnits: row.units ?? 0,
+              sourceLecUnits: row.lec ?? 0,
+              sourceLabUnits: row.lab ?? null,
+              sourceTotal: row.sourceTotal ?? null,
+            });
+            changed = true;
+          }
+        }
+
+        for (const row of sourceRows) {
+          if (!row?.title) continue;
+          const code = row.code ?? synthCode(sourceProgram.code, row.title);
+          const courseId = codeToId.get(code)?.[0];
+          if (!courseId) continue;
+          for (const requiresCode of splitPrereqs(row.prereq)) {
+            if (store.coursePrerequisite.some((entry: any) => entry.courseId === courseId && entry.requiresCode === requiresCode)) continue;
+            const targets = codeToId.get(requiresCode) ?? codeToId.get(requiresCode.replace(/\s+/g, '')) ?? [];
+            const selfReference = requiresCode === code;
+            const requiresId = targets.find((id) => id !== courseId) ?? (selfReference ? courseId : targets[0] ?? null);
+            store.coursePrerequisite.push({
+              id: `mock-course-prerequisite-${slug(courseId)}-${slug(requiresCode)}`,
+              courseId,
+              requiresCode,
+              requiresId,
+              isSelfReference: selfReference,
+              isUnresolved: !requiresId,
+              note: selfReference
+                ? 'source self-reference preserved (§10)'
+                : !requiresId
+                  ? 'code not in same curriculum; preserved verbatim'
+                  : null,
+            });
+            changed = true;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Prisma Mock] Could not merge verified curricula into local mock data:', error);
+    }
+    return changed;
+  }
+
   private initMockDb() {
     const localDemoPassword = process.env.LOCAL_DEMO_PASSWORD || 'local-demo-only';
     const mockPasswordHash = bcrypt.hashSync(localDemoPassword, 10);
@@ -174,6 +323,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       { id: 'role-id-faculty', name: 'faculty', createdAt: new Date() },
       { id: 'role-id-student', name: 'student', createdAt: new Date() },
       { id: 'role-id-sys_admin', name: 'sys_admin', createdAt: new Date() },
+      { id: 'role-id-live_agent', name: 'live_agent', createdAt: new Date() },
     ];
 
     const roleById = (roleId: string) => roles.find((role) => role.id === roleId);
@@ -185,6 +335,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         passwordHash: mockPasswordHash,
         firstName: 'Regis',
         lastName: 'Admin',
+        roleId: 'role-id-admin_staff',
+        isActive: true,
+        mustChangePassword: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        role: roleById('role-id-admin_staff'),
+      },
+      {
+        id: 'mock-registrar-id',
+        email: 'registrar@rmc.edu.ph',
+        passwordHash: mockPasswordHash,
+        firstName: 'Regis',
+        lastName: 'Registrar',
         roleId: 'role-id-admin_staff',
         isActive: true,
         mustChangePassword: false,
@@ -256,6 +419,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         createdAt: new Date(),
         updatedAt: new Date(),
         role: roleById('role-id-treasury'),
+      },
+      {
+        id: 'mock-live-agent-id',
+        email: 'agent@rmc.edu.ph',
+        passwordHash: mockPasswordHash,
+        firstName: 'ARIA',
+        lastName: 'Support Agent',
+        roleId: 'role-id-live_agent',
+        isActive: false,
+        mustChangePassword: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        role: roleById('role-id-live_agent'),
       },
     ];
 
@@ -900,6 +1076,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     };
 
     const dbFilePath = path.join(__dirname, '..', '..', 'mock-db.json');
+    let mockSnapshotNeedsFlush = false;
 
     // Load existing mock DB from disk if it exists
     if (fs.existsSync(dbFilePath)) {
@@ -908,9 +1085,28 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         const parsed = JSON.parse(fileData);
         for (const key of Object.keys(store)) {
           if (parsed[key] && Array.isArray(parsed[key])) {
-            store[key] = parsed[key];
+            store[key] = restoreMockDates(parsed[key]);
           }
         }
+        store.chatSession = store.chatSession.map((session: any) => {
+          if (!Object.prototype.hasOwnProperty.call(session, 'agentId')) mockSnapshotNeedsFlush = true;
+          if (!Object.prototype.hasOwnProperty.call(session, 'studentLastViewedAt')) mockSnapshotNeedsFlush = true;
+          return {
+            ...session,
+            agentId: session.agentId ?? null,
+            studentLastViewedAt: session.studentLastViewedAt ?? null,
+          };
+        });
+        store.escalationQueue = store.escalationQueue.map((entry: any) => {
+          if (!Object.prototype.hasOwnProperty.call(entry, 'assignedTo')) mockSnapshotNeedsFlush = true;
+          return { ...entry, assignedTo: entry.assignedTo ?? null };
+        });
+        store.authSession = store.authSession.map((session: any) => ({
+          ...session,
+          lastUsedAt: session.lastUsedAt ?? null,
+          revokedAt: session.revokedAt ?? null,
+          revokeReason: session.revokeReason ?? null,
+        }));
         const termForLegacy = (semester: unknown, year: unknown) => {
           const normalized = String(semester ?? '').toLowerCase();
           const termNumber = normalized === '2nd' || normalized === 'second' || normalized === 'term 2' ? 2
@@ -962,14 +1158,109 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           const treasuryRole = roles.find((role) => role.name === 'treasury');
           if (treasuryRole) store.role.push(treasuryRole);
         }
-        if (!store.permission?.length) store.permission = permissions;
-        if (!store.rolePermission?.length) store.rolePermission = rolePermissions;
+        // Existing mock snapshots retain their users and records. Add current
+        // roles and grants by natural key so old local data enforces today's
+        // authorization model without replacing user assignments.
+        for (const roleName of APPLICATION_ROLE_NAMES) {
+          if (!store.role.some((role: any) => role.name === roleName)) {
+            const fixtureRole = roles.find((role) => role.name === roleName);
+            if (fixtureRole) store.role.push(fixtureRole);
+            mockSnapshotNeedsFlush = true;
+          }
+        }
+        for (const permission of permissions) {
+          const existingPermission = store.permission.find(
+            (item: any) => item.resource === permission.resource && item.action === permission.action,
+          );
+          if (!existingPermission) {
+            store.permission.push(permission);
+            mockSnapshotNeedsFlush = true;
+          }
+        }
+        const currentGrantKeys = store.rolePermission
+          .map((entry: any) => `${entry.roleId}:${entry.permissionId}`)
+          .sort();
+        const desiredRolePermissions: any[] = Object.entries(ROLE_PERMISSIONS).flatMap(
+          ([roleName, permissionKeys]) => {
+            const persistedRole = store.role.find((role: any) => role.name === roleName);
+            if (!persistedRole) return [];
+            return permissionKeys.flatMap((permissionKey) => {
+              const [resource, action] = permissionKey.split('.');
+              const persistedPermission = store.permission.find(
+                (permission: any) => permission.resource === resource && permission.action === action,
+              );
+              return persistedPermission
+                ? [{
+                    roleId: persistedRole.id,
+                    permissionId: persistedPermission.id,
+                    role: persistedRole,
+                    permission: persistedPermission,
+                  }]
+                : [];
+            });
+          },
+        );
+        const desiredGrantKeys = desiredRolePermissions
+          .map((entry) => `${entry.roleId}:${entry.permissionId}`)
+          .sort();
+        if (currentGrantKeys.join('|') !== desiredGrantKeys.join('|')) mockSnapshotNeedsFlush = true;
+        // Rebuild only authorization metadata from the checked-in least-
+        // privilege matrix; user records and their role assignments remain.
+        store.rolePermission = desiredRolePermissions;
+        for (const user of store.user) {
+          const persistedRole = store.role.find((role: any) => role.id === user.roleId);
+          if (persistedRole && user.role?.name !== persistedRole.name) {
+            user.role = persistedRole;
+            mockSnapshotNeedsFlush = true;
+          }
+        }
+        if (!store.user.some((user: any) => user.email?.toLowerCase() === 'agent@rmc.edu.ph')) {
+          const fixtureAgent = users.find((user) => user.email === 'agent@rmc.edu.ph');
+          if (fixtureAgent) store.user.push(fixtureAgent);
+          mockSnapshotNeedsFlush = true;
+        }
+
+        // Connect only the known bundled demo escalation and its matching
+        // chat session so local UI can exercise the actual claim workflow.
+        const demoSession = store.chatSession.find((session: any) => session.id === 'mock-session-1');
+        const demoEscalation = store.escalationQueue.find((entry: any) => entry.id === 'mock-escalation-1');
+        if (demoSession && !demoSession.escalationId && demoEscalation?.chatId === 'mock-chat-1') {
+          demoSession.escalationId = 'mock-chat-1';
+          mockSnapshotNeedsFlush = true;
+        }
+
+        // DEC-016 defines the official student balance as obligations less
+        // verified ledger entries. Reconcile the local fixture's stale cache;
+        // legacy StudentSemester.amountPaid is not itself a verified payment.
+        for (const profile of store.studentProfile) {
+          const obligations = store.studentSemester
+            .filter((semester: any) => semester.studentId === profile.id)
+            .reduce((sum: number, semester: any) => sum + Number(semester.amountDue ?? 0), 0);
+          const verifiedPayments = store.paymentTransaction
+            .filter((payment: any) => payment.studentId === profile.id && payment.status === 'verified')
+            .reduce((sum: number, payment: any) => sum + Number(payment.amount ?? 0), 0);
+          const balance = Math.max(0, Math.round((obligations - verifiedPayments) * 100) / 100);
+          const cachedBalance = store.accountBalance.find((item: any) => item.studentId === profile.id);
+          if (cachedBalance && Number(cachedBalance.balance) !== balance) {
+            cachedBalance.balance = balance;
+            mockSnapshotNeedsFlush = true;
+          }
+          if (profile.accountBalance && Number(profile.accountBalance.balance) !== balance) {
+            profile.accountBalance.balance = balance;
+            mockSnapshotNeedsFlush = true;
+          }
+        }
+
+        // Import only rows from the checked-in verified curricula artifact.
+        mockSnapshotNeedsFlush = this.mergeVerifiedCurriculaIntoMock(store) || mockSnapshotNeedsFlush;
 
         console.log('[Prisma Mock] Loaded database state from mock-db.json');
       } catch (err) {
         console.error('[Prisma Mock] Failed to read mock-db.json:', err);
       }
     }
+
+    mockSnapshotNeedsFlush = this.mergeVerifiedCurriculaIntoMock(store) || mockSnapshotNeedsFlush;
 
     // Debounced persistence: under concurrent load (e.g. dozens of students
     // chatting at once), stringifying + rewriting the whole file on every
@@ -995,24 +1286,35 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const saveDb = () => {
       mockDirty = true;
     };
+    this.mockTransaction = async (callback, receiver) => {
+      const before = JSON.stringify(store);
+      try {
+        return await callback(receiver);
+      } catch (error) {
+        const restored = JSON.parse(before);
+        for (const key of Object.keys(store)) store[key] = restoreMockDates(restored[key]);
+        saveDb();
+        throw error;
+      }
+    };
+    if (mockSnapshotNeedsFlush) saveDb();
 
     // Recursive mock relation populate helper
     const resolveIncludes = (item: any, include: any, modelKey: string): any => {
       if (!item || !include) return item;
-      // Honor Prisma `select` projections (e.g. user selects that exclude
-      // passwordHash). Without this, mock mode leaks full rows to clients.
-      if (typeof include === 'object' && include !== null && !Array.isArray(include)) {
-        const select = (include as any).select;
-        if (select && typeof select === 'object' && !(include as any).include) {
-          const picked: any = {};
-          for (const [field, want] of Object.entries(select)) {
-            if (want) picked[field] = item[field];
-          }
-          return picked;
-        }
-      }
+      // Resolve relations before projecting. A Prisma select can contain
+      // nested select/include objects alongside scalar fields.
+      const select =
+        typeof include === 'object' && include !== null && !Array.isArray(include)
+          ? (include as any).select
+          : undefined;
+      const relationOptions = select
+        ? Object.fromEntries(
+            Object.entries(select).filter(([, value]) => value && typeof value === 'object'),
+          )
+        : include;
       const cloned = { ...item };
-      for (const [key, val] of Object.entries(include)) {
+      for (const [key, val] of Object.entries(relationOptions || {})) {
         if (!val) continue;
         // Preserve `select` projections when there is no nested `include`
         // (e.g. { select: { id, email } }). Dropping them here returned full
@@ -1192,6 +1494,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               cloned.agent = resolveIncludes(userItem, subInclude, 'user');
             }
           }
+          if (key === 'chatLog') {
+            const chatLog = store.chatLog.find((entry: any) => entry.id === cloned.escalationId);
+            if (chatLog) cloned.chatLog = resolveIncludes(chatLog, subInclude, 'chatLog');
+          }
           if (key === 'messages') {
             const messages = store.chatMessage.filter((m) => m.sessionId === cloned.id);
             cloned.messages = messages.map((m) => resolveIncludes(m, subInclude, 'chatMessage'));
@@ -1308,25 +1614,135 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       const keepRootHash =
         modelKey === 'user' &&
         (!include || !(include as any).select || (include as any).select.passwordHash);
-      return stripCredentials(cloned, new Map(), 0, keepRootHash);
+      const projected = select
+        ? Object.fromEntries(
+            Object.entries(select)
+              .filter(([, want]) => Boolean(want))
+              .map(([field]) => [field, cloned[field]]),
+          )
+        : cloned;
+      return stripCredentials(projected, new Map(), 0, keepRootHash);
     };
 
-    const matchesWhere = (item: any, where: any): boolean => {
-      return Object.entries(where || {}).every(([k, v]) => {
-        if (typeof v === 'object' && v !== null) {
-          if ('in' in (v as any) && Array.isArray((v as any).in)) {
-            return (v as any).in.includes(item[k]);
-          }
-          // Nested where (e.g. { enrollment: { studentId: '...' } })
-          const itemRelation = item[k];
-          if (itemRelation && typeof itemRelation === 'object') {
-            return Object.entries(v).every(([rk, rv]) => itemRelation[rk] === rv);
-          }
-          return true;
-        }
-        return item[k] === v;
-      });
+    const relationForWhere = (item: any, relation: string, modelKey: string): any => {
+      if (item?.[relation] !== undefined) return item[relation];
+      const lookups: Record<string, Record<string, (row: any) => any>> = {
+        user: {
+          role: (row) => store.role.find((entry: any) => entry.id === row.roleId),
+          studentProfile: (row) => store.studentProfile.find((entry: any) => entry.userId === row.id),
+        },
+        rolePermission: {
+          role: (row) => store.role.find((entry: any) => entry.id === row.roleId),
+          permission: (row) => store.permission.find((entry: any) => entry.id === row.permissionId),
+        },
+        studentProfile: {
+          user: (row) => store.user.find((entry: any) => entry.id === row.userId),
+          program: (row) => store.program.find((entry: any) => entry.id === row.programId),
+          accountBalance: (row) => store.accountBalance.find((entry: any) => entry.studentId === row.id),
+        },
+        chatSession: {
+          student: (row) => store.studentProfile.find((entry: any) => entry.id === row.studentId),
+          agent: (row) => store.user.find((entry: any) => entry.id === row.agentId),
+          chatLog: (row) => store.chatLog.find((entry: any) => entry.id === row.escalationId),
+        },
+        escalationQueue: {
+          chat: (row) => store.chatLog.find((entry: any) => entry.id === row.chatId),
+          assignee: (row) => store.user.find((entry: any) => entry.id === row.assignedTo),
+        },
+        studentSemester: {
+          student: (row) => store.studentProfile.find((entry: any) => entry.id === row.studentId),
+          term: (row) => store.academicTerm.find((entry: any) => entry.id === row.termId),
+        },
+        paymentTransaction: {
+          student: (row) => store.studentProfile.find((entry: any) => entry.id === row.studentId),
+          academicTerm: (row) => store.academicTerm.find((entry: any) => entry.id === row.academicTermId),
+          verifiedBy: (row) => store.user.find((entry: any) => entry.id === row.verifiedById),
+        },
+        curriculum: { program: (row) => store.program.find((entry: any) => entry.id === row.programId) },
+        curriculumCourse: { course: (row) => store.course.find((entry: any) => entry.id === row.courseId) },
+        coursePrerequisite: {
+          course: (row) => store.course.find((entry: any) => entry.id === row.courseId),
+          requires: (row) => store.course.find((entry: any) => entry.id === row.requiresId),
+        },
+        enrollment: {
+          student: (row) => store.studentProfile.find((entry: any) => entry.id === row.studentId),
+          course: (row) => store.course.find((entry: any) => entry.id === row.courseId),
+          term: (row) => store.academicTerm.find((entry: any) => entry.id === row.termId),
+          instructor: (row) => store.user.find((entry: any) => entry.id === row.instructorId),
+        },
+      };
+      return lookups[modelKey]?.[relation]?.(item);
     };
+
+    const scalarMatches = (actual: any, expected: any): boolean => {
+      if (expected === null || typeof expected !== 'object' || expected instanceof Date) {
+        return actual instanceof Date && expected instanceof Date
+          ? actual.getTime() === expected.getTime()
+          : actual === expected;
+      }
+      if ('equals' in expected && !scalarMatches(actual, expected.equals)) return false;
+      if ('not' in expected && scalarMatches(actual, expected.not)) return false;
+      if (Array.isArray(expected.in) && !expected.in.includes(actual)) return false;
+      if (Array.isArray(expected.notIn) && expected.notIn.includes(actual)) return false;
+      if (typeof expected.contains === 'string') {
+        const candidate = String(actual ?? '');
+        const normalizedCandidate = expected.mode === 'insensitive' ? candidate.toLowerCase() : candidate;
+        const normalizedNeedle = expected.mode === 'insensitive' ? expected.contains.toLowerCase() : expected.contains;
+        if (!normalizedCandidate.includes(normalizedNeedle)) return false;
+      }
+      if (typeof expected.startsWith === 'string' && !String(actual ?? '').startsWith(expected.startsWith)) return false;
+      if (typeof expected.endsWith === 'string' && !String(actual ?? '').endsWith(expected.endsWith)) return false;
+      for (const [operator, compare] of [
+        ['gt', (a: any, b: any) => a > b],
+        ['gte', (a: any, b: any) => a >= b],
+        ['lt', (a: any, b: any) => a < b],
+        ['lte', (a: any, b: any) => a <= b],
+      ] as const) {
+        if (operator in expected && !compare(actual, expected[operator])) return false;
+      }
+      return true;
+    };
+
+    const matchesWhere = (item: any, where: any, modelKey: string): boolean =>
+      Object.entries(where || {}).every(([key, expected]) => {
+        if (key === 'OR') return Array.isArray(expected) && expected.some((clause) => matchesWhere(item, clause, modelKey));
+        if (key === 'AND') return Array.isArray(expected) && expected.every((clause) => matchesWhere(item, clause, modelKey));
+        if (key === 'NOT') {
+          return Array.isArray(expected)
+            ? expected.every((clause) => !matchesWhere(item, clause, modelKey))
+            : !matchesWhere(item, expected, modelKey);
+        }
+        if (expected && typeof expected === 'object' && !Array.isArray(expected) && !(expected instanceof Date)) {
+          if ('some' in expected || 'none' in expected) {
+            const related = relationForWhere(item, key, modelKey);
+            if (!Array.isArray(related)) return false;
+            if ('some' in expected && !related.some((entry) => matchesWhere(entry, (expected as any).some, key))) return false;
+            if ('none' in expected && related.some((entry) => matchesWhere(entry, (expected as any).none, key))) return false;
+            return true;
+          }
+          if ('is' in expected || 'isNot' in expected) {
+            const related = relationForWhere(item, key, modelKey);
+            if ('is' in expected && (expected as any).is === null) return related == null;
+            if ('isNot' in expected && (expected as any).isNot === null) return related != null;
+            return Boolean(related) &&
+              (!('is' in expected) || matchesWhere(related, (expected as any).is, key)) &&
+              (!('isNot' in expected) || !matchesWhere(related, (expected as any).isNot, key));
+          }
+          const scalarOperators = new Set(['equals', 'not', 'in', 'notIn', 'contains', 'startsWith', 'endsWith', 'gt', 'gte', 'lt', 'lte', 'mode']);
+          const looksLikeScalarFilter = Object.keys(expected).some((field) => scalarOperators.has(field));
+          const relation = relationForWhere(item, key, modelKey);
+          if (!looksLikeScalarFilter && relation !== undefined) {
+            return Array.isArray(relation)
+              ? relation.some((entry) => matchesWhere(entry, expected, key))
+              : Boolean(relation) && matchesWhere(relation, expected, key);
+          }
+          if (!looksLikeScalarFilter && !(key in (item ?? {}))) {
+            // Prisma compound unique selectors are objects of scalar fields.
+            return matchesWhere(item, expected, modelKey);
+          }
+        }
+        return scalarMatches(item?.[key], expected);
+      });
 
     // Build mock model actions
     for (const modelKey of Object.keys(store)) {
@@ -1334,8 +1750,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         findUnique: async (args: any) => {
           const list = store[modelKey];
           const where = args?.where || {};
-          const found = list.find((item) => matchesWhere(item, where)) || null;
-          return found ? resolveIncludes(found, args?.include, modelKey) : null;
+          const found = list.find((item) => matchesWhere(item, where, modelKey)) || null;
+          return found ? resolveIncludes(found, args?.include ?? (args?.select ? { select: args.select } : undefined), modelKey) : null;
         },
         findUniqueOrThrow: async (args: any) => {
           const res = await this.mockDb[modelKey].findUnique(args);
@@ -1348,13 +1764,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         findMany: async (args: any) => {
           const list = store[modelKey];
           const where = args?.where || {};
-          const filtered = list.filter((item) => matchesWhere(item, where));
-          return filtered.map((item) => resolveIncludes(item, args?.include, modelKey));
+          const filtered = list.filter((item) => matchesWhere(item, where, modelKey));
+          return filtered.map((item) => resolveIncludes(item, args?.include ?? (args?.select ? { select: args.select } : undefined), modelKey));
         },
         upsert: async (args: any) => {
           const list = store[modelKey];
           const where = args?.where || {};
-          const existing = list.find((item) => matchesWhere(item, where));
+          const existing = list.find((item) => matchesWhere(item, where, modelKey));
           if (existing) {
             Object.assign(existing, args?.update || {});
             existing.updatedAt = new Date();
@@ -1372,6 +1788,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           const newItem = {
             id: newId,
             ...(modelKey === 'user' ? { isActive: true, mustChangePassword: true } : {}),
+            ...(modelKey === 'authSession'
+              ? { lastUsedAt: null, revokedAt: null, revokeReason: null }
+              : {}),
             ...args.data,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -1379,11 +1798,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
           // Attach relations if needed
           if (modelKey === 'user' && args.data.roleId) {
-            newItem.role = roles.find((r) => r.id === args.data.roleId);
+            newItem.role = store.role.find((r: any) => r.id === args.data.roleId);
           }
           if (modelKey === 'studentProfile') {
-            newItem.user = users.find((u) => u.id === args.data.userId);
-            newItem.program = programs.find((p) => p.id === args.data.programId) || programs[0];
+            newItem.user = store.user.find((u: any) => u.id === args.data.userId);
+            newItem.program = store.program.find((p: any) => p.id === args.data.programId) || store.program[0];
             newItem.accountBalance = {
               id: `mock-balance-${newItem.id}`,
               studentId: newItem.id,
@@ -1394,11 +1813,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             };
           }
           if (modelKey === 'enrollment') {
-            newItem.course = courses.find((c) => c.id === args.data.courseId) || courses[0];
+            newItem.course = store.course.find((c: any) => c.id === args.data.courseId) || store.course[0];
             newItem.student =
-              studentProfiles.find((sp) => sp.id === args.data.studentId) || studentProfiles[0];
-            newItem.term = academicTerms.find((term) => term.id === args.data.termId);
-            newItem.instructor = users.find((user) => user.id === args.data.instructorId);
+              store.studentProfile.find((sp: any) => sp.id === args.data.studentId) || store.studentProfile[0];
+            newItem.term = store.academicTerm.find((term: any) => term.id === args.data.termId);
+            newItem.instructor = store.user.find((user: any) => user.id === args.data.instructorId);
           }
           if (modelKey === 'documentRequest') {
             newItem.student = studentProfiles.find((sp) => sp.id === args.data.studentId);
@@ -1439,14 +1858,22 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             newItem.isCurrent = newItem.isCurrent || false;
           }
           if (modelKey === 'chatSession') {
-            newItem.student = studentProfiles.find((sp) => sp.id === args.data.studentId);
+            newItem.agentId = newItem.agentId ?? null;
+            newItem.studentLastViewedAt = newItem.studentLastViewedAt ?? null;
+            newItem.student = store.studentProfile.find((sp: any) => sp.id === args.data.studentId);
             if (args.data.agentId) {
-              newItem.agent = users.find((u) => u.id === args.data.agentId);
+              newItem.agent = store.user.find((u: any) => u.id === args.data.agentId);
             }
           }
+          if (modelKey === 'escalationQueue') {
+            newItem.assignedTo = newItem.assignedTo ?? null;
+            newItem.resolution = newItem.resolution ?? null;
+            newItem.routingNote = newItem.routingNote ?? null;
+            newItem.resolvedAt = newItem.resolvedAt ?? null;
+          }
           if (modelKey === 'chatMessage') {
-            newItem.session = chatSessions.find((s) => s.id === args.data.sessionId);
-            newItem.sender = users.find((u) => u.id === args.data.senderId);
+            newItem.session = store.chatSession.find((s: any) => s.id === args.data.sessionId);
+            newItem.sender = store.user.find((u: any) => u.id === args.data.senderId);
           }
 
           list.push(newItem);
@@ -1469,7 +1896,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           const data = args?.data || {};
           let count = 0;
           for (const item of list) {
-            const matches = matchesWhere(item, where);
+            const matches = matchesWhere(item, where, modelKey);
             if (matches) {
               Object.assign(item, data);
               item.updatedAt = new Date();
@@ -1499,7 +1926,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         },
         delete: async (args: any) => {
           const idx = store[modelKey].findIndex((item) => {
-            return Object.entries(args.where).every(([k, v]) => item[k] === v);
+            return matchesWhere(item, args.where, modelKey);
           });
           if (idx === -1) throw new Error(`${modelKey} not found to delete`);
           const [removed] = store[modelKey].splice(idx, 1);
@@ -1512,15 +1939,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           let count = 0;
           for (let i = list.length - 1; i >= 0; i--) {
             const item = list[i];
-            const matches = Object.entries(where).every(([k, v]) => {
-              if (typeof v === 'object' && v !== null) {
-                if ('in' in v && Array.isArray((v as any).in)) {
-                  return (v as any).in.includes(item[k]);
-                }
-                return true;
-              }
-              return item[k] === v;
-            });
+            const matches = matchesWhere(item, where, modelKey);
             if (matches) {
               list.splice(i, 1);
               count++;
@@ -1533,8 +1952,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           const list = await this.mockDb[modelKey].findMany(args);
           return list.length;
         },
-        aggregate: async () => {
-          return { _sum: { units: 10 }, _avg: { finalGrade: 92.5 } };
+        aggregate: async (args: any = {}) => {
+          return aggregateMockRows(
+            store[modelKey],
+            args,
+            (row, where) => matchesWhere(row, where, modelKey),
+          );
         },
         groupBy: async () => {
           return [];

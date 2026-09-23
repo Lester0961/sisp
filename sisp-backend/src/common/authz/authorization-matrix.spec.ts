@@ -63,6 +63,17 @@ describe('Thesis role-permission matrix (Table 3.10)', () => {
     expect(can('student', 'escalation.respond')).toBe(false);
   });
 
+  it('excludes live_agent from the six-role escalation workflow', () => {
+    expect(can('live_agent', 'escalation.view_assigned')).toBe(false);
+    expect(can('live_agent', 'escalation.respond')).toBe(false);
+    expect(can('live_agent', 'escalation.resolve')).toBe(false);
+    expect(can('live_agent', 'escalation.reassign')).toBe(false);
+    expect(can('live_agent', 'aria.use')).toBe(false);
+    expect(can('live_agent', 'student_record.read_assigned')).toBe(false);
+    expect(can('live_agent', 'user.manage')).toBe(false);
+    expect(can('live_agent', 'financial.manage')).toBe(false);
+  });
+
   it('dean: assigned student review, trends, reports', () => {
     expect(can('dean', 'student_record.read_assigned')).toBe(true);
     expect(can('dean', 'aria_trends.read')).toBe(true);

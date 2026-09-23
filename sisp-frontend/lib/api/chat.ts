@@ -101,6 +101,7 @@ export interface ChatSessionRecord {
   status: string;
   createdAt: string;
   updatedAt: string;
+  studentLastViewedAt?: string | null;
   student: {
     id: string;
     studentNumber: string;
@@ -128,6 +129,7 @@ export interface AdvisorSessionSummary {
   updatedAt: string;
   student: { studentNumber: string };
   agent?: { id: string; firstName: string; lastName: string } | null;
+  chatLog?: { intent: string | null } | null;
   messages: Array<{ senderRole: string; createdAt: string }>;
 }
 
@@ -202,6 +204,15 @@ export const chatApi = {
   getMySessions: async (): Promise<ChatSessionRecord[]> => {
     const response = await apiClient.get('/chat/sessions/me');
     return response.data;
+  },
+
+  getAttention: async (): Promise<{ count: number; assigned?: number; unassigned?: number }> => {
+    const response = await apiClient.get('/chat/sessions/attention');
+    return response.data;
+  },
+
+  markSessionViewed: async (sessionId: string): Promise<void> => {
+    await apiClient.patch(`/chat/sessions/${sessionId}/viewed`);
   },
 
   getSessionMessages: async (sessionId: string): Promise<ChatSessionMessage[]> => {

@@ -73,7 +73,7 @@ describe('AdminService — privilege safeguards and Phase 1 account lifecycle', 
   });
 
   it('rejects unrecognized and removed roles', async () => {
-    for (const roleName of ['admin_staff', 'live_agent', 'wizard']) {
+    for (const roleName of ['admin_staff', 'wizard']) {
       await expect(
         service.updateUserRole('reg-1', roleName, 'sys-1'),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -129,6 +129,35 @@ describe('AdminService — privilege safeguards and Phase 1 account lifecycle', 
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('rejects creating or assigning the retired live_agent role', async () => {
+    const legacyRolePayload = {
+      email: 'agent@example.test',
+      firstName: 'Support',
+      lastName: 'Agent',
+      roleName: 'live_agent',
+    };
+
+    await expect(service.createUser(legacyRolePayload as any)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    await expect(service.updateUserRole('reg-1', 'live_agent', 'sys-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    expect(mockPrisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('prevents reactivating a legacy live_agent account', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      ...targetRegistrar,
+      role: { id: 'r-live-agent', name: 'live_agent' },
+      isActive: false,
+    });
+
+    await expect(service.activateUser('agent-1', 'sys-1')).rejects.toThrow(/retired/i);
+    expect(mockPrisma.user.update).not.toHaveBeenCalled();
+  });
+
   it('rejects creating student accounts through staff provisioning', async () => {
     await expect(
       service.createUser({ roleName: 'student' } as any),
@@ -157,4 +186,5 @@ describe('AdminService — privilege safeguards and Phase 1 account lifecycle', 
     expect(result.temporaryPassword).not.toContain('Faculty');
     await expect(bcrypt.compare(result.temporaryPassword, createData.passwordHash)).resolves.toBe(true);
   });
+
 });

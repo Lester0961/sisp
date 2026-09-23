@@ -254,34 +254,40 @@ export default function AdminUsersPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full border border-[#c8d9e7] bg-[#eef6fc] px-2 py-0.5 text-[10px] font-semibold text-[#0a439b]">
-                      {u.role?.name || 'unknown'}
+                      {u.role?.name === 'live_agent' ? 'Live Agent (retired)' : u.role?.name || 'unknown'}
                     </span>
-                    <select
-                      defaultValue={u.role?.name || ''}
-                      onChange={(event) => {
-                        const nextRole = event.target.value;
-                        const currentRole = u.role?.name || '';
-                        if (nextRole === currentRole) return;
-                        if (
-                          !window.confirm(
-                            `Change ${u.email} to the ${roleOptions.find((option) => option.value === nextRole)?.label || nextRole} role?`,
-                          )
-                        ) {
-                          event.currentTarget.value = currentRole;
-                          return;
-                        }
-                        void handleRoleChange(u.id, nextRole);
-                      }}
-                      className="rounded-md border border-slate-200 bg-slate-50 p-1 text-[11px] text-slate-700 transition hover:border-slate-300 focus:outline-none"
-                    >
-                      {roleOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                    {u.role?.name !== 'live_agent' && (
+                      <select
+                        defaultValue={u.role?.name || ''}
+                        onChange={(event) => {
+                          const nextRole = event.target.value;
+                          const currentRole = u.role?.name || '';
+                          if (nextRole === currentRole) return;
+                          if (
+                            !window.confirm(
+                              `Change ${u.email} to the ${roleOptions.find((option) => option.value === nextRole)?.label || nextRole} role?`,
+                            )
+                          ) {
+                            event.currentTarget.value = currentRole;
+                            return;
+                          }
+                          void handleRoleChange(u.id, nextRole);
+                        }}
+                        className="rounded-md border border-slate-200 bg-slate-50 p-1 text-[11px] text-slate-700 transition hover:border-slate-300 focus:outline-none"
+                      >
+                        {roleOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  {u.role?.name === 'live_agent' ? (
+                    <p className="col-span-2 text-xs text-slate-500">
+                      Legacy account access is retired. Historical records are retained.
+                    </p>
+                  ) : <div className="grid grid-cols-2 gap-2">
                     {u.isActive ? (
                       <Button
                         onClick={() => handleDeactivate(u.id)}
@@ -313,7 +319,7 @@ export default function AdminUsersPage() {
                       <Archive className="mr-1 inline h-3 w-3" />
                       Archive account
                     </Button>
-                  </div>
+                  </div>}
                 </article>
               ))
             ) : (
@@ -351,29 +357,30 @@ export default function AdminUsersPage() {
                       <TableCell className="text-xs">
                         <div className="flex items-center space-x-2">
                           <span className="rounded-full border border-[#c8d9e7] bg-[#eef6fc] px-2 py-0.5 text-[10px] font-semibold text-[#0a439b]">
-                            {u.role?.name || 'unknown'}
+                            {u.role?.name === 'live_agent' ? 'Live Agent (retired)' : u.role?.name || 'unknown'}
                           </span>
-                          
-                          <select
-                            defaultValue={u.role?.name || ''}
-                            onChange={(event) => {
-                              const nextRole = event.target.value;
-                              const currentRole = u.role?.name || '';
-                              if (nextRole === currentRole) return;
-                              if (!window.confirm(`Change ${u.email} to the ${roleOptions.find((option) => option.value === nextRole)?.label || nextRole} role?`)) {
-                                event.currentTarget.value = currentRole;
-                                return;
-                              }
-                              void handleRoleChange(u.id, nextRole);
-                            }}
-                            className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-md text-[10px] p-1 text-slate-700 transition focus:outline-none"
-                          >
-                            {roleOptions.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
+                          {u.role?.name !== 'live_agent' && (
+                            <select
+                              defaultValue={u.role?.name || ''}
+                              onChange={(event) => {
+                                const nextRole = event.target.value;
+                                const currentRole = u.role?.name || '';
+                                if (nextRole === currentRole) return;
+                                if (!window.confirm(`Change ${u.email} to the ${roleOptions.find((option) => option.value === nextRole)?.label || nextRole} role?`)) {
+                                  event.currentTarget.value = currentRole;
+                                  return;
+                                }
+                                void handleRoleChange(u.id, nextRole);
+                              }}
+                              className="bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-md text-[10px] p-1 text-slate-700 transition focus:outline-none"
+                            >
+                              {roleOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -387,6 +394,11 @@ export default function AdminUsersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end items-center gap-2">
+                          {u.role?.name === 'live_agent' ? (
+                            <span className="text-xs text-slate-500">
+                              Legacy access retired; historical records retained.
+                            </span>
+                          ) : <>
                           {u.isActive ? (
                             <Button
                               onClick={() => handleDeactivate(u.id)}
@@ -418,6 +430,7 @@ export default function AdminUsersPage() {
                             <Archive className="h-3 w-3 mr-1 inline" />
                             Archive
                           </Button>
+                          </>}
                         </div>
                       </TableCell>
                     </TableRow>

@@ -6,6 +6,7 @@ describe('NotificationsService', () => {
     notification: {
       create: jest.fn(),
       createMany: jest.fn(),
+      upsert: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
     },
@@ -27,6 +28,17 @@ describe('NotificationsService', () => {
         message: 'Your course enrollment has been recorded.',
       },
     });
+  });
+
+  it('uses a unique event key for repeatable escalation notices', async () => {
+    await service.sendToUser('student-1', 'Reply available', 'A response is available.', {
+      caseId: 'case-1', eventKey: 'case-1:reply-1',
+    });
+    expect(prisma.notification.upsert).toHaveBeenCalledWith({
+      where: { eventKey: 'case-1:reply-1' }, update: {},
+      create: { userId: 'student-1', title: 'Reply available', message: 'A response is available.', caseId: 'case-1', eventKey: 'case-1:reply-1' },
+    });
+    expect(prisma.notification.create).not.toHaveBeenCalled();
   });
 
   it('deduplicates broadcast recipients and persists through shared creation', async () => {

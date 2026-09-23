@@ -32,6 +32,9 @@ export class GradesController {
     if (user.role === 'faculty') {
       return this.gradesService.getGradesByInstructor(user.sub, status, termId);
     }
+    if (user.role === 'dean') {
+      return this.gradesService.getGradesForAdviser(user.sub, { studentId, status, termId });
+    }
     if (termId) {
       return this.gradesService.getAllGrades({ ...(status ? { status } : {}), enrollment: { termId } });
     }

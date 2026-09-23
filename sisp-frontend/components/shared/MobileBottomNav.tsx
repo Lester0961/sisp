@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { mobileNavItemsForRole } from '@/lib/navigation';
+import { useEscalationAttentionStore } from '@/stores/escalationAttentionStore';
 
 /**
  * Mobile quick navigation derived from the shared portal nav config so it can
@@ -13,6 +14,7 @@ import { mobileNavItemsForRole } from '@/lib/navigation';
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { user } = useAuthStore();
+  const escalationCount = useEscalationAttentionStore((state) => state.count);
   const navItems = mobileNavItemsForRole(user?.role);
 
   if (navItems.length === 0) {
@@ -45,12 +47,15 @@ export function MobileBottomNav() {
             >
               <span
                 className={cn(
-                  'flex size-8 items-center justify-center rounded-xl',
+                  'relative flex size-8 items-center justify-center rounded-xl',
                   item.center && 'size-10 -mt-4 border-4 border-[#f8fbfd] bg-[#0a439b] text-white shadow-[0_8px_20px_rgb(10_67_155_/_0.22)]',
                   isActive && !item.center && 'bg-[#eaf3fa]',
                 )}
               >
                 <Icon className={cn(item.center ? 'size-5' : 'size-[18px]')} strokeWidth={1.9} />
+                {item.href === '/tickets' && escalationCount > 0 && (
+                  <span className="absolute right-1 top-0 size-2.5 rounded-full bg-amber-500 ring-2 ring-white" aria-label={`${escalationCount} escalations need attention`} />
+                )}
               </span>
               <span className={cn('max-w-full truncate text-[10px] leading-none', isActive && 'font-bold')}>
                 {item.shortLabel ?? item.label}

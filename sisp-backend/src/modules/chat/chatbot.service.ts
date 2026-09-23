@@ -252,11 +252,6 @@ export class ChatbotService {
         chatSession = await this.chatSessionService.createSession(chatLog.id, user.studentProfile.id);
         escalation = { chatId: chatLog.id };
         this.logger.log(`Created ChatSession ID: ${chatSession.id} for escalation.`);
-        await Promise.resolve().then(() => this.notificationsService.sendToUser(
-          userId,
-          'ARIA Request Referred',
-          'Your request has been referred for staff follow-up.',
-        )).catch(() => undefined);
       } else {
         mlResponse.response = 'ARIA could not securely link this conversation to a student record, so it was not placed in the staff queue. Please contact the Registrar for assistance.';
         await this.prisma.chatLog.update({ where: { id: chatLog.id }, data: { response: mlResponse.response } });

@@ -14,10 +14,12 @@ import {
   BellOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 const POLL_INTERVAL_MS = 30_000; // 30 seconds
 
 export function NotificationBell() {
+  const router = useRouter();
   const {
     notifications,
     unreadCount,
@@ -150,6 +152,11 @@ export function NotificationBell() {
                     onClick={() => {
                       if (!notif.isRead) {
                         void handleMarkAsRead(notif.id);
+                      }
+                      if (notif.caseId) {
+                        setIsOpen(false);
+                        window.dispatchEvent(new CustomEvent('sisp-open-escalation', { detail: notif.caseId }));
+                        router.push(`/tickets?case=${encodeURIComponent(notif.caseId)}`);
                       }
                     }}
                   >

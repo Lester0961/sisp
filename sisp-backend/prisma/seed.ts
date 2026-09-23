@@ -4,12 +4,12 @@
  */
 import { PrismaClient } from '@prisma/client';
 import { DOCUMENT_CATALOG } from '../src/common/constants/document-catalog';
-import { PERMISSION_DEFINITIONS, ROLE_PERMISSIONS } from '../src/common/authz/rbac';
+import { APPLICATION_ROLE_NAMES, PERMISSION_DEFINITIONS, ROLE_PERMISSIONS } from '../src/common/authz/rbac';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const roleNames = ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin'] as const;
+  const roleNames = APPLICATION_ROLE_NAMES;
   const roleIds = new Map<string, string>();
 
   for (const name of roleNames) {

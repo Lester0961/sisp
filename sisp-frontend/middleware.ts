@@ -36,18 +36,20 @@ const ROLE_ROUTES: Array<{ prefix: string; roles: string[] }> = [
   { prefix: '/admin/users', roles: ['sys_admin'] },
   { prefix: '/admin/financials', roles: ['treasury'] },
   { prefix: '/admin/requests', roles: ['treasury'] },
-  { prefix: '/admin', roles: ['registrar', 'treasury', 'sys_admin'] },
+  // Every admin page above has an explicit role list; deny unknown admin
+  // routes by default so a new page cannot silently inherit broad access.
+  { prefix: '/admin', roles: [] },
   { prefix: '/faculty', roles: ['faculty'] },
   { prefix: '/dean', roles: ['dean'] },
-  { prefix: '/tickets', roles: ['faculty', 'dean', 'registrar', 'treasury', 'sys_admin'] },
-  { prefix: '/dashboard', roles: ALL_ROLES },
+  { prefix: '/tickets', roles: ['student', 'faculty', 'dean', 'registrar', 'treasury', 'sys_admin'] },
+  { prefix: '/dashboard', roles: ['student'] },
   { prefix: '/grades', roles: ['student'] },
   { prefix: '/financials', roles: ['student'] },
   { prefix: '/requests', roles: ['student'] },
   { prefix: '/chat', roles: ['student'] },
   { prefix: '/enrollment', roles: ['student'] },
   { prefix: '/schedule', roles: ['student'] },
-  { prefix: '/curriculum', roles: ['student', 'registrar', 'dean', 'faculty'] },
+  { prefix: '/curriculum', roles: ['student'] },
   { prefix: '/settings', roles: ALL_ROLES },
 ];
 

@@ -49,6 +49,19 @@ export class GradesService {
     }
   }
 
+  private async assertDeanAssignment(deanId: string, studentId?: string) {
+    if (!studentId) {
+      throw new ForbiddenException('Grade review is limited to students assigned to you.');
+    }
+    const assignment = await this.prisma.adviserAssignment.findFirst({
+      where: { adviserId: deanId, studentId, status: 'active' },
+      select: { id: true },
+    });
+    if (!assignment) {
+      throw new ForbiddenException('Grade review is limited to students assigned to you.');
+    }
+  }
+
   async createGrade(facultyId: string, dto: CreateGradeDto) {
     const enrollment = await this.prisma.enrollment.findUnique({
       where: { id: dto.enrollmentId },
@@ -270,11 +283,14 @@ export class GradesService {
   async postGrade(deanId: string, gradeId: string) {
     const grade = await this.prisma.grade.findUnique({
       where: { id: gradeId },
+      include: { enrollment: { select: { studentId: true } } },
     });
 
     if (!grade) {
       throw new NotFoundException(`Grade with ID ${gradeId} not found`);
     }
+
+    await this.assertDeanAssignment(deanId, grade.enrollment?.studentId);
 
     this.assertTransition(grade.status, 'posted');
 
@@ -363,11 +379,14 @@ export class GradesService {
   async rejectGrade(deanId: string, gradeId: string, remarks: string) {
     const grade = await this.prisma.grade.findUnique({
       where: { id: gradeId },
+      include: { enrollment: { select: { studentId: true } } },
     });
 
     if (!grade) {
       throw new NotFoundException(`Grade with ID ${gradeId} not found`);
     }
+
+    await this.assertDeanAssignment(deanId, grade.enrollment?.studentId);
 
     this.assertTransition(grade.status, 'rejected');
 
@@ -555,6 +574,28 @@ export class GradesService {
     return this.getAllGrades({
       ...(status ? { status } : {}),
       enrollment: { instructorId, ...(termId ? { termId } : {}) },
+    });
+  }
+
+  async getGradesForAdviser(
+    deanId: string,
+    filters: { studentId?: string; status?: string; termId?: string } = {},
+  ) {
+    const assignments = await this.prisma.adviserAssignment.findMany({
+      where: { adviserId: deanId, status: 'active' },
+      select: { studentId: true },
+    });
+    let assignedStudentIds = [...new Set(assignments.map((assignment) => assignment.studentId))];
+    if (filters.studentId) {
+      assignedStudentIds = assignedStudentIds.filter((id) => id === filters.studentId);
+    }
+
+    return this.getAllGrades({
+      ...(filters.status ? { status: filters.status } : {}),
+      enrollment: {
+        studentId: { in: assignedStudentIds },
+        ...(filters.termId ? { termId: filters.termId } : {}),
+      },
     });
   }
 

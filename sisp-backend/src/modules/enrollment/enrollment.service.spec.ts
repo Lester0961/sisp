@@ -15,6 +15,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
     enrollment: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn(), findMany: jest.fn() },
     enrollmentHistory: { create: jest.fn() },
     classSection: { findUnique: jest.fn() },
+    adviserAssignment: { findMany: jest.fn() },
     grade: { create: jest.fn() },
     $transaction: jest.fn(async (callback: any) => callback(mockPrisma)),
   };
@@ -40,6 +41,37 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
     });
     expect(mockPrisma.enrollment.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { studentId: 'student-1' } }),
+    );
+  });
+
+  it('scopes a Dean enrollment list to active adviser assignments', async () => {
+    mockPrisma.adviserAssignment.findMany.mockResolvedValue([
+      { studentId: 'assigned-1' },
+      { studentId: 'assigned-2' },
+    ]);
+    mockPrisma.enrollment.findMany.mockResolvedValue([]);
+
+    await service.getAllEnrollments(undefined, undefined, 'term-1', undefined, 'dean-1');
+
+    expect(mockPrisma.adviserAssignment.findMany).toHaveBeenCalledWith({
+      where: { adviserId: 'dean-1', status: 'active' },
+      select: { studentId: true },
+    });
+    expect(mockPrisma.enrollment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { studentId: { in: ['assigned-1', 'assigned-2'] }, termId: 'term-1' },
+      }),
+    );
+  });
+
+  it('returns no Dean enrollment rows when the Dean has no active assignments', async () => {
+    mockPrisma.adviserAssignment.findMany.mockResolvedValue([]);
+    mockPrisma.enrollment.findMany.mockResolvedValue([]);
+
+    await service.getAllEnrollments(undefined, undefined, undefined, undefined, 'dean-1');
+
+    expect(mockPrisma.enrollment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { studentId: { in: [] } } }),
     );
   });
 

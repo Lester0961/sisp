@@ -19,7 +19,8 @@ export function AdminTopHeader({ onOpenMobile }: AdminTopHeaderProps) {
 
   const navItems = navItemsForRole(user?.role);
   const homeHref = roleHomePath(user?.role);
-  const homeLabel = isStaffRole(user?.role) ? 'Admin Dashboard' : 'SISP';
+  const homeItem = navItems.find((item) => item.href === homeHref);
+  const homeLabel = isStaffRole(user?.role) ? homeItem?.label ?? 'Admin Dashboard' : 'SISP';
 
   // Longest matching prefix wins so nested routes map to the deepest item.
   const currentItem = navItems

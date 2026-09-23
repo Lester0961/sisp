@@ -147,7 +147,21 @@ export default function AdmissionPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.mobile || !formData.programId) {
+    if (
+      !formData.firstName.trim() ||
+      !formData.lastName.trim() ||
+      !formData.dob ||
+      !formData.email.trim() ||
+      !formData.mobile.trim() ||
+      !formData.addressLine.trim() ||
+      !formData.city.trim() ||
+      !formData.lastSchoolName.trim() ||
+      !formData.guardianName.trim() ||
+      !formData.guardianContact.trim() ||
+      !formData.emergencyName.trim() ||
+      !formData.emergencyContact.trim() ||
+      !formData.programId
+    ) {
       toast.error('Please complete all required fields before submitting.');
       return;
     }
@@ -163,6 +177,41 @@ export default function AdmissionPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const continueToStep = (nextStep: number) => {
+    const missingRequiredField =
+      (step === 1 &&
+        (!formData.dob ||
+          !formData.firstName.trim() ||
+          !formData.lastName.trim() ||
+          !formData.email.trim() ||
+          !formData.mobile.trim() ||
+          !formData.addressLine.trim() ||
+          !formData.city.trim())) ||
+      (step === 2 &&
+        (!formData.lastSchoolName.trim() ||
+          !formData.guardianName.trim() ||
+          !formData.guardianContact.trim() ||
+          !formData.emergencyName.trim() ||
+          !formData.emergencyContact.trim()));
+
+    if (missingRequiredField) {
+      toast.error('Complete the required fields on this step before continuing.');
+      return;
+    }
+
+    if (step === 1 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      toast.error('Enter a valid email address before continuing.');
+      return;
+    }
+
+    if (step === 3 && !formData.programId) {
+      toast.error('Select an academic program before continuing.');
+      return;
+    }
+
+    setStep(nextStep);
   };
 
   return (
@@ -304,7 +353,7 @@ export default function AdmissionPage() {
               <div className="flex justify-end pt-3">
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={() => continueToStep(2)}
                   className="rounded-xl bg-[#0a439b] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#083980]"
                 >
                   Next: Educational Background →
@@ -396,7 +445,7 @@ export default function AdmissionPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => continueToStep(3)}
                   className="rounded-xl bg-[#0a439b] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#083980]"
                 >
                   Next: Program Selection →
@@ -450,7 +499,7 @@ export default function AdmissionPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(4)}
+                  onClick={() => continueToStep(4)}
                   className="rounded-xl bg-[#0a439b] px-5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#083980]"
                 >
                   Next: Review Application →

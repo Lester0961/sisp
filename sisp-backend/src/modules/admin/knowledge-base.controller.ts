@@ -27,6 +27,23 @@ const validateFilename = (filename: string): string => {
   return filename;
 };
 
+type KnowledgeBaseErrorCode =
+  | 'KB_ML_AUTH_NOT_CONFIGURED'
+  | 'KB_ML_UNAVAILABLE'
+  | 'KB_STORAGE_UNAVAILABLE'
+  | 'KB_STORAGE_OPERATION_FAILED'
+  | 'KB_REINDEX_FAILED'
+  | 'KB_UPSTREAM_ERROR';
+
+const kbError = (code: KnowledgeBaseErrorCode, message: string, status: number): HttpException =>
+  new HttpException({ statusCode: status, code, message }, status);
+
+function upstreamDetail(payload: any): string {
+  if (typeof payload?.detail === 'string') return payload.detail;
+  if (typeof payload?.message === 'string') return payload.message;
+  return '';
+}
+
 @Controller('admin/kb')
 @RequirePermissions('knowledge_base.manage')
 export class KnowledgeBaseController {
@@ -42,7 +59,11 @@ export class KnowledgeBaseController {
 
   private async proxyToMl(method: string, path: string, body?: any): Promise<any> {
     if (!this.mlSecret) {
-      throw new HttpException('ML service authentication is not configured', HttpStatus.SERVICE_UNAVAILABLE);
+      throw kbError(
+        'KB_ML_AUTH_NOT_CONFIGURED',
+        'ML service authentication is not configured. Verify the local ML service secret configuration.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
     const url = `${this.mlServiceUrl}${path}`;
     this.logger.log(`Proxying ${method} ${url}`);
@@ -63,16 +84,46 @@ export class KnowledgeBaseController {
       const response = await fetch(url, options);
 
       if (!response.ok) {
-        // Never relay raw ML error body to the client — could leak internals
-        this.logger.error(`ML service returned ${response.status}: ${await response.text()}`);
-        throw new HttpException('ML service request failed', response.status);
+        // Parse only enough to classify the dependency failure. Never relay or
+        // log the raw upstream body because it can contain implementation data.
+        const payload = await response.json().catch(() => null);
+        const detail = upstreamDetail(payload);
+        const upstreamCode = payload?.code ?? payload?.detail?.code;
+        let code: KnowledgeBaseErrorCode = 'KB_UPSTREAM_ERROR';
+        let message = 'The knowledge-base service could not complete the request.';
+
+        if (
+          upstreamCode === 'KB_STORAGE_UNAVAILABLE' ||
+          /durable knowledge-base storage is unavailable/i.test(detail)
+        ) {
+          code = 'KB_STORAGE_UNAVAILABLE';
+          message = 'Knowledge-base database storage is unavailable. Start the local database and verify its reviewed schema before retrying.';
+        } else if (
+          upstreamCode === 'KB_STORAGE_OPERATION_FAILED' ||
+          /knowledge-base .+ could not be (loaded|created|updated|archived|scheduled)/i.test(detail)
+        ) {
+          code = path === '/kb/reindex' ? 'KB_REINDEX_FAILED' : 'KB_STORAGE_OPERATION_FAILED';
+          message = path === '/kb/reindex'
+            ? 'The re-index request could not be scheduled. Check database storage and ML service logs; completion was not confirmed.'
+            : 'The knowledge-base database operation failed. Check the local schema and service logs; no success was confirmed.';
+        } else if (path === '/kb/reindex' && response.status >= 500) {
+          code = 'KB_REINDEX_FAILED';
+          message = 'The re-index request failed. Check ML and database status; completion was not confirmed.';
+        }
+
+        this.logger.warn(`ML knowledge-base request failed: method=${method} path=${path} status=${response.status} code=${code}`);
+        throw kbError(code, message, response.status);
       }
 
       return response.json();
     } catch (error: any) {
       if (error instanceof HttpException) throw error;
-      this.logger.error(`Failed to proxy to ML service: ${error.message}`);
-      throw new HttpException('Failed to connect to ML service', HttpStatus.SERVICE_UNAVAILABLE);
+      this.logger.error(`Failed to proxy to ML service: ${error instanceof Error ? error.name : 'unknown error'}`);
+      throw kbError(
+        'KB_ML_UNAVAILABLE',
+        'ARIA ML service is unavailable. Check the local ML service and ML_SERVICE_URL, then retry.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 

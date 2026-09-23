@@ -66,6 +66,7 @@ export const PORTAL_NAV_ITEMS: PortalNavItem[] = [
   { href: '/financials', label: 'Financial Information', shortLabel: 'Fees', icon: Wallet, group: 'services', roles: ['student'], mobile: true },
   { href: '/requests', label: 'Service Requests', shortLabel: 'Requests', icon: FileText, group: 'services', roles: ['student'] },
   { href: '/chat', label: 'ARIA Assistant', shortLabel: 'ARIA', icon: Sparkles, group: 'services', roles: ['student'], mobile: true, center: true },
+  { href: '/tickets', label: 'Escalations', shortLabel: 'Tickets', icon: FileText, group: 'services', roles: ['student'], mobile: true },
   { href: '/settings', label: 'Settings', shortLabel: 'Settings', icon: Settings, group: 'system', roles: ['student'] },
 
   // --- Faculty ---
@@ -91,7 +92,7 @@ export const PORTAL_NAV_ITEMS: PortalNavItem[] = [
   { href: '/admin/document-requests', label: 'Document Requests', shortLabel: 'Requests', icon: FileText, group: 'operations', roles: ['registrar'], mobile: true },
   { href: '/admin/documents', label: 'Document Catalog', shortLabel: 'Catalog', icon: FileCheck, group: 'operations', roles: ['registrar'] },
   { href: '/admin/identity-verifications', label: 'Identity Verifications', shortLabel: 'Verify', icon: UserCheck, group: 'operations', roles: ['registrar'] },
-  { href: '/tickets', label: 'Escalations', shortLabel: 'Tickets', icon: Sparkles, group: 'operations', roles: ['registrar'] },
+  { href: '/tickets', label: 'Escalations', shortLabel: 'Tickets', icon: Sparkles, group: 'operations', roles: ['registrar'], mobile: true },
   { href: '/admin/kb', label: 'Knowledge Base', shortLabel: 'Policies', icon: BookMarked, group: 'system', roles: ['registrar'] },
   { href: '/settings', label: 'Settings', shortLabel: 'Settings', icon: Settings, group: 'system', roles: ['registrar'], mobile: true },
 
@@ -122,8 +123,8 @@ export function navItemsForRole(role?: string | null): PortalNavItem[] {
 
 export function mobileNavItemsForRole(role?: string | null): PortalNavItem[] {
   const items = navItemsForRole(role).filter((item) => item.mobile);
-  // Keep the bar to five slots; prefer the first five in group order.
-  return items.slice(0, 5);
+  // Student needs the ARIA handoff and its escalation inbox side by side.
+  return items.slice(0, role === 'student' ? 6 : 5);
 }
 
 export function roleHomePath(role?: string | null): string {

@@ -96,23 +96,11 @@ export class FinanceService {
         where: { studentId: studentProfileId },
         orderBy: { createdAt: 'desc' },
         include: {
-          academicTerm: { select: { code: true, label: true, academicYear: true } },
+          academicTerm: { select: { id: true, code: true, label: true, academicYear: true } },
           verifiedBy: { select: { firstName: true, lastName: true } },
         },
       }),
     ]);
-
-    const obligationRows = obligations.map((entry: any) => ({
-      id: entry.id,
-      termId: entry.termId ?? null,
-      termLabel: entry.term?.label ?? null,
-      academicYear: entry.term?.academicYear ?? entry.year,
-      semester: entry.semester,
-      amountDue: money(entry.amountDue),
-      amountPaid: money(entry.amountPaid),
-      isFullyPaid: Boolean(entry.isFullyPaid),
-      paymentStatus: entry.paymentStatus,
-    }));
 
     const paymentRows = payments.map((entry: any) => ({
       id: entry.id,
@@ -122,6 +110,7 @@ export class FinanceService {
       status: entry.status,
       paidAt: entry.paidAt,
       verifiedAt: entry.verifiedAt,
+      academicTermId: entry.academicTerm?.id ?? entry.academicTermId ?? null,
       termLabel: entry.academicTerm?.label ?? null,
       academicYear: entry.academicTerm?.academicYear ?? null,
       verifiedBy: entry.verifiedBy
@@ -129,6 +118,36 @@ export class FinanceService {
         : null,
       createdAt: entry.createdAt,
     }));
+
+    const obligationRows = obligations.map((entry: any) => {
+      const amountDue = money(entry.amountDue);
+      // Only explicitly linked, verified ledger entries count toward a term.
+      // Legacy amountPaid fields are retained in the schema but are not proof
+      // of payment under DEC-016.
+      const amountPaid = money(
+        paymentRows
+          .filter((payment) => payment.status === 'verified' && payment.academicTermId === (entry.termId ?? null))
+          .reduce((sum, payment) => sum + payment.amount, 0),
+      );
+      const paymentStatus = entry.paymentStatus === 'waived'
+        ? 'waived'
+        : amountDue > 0 && amountPaid >= amountDue
+          ? 'paid'
+          : amountPaid > 0
+            ? 'partial'
+            : 'unpaid';
+      return {
+        id: entry.id,
+        termId: entry.termId ?? null,
+        termLabel: entry.term?.label ?? null,
+        academicYear: entry.term?.academicYear ?? entry.year,
+        semester: entry.semester,
+        amountDue,
+        amountPaid,
+        isFullyPaid: paymentStatus === 'paid' || paymentStatus === 'waived',
+        paymentStatus,
+      };
+    });
 
     const totalObligations = money(
       obligationRows.reduce((sum, entry) => sum + entry.amountDue, 0),

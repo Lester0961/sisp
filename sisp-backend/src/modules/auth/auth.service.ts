@@ -17,6 +17,7 @@ import { MailService } from './mail.service';
 import { MfaService } from './mfa.service';
 import { SessionService } from './session.service';
 import { PASSWORD_PATTERN } from '../../common/utils/password-policy';
+import { RETIRED_ROLE_NAMES } from '../../common/authz/rbac';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 
@@ -88,6 +89,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    if ((RETIRED_ROLE_NAMES as readonly string[]).includes(user.role.name)) {
+      await this.recordAudit(user, 'LOGIN_FAILURE', ipAddress);
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
     if (this.mfaService.isRequiredForRole(user.role.name)) {
       const challenge = await this.mfaService.createChallenge(user.id, 'login', ipAddress);
       await this.recordAudit(user, 'LOGIN_MFA_CHALLENGE', ipAddress);
@@ -122,7 +128,7 @@ export class AuthService {
       where: { id: verified.userId },
       include: { role: true },
     });
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || (RETIRED_ROLE_NAMES as readonly string[]).includes(user.role?.name ?? '')) {
       await this.recordAudit(user, 'LOGIN_FAILURE', ipAddress);
       throw new UnauthorizedException('User not found or inactive');
     }
@@ -147,7 +153,7 @@ export class AuthService {
       where: { id: rotated.userId },
       include: { role: true },
     });
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || (RETIRED_ROLE_NAMES as readonly string[]).includes(user.role?.name ?? '')) {
       await this.sessionService.revokeAllForUser(rotated.userId, 'account_inactive');
       throw new UnauthorizedException('User not found or inactive');
     }
@@ -157,7 +163,7 @@ export class AuthService {
       refreshToken: rotated.refreshToken,
       accessToken,
       user: this.publicUser(user),
-      permissions,
+      permissions: [...permissions],
     };
   }
 
@@ -180,12 +186,12 @@ export class AuthService {
       where: { id: userId },
       include: { role: true },
     });
-    if (!user || !user.isActive) {
+    if (!user || !user.isActive || (RETIRED_ROLE_NAMES as readonly string[]).includes(user.role?.name ?? '')) {
       throw new UnauthorizedException('User not found or inactive');
     }
     const permissions = await this.permissionService.getPermissionsForRole(user.role.name);
     const activeSessions = await this.sessionService.listActive(userId);
-    return { user: this.publicUser(user), permissions, activeSessions };
+    return { user: this.publicUser(user), permissions: [...permissions], activeSessions };
   }
 
   async changePassword(
@@ -293,7 +299,7 @@ export class AuthService {
     );
     const accessToken = await this.signAccessToken(user, sessionId);
     const permissions = await this.permissionService.getPermissionsForRole(user.role.name);
-    return { refreshToken, accessToken, user: this.publicUser(user), permissions };
+    return { refreshToken, accessToken, user: this.publicUser(user), permissions: [...permissions] };
   }
 
   private async signAccessToken(user: AuthUser, sessionId: string): Promise<string> {

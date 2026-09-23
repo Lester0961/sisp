@@ -8,6 +8,9 @@ export const REQUEST_STATUS_TRANSITIONS: Record<string, string[]> = {
   // DocumentsService.confirmTorQuote, which recomputes the final fee. A plain
   // status PATCH must never move them to awaiting_payment (fee bypass).
   awaiting_page_confirmation: ['rejected'],
+  // Keep pending available to the dedicated Treasury confirmation flow, which
+  // verifies proof of payment before setting both fields atomically. Generic
+  // status updates are separately blocked from using this transition.
   awaiting_payment: ['pending', 'rejected'],
   pending: ['under_review', 'approved', 'rejected'],
   under_review: ['approved', 'rejected'],

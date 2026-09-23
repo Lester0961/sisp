@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermissions } from '../../common/authz/require-permissions.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 import { StudentSemesterService } from './student-semester.service';
@@ -23,7 +23,7 @@ export class StudentTermController {
   }
 
   @Get()
-  @Roles('treasury', 'sys_admin', 'dean')
+  @RequirePermissions('financial.manage')
   async findAll(@Query('studentId') studentId?: string) {
     return studentId ? this.service.findByStudent(studentId) : this.service.findAll();
   }

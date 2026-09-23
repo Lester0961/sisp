@@ -66,6 +66,9 @@ export class EnrollmentController {
     if (user.role === 'faculty') {
       return this.enrollmentService.getAllEnrollments(undefined, undefined, termId, user.sub);
     }
+    if (user.role === 'dean') {
+      return this.enrollmentService.getAllEnrollments(undefined, undefined, termId, undefined, user.sub);
+    }
     return this.enrollmentService.getAllEnrollments(studentId, courseId, termId, instructorId);
   }
 

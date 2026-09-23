@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, LogOut, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
+import { useEscalationAttentionStore } from '@/stores/escalationAttentionStore';
 import {
   PortalNavItem,
   PORTAL_GROUP_LABELS,
@@ -36,6 +37,7 @@ export function AdminSidebar({
 }: AdminSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const escalationCount = useEscalationAttentionStore((state) => state.count);
   const role = user?.role ?? 'student';
 
   const accessibleItems = navItemsForRole(role);
@@ -146,6 +148,13 @@ export function AdminSidebar({
 
                   {!isCollapsed && (
                     <span className="truncate text-[13px]">{item.label}</span>
+                  )}
+                  {item.href === '/tickets' && escalationCount > 0 && (
+                    <span
+                      className={cn('ml-auto inline-flex size-2.5 shrink-0 rounded-full bg-amber-500 ring-2 ring-white', isCollapsed && 'absolute right-2 top-2')}
+                      title={`${escalationCount} escalation${escalationCount === 1 ? '' : 's'} need attention`}
+                      aria-label={`${escalationCount} escalations need attention`}
+                    />
                   )}
 
                   {/* Floating tooltip when collapsed */}

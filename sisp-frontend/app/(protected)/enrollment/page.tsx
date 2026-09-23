@@ -16,6 +16,14 @@ import { toast } from 'sonner';
 import { enrollmentsApi } from '@/lib/api/enrollments';
 import { useStudentStore } from '@/stores/studentStore';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface AvailableCourse {
   id: string;
@@ -62,6 +70,7 @@ export default function EnrollmentPage() {
   const [loading, setLoading] = useState(true);
   const [enrollingId, setEnrollingId] = useState<string | null>(null);
   const [droppingId, setDroppingId] = useState<string | null>(null);
+  const [pendingDrop, setPendingDrop] = useState<{ enrollmentId: string; courseCode: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Late enrollment waiver state
@@ -134,11 +143,14 @@ export default function EnrollmentPage() {
     }
   };
 
-  const handleDrop = async (enrollmentId: string, courseCode: string) => {
+  const handleDrop = async () => {
+    if (!pendingDrop) return;
+    const { enrollmentId, courseCode } = pendingDrop;
     setDroppingId(enrollmentId);
     try {
       const result = await enrollmentsApi.dropCourse(enrollmentId);
       toast.success(result.message || `Dropped ${courseCode}`);
+      setPendingDrop(null);
       await loadAll();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Unable to drop course.');
@@ -272,9 +284,10 @@ export default function EnrollmentPage() {
                         size="sm"
                         className="border-red-200 text-red-700 hover:bg-red-50"
                         disabled={droppingId === enrollment.id}
-                        onClick={() =>
-                          void handleDrop(enrollment.id, enrollment.course?.code ?? '')
-                        }
+                        onClick={() => setPendingDrop({
+                          enrollmentId: enrollment.id,
+                          courseCode: enrollment.course?.code ?? 'this course',
+                        })}
                       >
                         {droppingId === enrollment.id ? (
                           <Loader2 className="size-3.5 animate-spin" />
@@ -406,6 +419,42 @@ export default function EnrollmentPage() {
             )}
           </section>
         )}
+
+        {/* Enrollment drop confirmation */}
+        <Dialog
+          open={pendingDrop !== null}
+          onOpenChange={(open) => {
+            if (!open && !droppingId) setPendingDrop(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm course drop</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to drop {pendingDrop?.courseCode ?? 'this course'} from your current enrollment?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                disabled={droppingId !== null}
+                onClick={() => setPendingDrop(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={!pendingDrop || droppingId === pendingDrop.enrollmentId}
+                className="bg-red-700 text-white hover:bg-red-800"
+                onClick={() => void handleDrop()}
+              >
+                {pendingDrop && droppingId === pendingDrop.enrollmentId ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : null}
+                Confirm drop
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Late Enrollment Risk Waiver Modal */}
         {showWaiver && pendingCourse && (

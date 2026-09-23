@@ -17,7 +17,7 @@ interface AuthState {
   isLoading: boolean;
   hasHydrated: boolean;
 
-  setSession: (payload: { user: User; accessToken: string; permissions?: string[] }) => void;
+  setSession: (payload: { user: User; accessToken: string; permissions?: unknown }) => void;
   setAccessToken: (accessToken: string) => void;
   setLoading: (isLoading: boolean) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
@@ -50,15 +50,21 @@ export const useAuthStore = create<AuthState>()((set) => ({
   accessToken: null,
   permissions: [],
   isAuthenticated: false,
-  isLoading: false,
-  hasHydrated: true,
+  // A protected layout must wait for the refresh-cookie bootstrap before it
+  // decides that a full-page load is unauthenticated.
+  isLoading: true,
+  hasHydrated: false,
 
   setSession: ({ user, accessToken, permissions }) => {
     writeSessionHint(user);
     set({
       user,
       accessToken,
-      permissions: permissions ?? [],
+      // Keep the store invariant safe even if an older/malformed API response
+      // returns a Set or object. Authorization remains enforced by the API.
+      permissions: Array.isArray(permissions)
+        ? permissions.filter((permission): permission is string => typeof permission === 'string')
+        : [],
       isAuthenticated: true,
       isLoading: false,
     });

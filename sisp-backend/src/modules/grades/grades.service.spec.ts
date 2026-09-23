@@ -22,6 +22,10 @@ describe('GradesService', () => {
     studentSemester: {
       findMany: jest.fn(),
     },
+    adviserAssignment: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+    },
   };
   const mockNotifications = { sendToUser: jest.fn() };
 
@@ -39,6 +43,39 @@ describe('GradesService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('scopes Dean grade review lists to active assigned students', async () => {
+    mockPrisma.adviserAssignment.findMany.mockResolvedValue([
+      { studentId: 'assigned-1' },
+      { studentId: 'assigned-2' },
+    ]);
+    mockPrisma.grade.findMany.mockResolvedValue([]);
+
+    await service.getGradesForAdviser('dean-1', { status: 'submitted', termId: 'term-1' });
+
+    expect(mockPrisma.grade.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: 'submitted',
+          enrollment: { studentId: { in: ['assigned-1', 'assigned-2'] }, termId: 'term-1' },
+        },
+      }),
+    );
+  });
+
+  it('denies a Dean grade decision for a student without an active adviser assignment', async () => {
+    mockPrisma.grade.findUnique.mockResolvedValue({
+      id: 'grade-1',
+      status: 'submitted',
+      enrollment: { studentId: 'unassigned-student' },
+    });
+    mockPrisma.adviserAssignment.findFirst.mockResolvedValue(null);
+
+    await expect(service.postGrade('dean-1', 'grade-1')).rejects.toThrow(
+      'Grade review is limited to students assigned to you.',
+    );
+    expect(mockPrisma.grade.update).not.toHaveBeenCalled();
   });
 
   it('notifies the student only when the Registrar publishes the grade', async () => {

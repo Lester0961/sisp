@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/layout/AdminSidebar';
 import { AdminTopHeader } from '@/components/admin/layout/AdminTopHeader';
 import { MobileBottomNav } from '@/components/shared/MobileBottomNav';
+import { useEscalationAttentionStore } from '@/stores/escalationAttentionStore';
 
 const STORAGE_KEY = 'sisp_sidebar_collapsed';
 
@@ -22,6 +23,26 @@ export default function ProtectedLayout({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const refreshEscalations = useEscalationAttentionStore((state) => state.refresh);
+  const clearEscalations = useEscalationAttentionStore((state) => state.clear);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      clearEscalations();
+      return;
+    }
+    void refreshEscalations();
+    const refresh = () => void refreshEscalations();
+    const onFocus = () => void refreshEscalations();
+    const timer = window.setInterval(refresh, 20_000);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('sisp-escalation-changed', refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('sisp-escalation-changed', refresh);
+    };
+  }, [isAuthenticated, user?.id, refreshEscalations, clearEscalations]);
 
   useEffect(() => {
     setMounted(true);

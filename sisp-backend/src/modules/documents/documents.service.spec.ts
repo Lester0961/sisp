@@ -187,6 +187,25 @@ describe('DocumentsService', () => {
       ).rejects.toThrow(/Cannot transition/);
       expect(mockPrisma.documentRequest.update).not.toHaveBeenCalled();
     });
+
+    it('requires the dedicated Treasury verification flow before an awaiting-payment request can become pending', async () => {
+      mockPrisma.documentRequest.findUnique.mockResolvedValue({
+        id: 'req-1',
+        studentId: 'profile-1',
+        status: 'awaiting_payment',
+        paymentStatus: 'unpaid',
+        paymentProofChannel: null,
+        paymentProofReference: null,
+        items: [],
+        student: { user: { id: 'user-1' } },
+      });
+
+      await expect(
+        service.updateRequestStatus('req-1', { status: 'pending' }, 'registrar-1'),
+      ).rejects.toThrow(/Treasury must verify/i);
+      expect(mockPrisma.documentRequest.update).not.toHaveBeenCalled();
+      expect(mockPrisma.auditLog.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('getPaymentChannels (P6-04)', () => {

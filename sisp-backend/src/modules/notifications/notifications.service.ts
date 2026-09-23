@@ -187,9 +187,13 @@ export class NotificationsService {
     userId: string,
     title: string,
     message: string,
-    options?: { email?: boolean },
+    options?: { email?: boolean; caseId?: string; eventKey?: string },
   ): Promise<void> {
-    await this.createForUsers([{ userId, title, message }]);
+    await this.createForUsers([{
+      userId, title, message,
+      ...(options?.caseId ? { caseId: options.caseId } : {}),
+      ...(options?.eventKey ? { eventKey: options.eventKey } : {}),
+    }]);
     if (options?.email) {
       await this.sendEmailBestEffort(userId, title, message);
     }
@@ -219,12 +223,16 @@ export class NotificationsService {
     }
   }
 
-  private async createForUsers(data: { userId: string; title: string; message: string }[]) {
+  private async createForUsers(data: { userId: string; title: string; message: string; caseId?: string; eventKey?: string }[]) {
     if (new Set(data.map((item) => item.userId)).size !== data.length) {
       throw new BadRequestException('Duplicate notification recipients are not allowed');
     }
     if (data.length === 1) {
-      await this.prisma.notification.create({ data: data[0] });
+      if (data[0].eventKey) {
+        await this.prisma.notification.upsert({ where: { eventKey: data[0].eventKey }, update: {}, create: data[0] });
+      } else {
+        await this.prisma.notification.create({ data: data[0] });
+      }
       return;
     }
     if (data.length > 1) await this.prisma.notification.createMany({ data });

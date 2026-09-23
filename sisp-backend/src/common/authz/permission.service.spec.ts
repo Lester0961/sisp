@@ -79,6 +79,11 @@ describe('PermissionService (Phase 2, P2-02)', () => {
       while ((match = rolePattern.exec(sql)) !== null) {
         parsed[match[1]] = [...match[2].matchAll(/'([^']+)'/g)].map((entry) => entry[1]).sort();
       }
+      // A later reviewed migration removes only the historical live-agent
+      // escalation grants; account and case rows remain intact.
+      if (/DELETE FROM "role_permissions" rp[\s\S]*?r\."name" = 'live_agent'[\s\S]*?p\."resource" = 'escalation'/.test(sql)) {
+        parsed.live_agent = (parsed.live_agent ?? []).filter((key) => !key.startsWith('escalation.'));
+      }
       return parsed;
     };
 

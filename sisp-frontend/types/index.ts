@@ -9,7 +9,8 @@ export interface User {
     | 'dean'
     | 'registrar'
     | 'treasury'
-    | 'sys_admin';
+    | 'sys_admin'
+    | 'live_agent';
   mustChangePassword?: boolean;
 }
 
@@ -150,7 +151,8 @@ export interface DocumentRequest {
 export interface Notification {
   id: string;
   title: string;
-  message: string;
+    message: string;
+    caseId?: string | null;
   isRead: boolean;
   createdAt: string;
 }

@@ -22,6 +22,18 @@ export const CANONICAL_ROLE_NAMES = [
 
 export type CanonicalRoleName = (typeof CANONICAL_ROLE_NAMES)[number];
 
+/** Supporting ARIA handoff role. It is intentionally outside the six thesis
+ * operational groups (DEC-002/DEC-020) and receives no portal-data rights. */
+export const SUPPORTING_ROLE_NAMES = ['live_agent'] as const;
+export type SupportingRoleName = (typeof SUPPORTING_ROLE_NAMES)[number];
+/** Legacy support role kept for historical records; no longer a sign-in role. */
+export const RETIRED_ROLE_NAMES = ['live_agent'] as const;
+export type ApplicationRoleName = CanonicalRoleName | SupportingRoleName;
+export const APPLICATION_ROLE_NAMES: readonly ApplicationRoleName[] = [
+  ...CANONICAL_ROLE_NAMES,
+  ...SUPPORTING_ROLE_NAMES,
+];
+
 export interface PermissionDefinition {
   resource: string;
   action: string;
@@ -68,7 +80,7 @@ export const ALL_PERMISSION_KEYS: string[] = PERMISSION_DEFINITIONS.map(
  *    needed for support; operational student, enrollment, request, and finance
  *    writes remain assigned to their domain offices.
  */
-export const ROLE_PERMISSIONS: Record<CanonicalRoleName, string[]> = {
+export const ROLE_PERMISSIONS: Record<ApplicationRoleName, string[]> = {
   student: [
     'student_record.read_own',
     'enrollment.read_own',
@@ -123,6 +135,8 @@ export const ROLE_PERMISSIONS: Record<CanonicalRoleName, string[]> = {
     'escalation.view_assigned',
     'escalation.respond',
     'escalation.resolve',
+  ],
+  live_agent: [
   ],
 };
 

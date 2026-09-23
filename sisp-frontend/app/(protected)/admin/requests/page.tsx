@@ -37,6 +37,11 @@ export default function AdminPaymentApprovalsPage() {
   }, []);
 
   const confirmPayment = async (requestId: string) => {
+    const request = queue.find((item) => item.id === requestId);
+    if (!request?.paymentProofChannel || !request.paymentProofReference?.trim()) {
+      toast.error('Wait for the student to submit payment proof before confirming.');
+      return;
+    }
     setConfirmingId(requestId);
     try {
       await requestsApi.confirmPayment(requestId);
@@ -104,7 +109,11 @@ export default function AdminPaymentApprovalsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filtered.map((request) => (
+            {filtered.map((request) => {
+              const hasSubmittedProof = Boolean(
+                request.paymentProofChannel && request.paymentProofReference?.trim(),
+              );
+              return (
               <div key={request.id} className="portal-surface p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
@@ -115,20 +124,26 @@ export default function AdminPaymentApprovalsPage() {
                       {(request.items?.map((item) => `${item.label} ×${item.quantity}`).join(', ')) || request.type}
                     </p>
                     <p className="mt-1 text-xs text-[#6c879a]">
-                      {request.paymentProofChannel ? `Proof: ${request.paymentProofChannel.toUpperCase()}` : 'No proof channel'} · Ref: {request.paymentProofReference ?? request.paymentReference ?? '—'} · Amount: ₱{Number(request.fee ?? 0).toLocaleString()}
+                      {request.paymentProofChannel ? `Proof: ${request.paymentProofChannel.toUpperCase()}` : 'Proof not submitted'} · Proof reference: {request.paymentProofReference ?? '—'} · Amount: ₱{Number(request.fee ?? 0).toLocaleString()}
                     </p>
                   </div>
-                  <Button
-                    onClick={() => void confirmPayment(request.id)}
-                    disabled={confirmingId === request.id}
-                    className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
-                  >
-                    <CheckCircle2 className="size-4" />
-                    Confirm payment
-                  </Button>
+                  <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+                    <Button
+                      onClick={() => void confirmPayment(request.id)}
+                      disabled={confirmingId === request.id || !hasSubmittedProof}
+                      className="bg-emerald-600 text-white hover:bg-emerald-700"
+                    >
+                      <CheckCircle2 className="size-4" />
+                      Confirm payment
+                    </Button>
+                    {!hasSubmittedProof && (
+                      <p className="text-xs text-amber-800">Waiting for student payment proof.</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

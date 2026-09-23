@@ -622,6 +622,8 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
   title     String
   message   String
+  caseId    String?  @map("case_id")
+  eventKey  String?  @unique @map("event_key")
   isRead    Boolean  @default(false) @map("is_read")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -678,6 +680,7 @@ model ChatSession {
   status       String         @default("open") // open | closed
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
+  studentLastViewedAt DateTime? @map("student_last_viewed_at")
 
   messages ChatMessage[]
   chatLog  ChatLog?      @relation(fields: [escalationId], references: [id])

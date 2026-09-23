@@ -27,7 +27,7 @@ describe('AuthService (Phase 1)', () => {
     revokeAllForUser: jest.fn().mockResolvedValue(2),
     listActive: jest.fn().mockResolvedValue([]),
   };
-  const mockPermissions = { getPermissionsForRole: jest.fn().mockResolvedValue(['student_record.read_own']) };
+  const mockPermissions = { getPermissionsForRole: jest.fn().mockResolvedValue(new Set(['student_record.read_own'])) };
   const mockMail = { isConfigured: jest.fn().mockReturnValue(true), send: jest.fn().mockResolvedValue(undefined) };
 
   const mockPrisma = {
@@ -70,6 +70,12 @@ describe('AuthService (Phase 1)', () => {
     mustChangePassword: false,
     role: { name: 'dean' },
   };
+  const retiredAgentUser = {
+    ...studentUser,
+    id: 'agent-1',
+    email: 'agent@rmc.edu.ph',
+    role: { name: 'live_agent' },
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -77,7 +83,7 @@ describe('AuthService (Phase 1)', () => {
     mockSessions.createSession.mockResolvedValue({ sessionId: 'session-1', refreshToken: 'refresh-1' });
     mockSessions.revokeAllForUser.mockResolvedValue(2);
     mockSessions.listActive.mockResolvedValue([]);
-    mockPermissions.getPermissionsForRole.mockResolvedValue(['student_record.read_own']);
+    mockPermissions.getPermissionsForRole.mockResolvedValue(new Set(['student_record.read_own']));
     mockMail.isConfigured.mockReturnValue(true);
     mockJwt.signAsync.mockResolvedValue('signed-access-token');
 
@@ -143,6 +149,19 @@ describe('AuthService (Phase 1)', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it('rejects sign-in for the retired live_agent role without creating a session', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(retiredAgentUser);
+
+    await expect(
+      service.login({ email: retiredAgentUser.email, password: 'CorrectPassword1' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(mockSessions.createSession).not.toHaveBeenCalled();
+    expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: 'LOGIN_FAILURE', resource: 'auth' }),
+    });
+  });
+
   it('requires an MFA challenge for policy roles instead of issuing tokens', async () => {
     mockMfa.isRequiredForRole.mockReturnValue(true);
     mockMfa.createChallenge.mockResolvedValue({
@@ -192,6 +211,16 @@ describe('AuthService (Phase 1)', () => {
     expect(mockSessions.rotate).toHaveBeenCalledWith('refresh-1', '192.0.2.10', undefined);
     expect(result.refreshToken).toBe('refresh-2');
     expect(result.accessToken).toBe('signed-access-token');
+    expect(result.permissions).toEqual(['student_record.read_own']);
+  });
+
+  it('returns an array permission contract for the authenticated profile endpoint', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(studentUser);
+
+    const result: any = await service.me('student-1');
+
+    expect(result.permissions).toEqual(['student_record.read_own']);
+    expect(Array.isArray(result.permissions)).toBe(true);
   });
 
   it('revokes other sessions on password change and audits the event', async () => {

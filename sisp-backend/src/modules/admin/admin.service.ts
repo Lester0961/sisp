@@ -10,7 +10,7 @@ import { PermissionService } from '../../common/authz/permission.service';
 import { SessionService } from '../auth/session.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from '../users/dto/update-user.dto';
-import { CANONICAL_ROLE_NAMES } from '../../common/authz/rbac';
+import { APPLICATION_ROLE_NAMES, RETIRED_ROLE_NAMES } from '../../common/authz/rbac';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 
@@ -109,8 +109,11 @@ export class AdminService {
 
   // ── Privilege-escalation and protected-account safeguards (P2-05) ─────
 
-  private assertCanonicalRole(roleName: string): void {
-    if (!(CANONICAL_ROLE_NAMES as readonly string[]).includes(roleName)) {
+  private assertSupportedRole(roleName: string): void {
+    if ((RETIRED_ROLE_NAMES as readonly string[]).includes(roleName)) {
+      throw new BadRequestException(`Role '${roleName}' is retired and cannot be assigned`);
+    }
+    if (!(APPLICATION_ROLE_NAMES as readonly string[]).includes(roleName)) {
       throw new BadRequestException(`Role '${roleName}' is not a recognized system role`);
     }
   }
@@ -148,7 +151,7 @@ export class AdminService {
       dto.roleName !== undefined && dto.roleName !== target.role?.name;
 
     if (roleChanging) {
-      this.assertCanonicalRole(dto.roleName!);
+      this.assertSupportedRole(dto.roleName!);
       if (isSelf) {
         throw new BadRequestException('You cannot change your own role.');
       }
@@ -184,7 +187,7 @@ export class AdminService {
   }
 
   async updateUserRole(userId: string, roleName: string, actorId: string) {
-    this.assertCanonicalRole(roleName);
+    this.assertSupportedRole(roleName);
 
     const target = await this.getTargetUser(userId);
 
@@ -243,6 +246,9 @@ export class AdminService {
 
   async activateUser(userId: string, actorId: string) {
     const target = await this.getTargetUser(userId);
+    if ((RETIRED_ROLE_NAMES as readonly string[]).includes(target.role?.name ?? '')) {
+      throw new BadRequestException('This legacy role is retired and cannot be reactivated.');
+    }
     if (target.archivedAt) {
       throw new BadRequestException(
         'This account is archived. Clear the archive flag before reactivating.',
@@ -312,7 +318,7 @@ export class AdminService {
 
   async createUser(dto: CreateUserDto) {
     // Guard against invalid role states even if the DTO allow-list changes.
-    this.assertCanonicalRole(dto.roleName);
+    this.assertSupportedRole(dto.roleName);
 
     // Phase 1: this endpoint provisions institutional STAFF accounts only.
     // Student accounts are created through admission approval and activation.

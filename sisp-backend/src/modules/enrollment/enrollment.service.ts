@@ -273,15 +273,27 @@ export class EnrollmentService {
     };
   }
 
-  async getAllEnrollments(studentId?: string, courseId?: string, termId?: string, instructorId?: string) {
-    const where: {
-      studentId?: string;
-      courseId?: string;
-      termId?: string;
-      instructorId?: string;
-    } = {};
+  async getAllEnrollments(
+    studentId?: string,
+    courseId?: string,
+    termId?: string,
+    instructorId?: string,
+    adviserId?: string,
+  ) {
+    const where: Record<string, any> = {};
 
-    if (studentId) where.studentId = studentId;
+    if (adviserId) {
+      const assignments = await this.prisma.adviserAssignment.findMany({
+        where: { adviserId, status: 'active' },
+        select: { studentId: true },
+      });
+      where.studentId = { in: assignments.map((assignment) => assignment.studentId) };
+    }
+
+    if (studentId && adviserId) {
+      where.AND = [{ studentId: { in: where.studentId.in } }, { studentId }];
+      delete where.studentId;
+    } else if (studentId) where.studentId = studentId;
     if (courseId) where.courseId = courseId;
     if (termId) where.termId = termId;
     if (instructorId) where.instructorId = instructorId;

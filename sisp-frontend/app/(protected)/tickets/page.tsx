@@ -7,7 +7,6 @@ import {
   ChatSessionMessage,
   ChatSessionRecord,
   EligibleAssignee,
-  EscalationRecord,
 } from '@/lib/api/chat';
 import { useAuth } from '@/hooks/useAuth';
 import { PageFooter } from '@/components/shared/PageFooter';
@@ -25,21 +24,29 @@ import {
 } from '@/components/ui/dialog';
 import { Send, RefreshCw, ShieldAlert, CheckCircle, Forward, Inbox } from 'lucide-react';
 import { toast } from 'sonner';
+import { StudentEscalations } from '@/components/tickets/StudentEscalations';
+import { escalationChanged } from '@/stores/escalationAttentionStore';
 
 /**
  * Human escalation workspace (Phase 1).
  *
- * - Dean: sees the unassigned escalation queue, can accept/answer, and forward
- *   tickets to any eligible staff member with a routing note.
- * - Other staff (faculty/dean/registrar/treasury/sys_admin): see only tickets
- *   assigned to them, reply, and resolve.
- * Escalation is a capability, not a role; there is no live_agent account.
+ * - Dean: sees unassigned escalations and their own cases; can answer or
+ *   forward to an eligible staff member with a routing note.
+ * - The Dean sees the intake queue and can forward to active staff roles.
+ * - Faculty, Registrar, Treasury, and System Administrator see only their
+ *   assigned cases. The former Live Agent role is retired.
  */
 export default function TicketsPage() {
   const { user } = useAuth();
-  const isDean = user?.role === 'dean';
+  return user?.role === 'student' ? <StudentEscalations /> : <StaffTickets />;
+}
 
-  const [escalations, setEscalations] = useState<EscalationRecord[]>([]);
+function StaffTickets() {
+  const { user } = useAuth();
+  const isDean = user?.role === 'dean';
+  const canClaimQueue = isDean;
+
+  const [unassignedQueue, setUnassignedQueue] = useState<AdvisorSessionSummary[]>([]);
   const [assigned, setAssigned] = useState<AdvisorSessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -53,31 +60,51 @@ export default function TicketsPage() {
   const [forwardNote, setForwardNote] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     setLoadError(null);
     try {
-      if (isDean) {
-        const [queue, mine] = await Promise.all([
-          chatApi.getEscalations(),
-          chatApi.getAssignedSessions(),
-        ]);
-        setEscalations(queue);
-        setAssigned(mine.data);
+      if (canClaimQueue && user?.id) {
+        const visible = await chatApi.getSessions('open');
+        setUnassignedQueue(visible.data.filter((entry) => !entry.agentId));
+        setAssigned(visible.data.filter((entry) => entry.agentId === user.id));
       } else {
         const mine = await chatApi.getAssignedSessions();
+        setUnassignedQueue([]);
         setAssigned(mine.data);
       }
     } catch {
       setLoadError('Could not load escalation tickets. Please try again.');
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
-  }, [isDean]);
+  }, [canClaimQueue, user?.id]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => void load(false), 12_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+
+  useEffect(() => {
+    if (!activeSession?.id) return;
+    const sessionId = activeSession.id;
+    const timer = window.setInterval(async () => {
+      try {
+        const [session, freshMessages] = await Promise.all([chatApi.getSession(sessionId), chatApi.getSessionMessages(sessionId)]);
+        setActiveSession(session);
+        setMessages(freshMessages);
+      } catch {
+        setActiveSession(null);
+        toast.error('This escalation was reassigned. The queue has been refreshed.');
+        void load(false);
+      }
+    }, 8_000);
+    return () => window.clearInterval(timer);
+  }, [activeSession?.id, load]);
 
   const openSession = async (sessionId: string) => {
     try {
@@ -103,15 +130,23 @@ export default function TicketsPage() {
     }
   };
 
-  const accept = async (record: EscalationRecord) => {
-    const sessionId = record.chat.chatSession?.id;
-    if (!sessionId) {
-      toast.error('No support session is linked to this ticket.');
-      return;
-    }
+  useEffect(() => {
+    const caseId = new URLSearchParams(window.location.search).get('case');
+    if (caseId && assigned.some((entry) => entry.id === caseId)) void openSession(caseId);
+    const onOpen = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (assigned.some((entry) => entry.id === id)) void openSession(id);
+    };
+    window.addEventListener('sisp-open-escalation', onOpen);
+    return () => window.removeEventListener('sisp-open-escalation', onOpen);
+  // Opening from a notification follows the current assignment list.
+  }, [assigned.map((entry) => entry.id).join('|')]);
+
+  const accept = async (sessionId: string) => {
     setBusy(true);
     try {
       await chatApi.assignSession(sessionId);
+      escalationChanged();
       toast.success('Concern accepted. You are now the assignee.');
       await openSession(sessionId);
       await load();
@@ -129,6 +164,7 @@ export default function TicketsPage() {
     try {
       const message = await chatApi.sendSessionMessage(activeSession.id, reply.trim());
       setMessages((current) => [...current, message]);
+      escalationChanged();
       setReply('');
     } catch (error: any) {
       toast.error(error?.response?.data?.message ?? 'Could not send the reply.');
@@ -142,6 +178,7 @@ export default function TicketsPage() {
     setBusy(true);
     try {
       await chatApi.reassignSession(activeSession.id, forwardTo, forwardNote.trim() || undefined);
+      escalationChanged();
       toast.success('Ticket forwarded. The previous assignee lost access.');
       setActiveSession(null);
       setForwardNote('');
@@ -161,6 +198,7 @@ export default function TicketsPage() {
     setBusy(true);
     try {
       await chatApi.closeSession(activeSession.id, resolution.trim());
+      escalationChanged();
       toast.success('Ticket resolved. The student has been notified.');
       setActiveSession(null);
       await load();
@@ -171,7 +209,6 @@ export default function TicketsPage() {
     }
   };
 
-  const pendingQueue = escalations.filter((entry) => entry.status === 'pending');
   const openAssigned = assigned.filter((entry) => entry.status === 'open');
 
   return (
@@ -181,7 +218,7 @@ export default function TicketsPage() {
           <div>
             <h1 className="portal-title flex items-center gap-2">
               <ShieldAlert className="size-6 text-[#0a439b]" strokeWidth={1.8} />
-              {isDean ? 'Escalation queue' : 'My tickets'}
+              {canClaimQueue ? 'Escalation queue' : 'My tickets'}
             </h1>
             <p className="portal-description mt-2">
               {isDean
@@ -202,41 +239,39 @@ export default function TicketsPage() {
           </div>
         )}
 
-        {isDean && (
+        {canClaimQueue && (
           <section className="space-y-3">
             <h2 className="text-sm font-bold uppercase tracking-wider text-[#587387]">
-              Unassigned queue ({pendingQueue.length})
+              Unassigned queue ({unassignedQueue.length})
             </h2>
-            {pendingQueue.length === 0 ? (
+            {unassignedQueue.length === 0 ? (
               <div className="portal-surface portal-empty">
                 <CheckCircle className="h-6 w-6 text-emerald-500" />
                 <p className="text-sm text-[#587387]">No unassigned escalations. All caught up.</p>
               </div>
             ) : (
               <div className="grid gap-3">
-                {pendingQueue.map((record) => {
-                  const session = record.chat.chatSession;
-                  return (
-                    <Card key={record.id} className="portal-surface">
+                {unassignedQueue.map((session) => (
+                    <Card key={session.id} className="portal-surface">
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4">
                         <div className="space-y-0.5">
                           <p className="text-sm font-semibold text-[#102f49]">
-                            Student {session?.student.studentNumber ?? record.chatId}
+                            Student {session.student.studentNumber}
                           </p>
                           <p className="text-[11px] text-[#6c879a]">
-                            {record.chat.intent ?? 'general support'} ·{' '}
-                            {new Date(record.createdAt).toLocaleString()}
+                            {session.chatLog?.intent ?? 'general support'} ·{' '}
+                            {new Date(session.createdAt).toLocaleString()}
                           </p>
                         </div>
                         <Badge variant="outline" className="border-0 bg-amber-50 text-amber-700">
-                          {record.status}
+                          Unassigned
                         </Badge>
                       </CardHeader>
                       <CardContent className="flex justify-end gap-2 p-4 pt-0">
                         <Button
                           size="sm"
-                          onClick={() => void accept(record)}
-                          disabled={busy || !session}
+                          onClick={() => void accept(session.id)}
+                          disabled={busy}
                           className="bg-[#0a439b] text-white hover:bg-[#083980]"
                         >
                           <Inbox className="h-3.5 w-3.5" />
@@ -244,8 +279,7 @@ export default function TicketsPage() {
                         </Button>
                       </CardContent>
                     </Card>
-                  );
-                })}
+                  ))}
               </div>
             )}
           </section>
@@ -253,13 +287,13 @@ export default function TicketsPage() {
 
         <section className="space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wider text-[#587387]">
-            {isDean ? `Assigned to me (${openAssigned.length})` : `Open tickets (${openAssigned.length})`}
+            {canClaimQueue ? `Assigned to me (${openAssigned.length})` : `Open tickets (${openAssigned.length})`}
           </h2>
           {openAssigned.length === 0 ? (
             <div className="portal-surface portal-empty">
               <Inbox className="h-6 w-6 text-slate-400" />
               <p className="text-sm text-[#587387]">
-                {isDean ? 'Accept a queue item or wait for forwarded tickets.' : 'No open tickets assigned to you.'}
+                {canClaimQueue ? 'Accept a queue item or wait for forwarded tickets.' : 'No open tickets assigned to you.'}
               </p>
             </div>
           ) : (
@@ -330,7 +364,13 @@ export default function TicketsPage() {
               placeholder="Write a reply to the student..."
               className="w-full rounded-xl border border-[#bed1e0] bg-[#f8fbfd] p-2 text-xs"
             />
-            <Button size="sm" onClick={() => void sendReply()} disabled={busy || !reply.trim()}>
+            <Button
+              size="sm"
+              onClick={() => void sendReply()}
+              disabled={busy || !reply.trim()}
+              aria-label="Send reply"
+              title="Send reply"
+            >
               <Send className="h-3.5 w-3.5" />
             </Button>
           </div>

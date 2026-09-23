@@ -23,7 +23,7 @@ export class StudentSemesterController {
   }
 
   @Get()
-  @Roles('treasury', 'sys_admin', 'dean')
+  @RequirePermissions('financial.manage')
   async findAll(@Query('studentId') studentId?: string) {
     if (studentId) {
       return this.service.findByStudent(studentId);

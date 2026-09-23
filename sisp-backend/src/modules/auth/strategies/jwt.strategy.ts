@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SessionService } from '../session.service';
+import { RETIRED_ROLE_NAMES } from '../../../common/authz/rbac';
 
 export interface JwtPayload {
   sub: string;
@@ -48,7 +49,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       include: { role: true },
     });
 
-    if (!user || !user.isActive) {
+    if (
+      !user ||
+      !user.isActive ||
+      (RETIRED_ROLE_NAMES as readonly string[]).includes(user.role?.name ?? '')
+    ) {
       throw new UnauthorizedException('User not found or inactive');
     }
 

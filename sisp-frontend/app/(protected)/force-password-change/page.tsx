@@ -39,6 +39,9 @@ export default function ForcePasswordChangePage() {
       case 'dean':
         router.push('/dean/grades');
         break;
+      case 'live_agent':
+        router.push('/tickets');
+        break;
       case 'faculty':
         router.push('/faculty');
         break;

@@ -6,16 +6,39 @@ import { useStudentStore } from '@/stores/studentStore';
 import { useRequestStore } from '@/stores/requestStore';
 import { useChatStore } from '@/stores/chatStore';
 import { useNotificationStore } from '@/stores/notificationStore';
+import type { User } from '@/types';
 
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || '';
 const apiUrl = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
+
+interface SessionBootstrapPayload {
+  user: User;
+  accessToken: string;
+  permissions?: unknown;
+}
+
+// Next dev Strict Mode mounts effects twice. Share one refresh request so the
+// rotating HttpOnly cookie is not consumed concurrently by two bootstraps.
+let sessionBootstrapPromise: Promise<SessionBootstrapPayload | null> | null = null;
+
+function bootstrapSessionOnce(): Promise<SessionBootstrapPayload | null> {
+  if (!sessionBootstrapPromise) {
+    sessionBootstrapPromise = fetch(`${apiUrl}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+    })
+      .then(async (response) => (response.ok ? (response.json() as Promise<SessionBootstrapPayload>) : null))
+      .catch(() => null);
+  }
+  return sessionBootstrapPromise;
+}
 
 interface AuthProviderProps {
   children: React.ReactNode;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const setSession = useAuthStore((s) => s.setSession);
   const clearSession = useAuthStore((s) => s.clearSession);
   const setLoading = useAuthStore((s) => s.setLoading);
@@ -35,27 +58,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Bootstrap the session once on load using the HttpOnly refresh cookie.
   useEffect(() => {
-    if (!hasHydrated) return;
     let cancelled = false;
 
     async function bootstrap() {
       setLoading(true);
       try {
-        const response = await fetch(`${apiUrl}/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        if (!response.ok) {
-          if (!cancelled) clearSession();
-          return;
-        }
-        const data = await response.json();
+        const data = await bootstrapSessionOnce();
         if (!cancelled) {
-          setSession({ user: data.user, accessToken: data.accessToken, permissions: data.permissions });
+          if (data?.user && data.accessToken) {
+            setSession({ user: data.user, accessToken: data.accessToken, permissions: data.permissions });
+          } else {
+            clearSession();
+          }
         }
-      } catch {
-        if (!cancelled) clearSession();
       } finally {
         if (!cancelled) {
           setLoading(false);

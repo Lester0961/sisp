@@ -478,6 +478,11 @@ export class DocumentsService {
     if (!request) {
       throw new NotFoundException(`Document request with ID ${id} not found`);
     }
+    if (request.status === 'awaiting_payment' && dto.status === 'pending') {
+      throw new BadRequestException(
+        'Treasury must verify submitted payment proof before this request can move to pending.',
+      );
+    }
     assertTransition(request.status, dto.status, REQUEST_STATUS_TRANSITIONS);
 
     const previousStatus = request.status;
