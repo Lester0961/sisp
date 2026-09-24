@@ -202,6 +202,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             ? {
                 ...m,
                 content: res.response,
+                timestamp: res.createdAt ? new Date(res.createdAt) : m.timestamp,
                 intent: res.intent,
                 confidence: res.confidence,
                 sources: res.sources,

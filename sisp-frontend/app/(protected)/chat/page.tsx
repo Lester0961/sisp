@@ -25,6 +25,20 @@ function formatMarkdown(text: string) {
   });
 }
 
+function formatChatTimestamp(timestamp: Date) {
+  return new Intl.DateTimeFormat('en-PH', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+  }).format(timestamp);
+}
+
 function MessageBubble({ message, onOpenLiveChat, onRequestHuman }: { message: ChatMessage; onOpenLiveChat: (sessionId: string) => void; onRequestHuman: (chatLogId: string) => void }) {
   const [showSources, setShowSources] = useState(false);
   const isStudent = message.role === 'user';
@@ -41,6 +55,16 @@ function MessageBubble({ message, onOpenLiveChat, onRequestHuman }: { message: C
           <div dangerouslySetInnerHTML={{ __html: formatMarkdown(message.content) }} />
         )}
       </div>
+
+      {!message.isLoading ? (
+        <time
+          dateTime={message.timestamp.toISOString()}
+          title={formatChatTimestamp(message.timestamp)}
+          className="px-1 text-[10px] leading-none text-[#8298a8]"
+        >
+          {formatChatTimestamp(message.timestamp)}
+        </time>
+      ) : null}
 
       {!isStudent && message.sources?.length ? (
         <div className="max-w-[90%] sm:max-w-[72%]">
