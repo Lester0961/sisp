@@ -75,13 +75,9 @@ async function main() {
     });
   }
 
-  // Institutional admission requirements referenced by the admission flow.
+  // New applicants upload only the enrollment/down-payment receipt.
   const requirementDefinitions = [
-    { id: '20000000-0000-4000-8000-000000000001', code: 'FORM_137', title: 'High School Report Card (Form 138 / SF9)', applicantType: 'freshman', isRequired: true, sortOrder: 10 },
-    { id: '20000000-0000-4000-8000-000000000002', code: 'GOOD_MORAL', title: 'Certificate of Good Moral Character', applicantType: null, isRequired: true, sortOrder: 20 },
-    { id: '20000000-0000-4000-8000-000000000003', code: 'PSA_BIRTH', title: 'PSA Birth Certificate', applicantType: null, isRequired: true, sortOrder: 30 },
-    { id: '20000000-0000-4000-8000-000000000004', code: 'ID_PHOTO', title: '2x2 Recent Colored Photo', applicantType: null, isRequired: true, sortOrder: 40 },
-    { id: '20000000-0000-4000-8000-000000000005', code: 'HONORABLE_DISMISSAL', title: 'Honorable Dismissal / Transfer Credential', applicantType: 'transferee', isRequired: true, sortOrder: 50 },
+    { id: '20000000-0000-4000-8000-000000000006', code: 'ENROLLMENT_RECEIPT', title: 'Enrollment or Down-payment Receipt', applicantType: null, isRequired: true, sortOrder: 10 },
   ];
   for (const definition of requirementDefinitions) {
     const { id, code, ...data } = definition;
@@ -91,6 +87,13 @@ async function main() {
       create: { id, code, ...data },
     });
   }
+
+  // Keep historic requirement records and their submissions; remove the old
+  // checklist from active application flow without deleting stored data.
+  await prisma.admissionRequirementDefinition.updateMany({
+    where: { code: { in: ['FORM_137', 'GOOD_MORAL', 'PSA_BIRTH', 'ID_PHOTO', 'HONORABLE_DISMISSAL'] } },
+    data: { isActive: false, isRequired: false },
+  });
 
   console.log('Reference seed complete: roles, permissions, six approved document types, admission requirements, and three archived academic terms. No accounts or demo records created.');
 }

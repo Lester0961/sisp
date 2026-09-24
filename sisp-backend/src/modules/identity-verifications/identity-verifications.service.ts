@@ -4,12 +4,14 @@ import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ObjectStorageService } from '../../common/storage/object-storage.service';
+import { AuthService } from '../auth/auth.service';
+import { MailService, escapeHtml } from '../auth/mail.service';
 import { CreateIdentityVerificationDto } from './dto/create-identity-verification.dto';
 import { ReviewIdentityVerificationDto } from './dto/review-identity-verification.dto';
 import { UploadVerificationDocumentDto } from './dto/upload-verification-document.dto';
 
 const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const REVIEW_DECISIONS = ['under_review', 'approved', 'rejected', 'needs_info'];
 
 /**
@@ -27,6 +29,8 @@ export class IdentityVerificationsService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly storage: ObjectStorageService,
+    private readonly authService: AuthService,
+    private readonly mailService: MailService,
   ) {}
 
   private bucket(): string {
@@ -65,11 +69,19 @@ export class IdentityVerificationsService {
       select: { id: true, status: true, verificationType: true, submittedAt: true },
     });
 
+    const emailNotificationSent = await this.sendApplicantEmail(
+      email,
+      'SISP returning-student verification received',
+      `<p>Your ${escapeHtml(dto.verificationType)} student verification request was received.</p><p>The Registrar will review your details and uploaded valid ID. Keep this reference: <strong>${escapeHtml(verification.id)}</strong>.</p>`,
+      `Your ${dto.verificationType} student verification request was received. The Registrar will review your details and uploaded valid ID. Keep this reference: ${verification.id}.`,
+    );
+
     return {
       ...verification,
       matchedExistingRecord: Boolean(matchedStudentProfileId),
       message:
         'Identity verification submitted. The Registrar will review your details and the uploaded ID.',
+      emailNotificationSent,
     };
   }
 
@@ -104,13 +116,16 @@ export class IdentityVerificationsService {
     if (!['submitted', 'needs_info'].includes(verification.status)) {
       throw new BadRequestException('This verification is no longer accepting documents');
     }
+    if (dto.documentType.trim().toLowerCase() !== 'valid_id') {
+      throw new BadRequestException('Upload the document as a valid ID.');
+    }
     if (!ALLOWED_MIME.includes(dto.mimeType)) {
       throw new BadRequestException('Only PDF, JPEG, or PNG identification documents are accepted');
     }
     const content = Buffer.from(dto.contentBase64, 'base64');
     if (content.length === 0) throw new BadRequestException('The uploaded file is empty');
     if (content.length > MAX_FILE_BYTES) {
-      throw new PayloadTooLargeException('Identification documents must be 5 MB or smaller');
+      throw new PayloadTooLargeException('The valid ID must be 10 MB or smaller');
     }
 
     const objectKey = this.buildObjectKey(id, dto.originalFileName);
@@ -159,6 +174,40 @@ export class IdentityVerificationsService {
     };
   }
 
+  async getDocumentReviewAsset(verificationId: string, documentId: string) {
+    const document = await this.prisma.identityVerificationDocument.findFirst({
+      where: { id: documentId, verificationId },
+      select: { storageObjectKey: true, originalFileName: true, mimeType: true },
+    });
+    if (!document) throw new NotFoundException('Identification document not found');
+    const asset = await this.storage.getReviewObject(this.bucket(), document.storageObjectKey, 300);
+    return { ...asset, fileName: document.originalFileName, mimeType: document.mimeType };
+  }
+
+  async searchStudentRecords(query: string) {
+    const term = query.trim();
+    if (term.length < 2) return { data: [], total: 0 };
+    const data = await this.prisma.studentProfile.findMany({
+      where: {
+        OR: [
+          { studentNumber: { contains: term, mode: 'insensitive' } },
+          { user: { firstName: { contains: term, mode: 'insensitive' } } },
+          { user: { lastName: { contains: term, mode: 'insensitive' } } },
+          { user: { email: { contains: term, mode: 'insensitive' } } },
+        ],
+      },
+      select: {
+        id: true,
+        studentNumber: true,
+        lifecycleStatus: true,
+        user: { select: { firstName: true, lastName: true, email: true } },
+      },
+      orderBy: { studentNumber: 'asc' },
+      take: 20,
+    });
+    return { data, total: data.length };
+  }
+
   async listForReview(status?: string) {
     const records = await this.prisma.studentIdentityVerification.findMany({
       where: status ? { status } : undefined,
@@ -201,15 +250,32 @@ export class IdentityVerificationsService {
     }
 
     let matchedStudentProfileId = verification.matchedStudentProfileId;
-    if (dto.matchedStudentProfileId !== undefined) {
-      matchedStudentProfileId = dto.matchedStudentProfileId || null;
-    }
-    if (dto.decision === 'approved' && matchedStudentProfileId) {
-      const profile = await this.prisma.studentProfile.findUnique({
+    if (dto.matchedStudentProfileId !== undefined) matchedStudentProfileId = dto.matchedStudentProfileId || null;
+    let matchedProfile: any = null;
+    if (dto.decision === 'approved') {
+      if (!dto.matchedStudentProfileId) {
+        throw new BadRequestException('Select and confirm the existing student record before approval.');
+      }
+      if (!matchedStudentProfileId) {
+        throw new BadRequestException('A student record must be matched before approval.');
+      }
+      matchedProfile = await this.prisma.studentProfile.findUnique({
         where: { id: matchedStudentProfileId },
+        select: { id: true, userId: true, user: { select: { id: true, email: true } } },
+      });
+      if (!matchedProfile) throw new BadRequestException('The matched student record was not found');
+      const validId = await this.prisma.identityVerificationDocument.findFirst({
+        where: { verificationId: id, documentType: 'valid_id' },
         select: { id: true },
       });
-      if (!profile) throw new BadRequestException('The matched student record was not found');
+      if (!validId) throw new BadRequestException('Upload and review a valid ID before approving this request.');
+      const emailOwner = await this.prisma.user.findUnique({
+        where: { email: verification.applicantEmail.trim().toLowerCase() },
+        select: { id: true },
+      });
+      if (emailOwner && emailOwner.id !== matchedProfile.userId) {
+        throw new BadRequestException('The applicant email is already linked to another account. Resolve the email with the Registrar before approval.');
+      }
     }
 
     const isFinal = dto.decision === 'approved' || dto.decision === 'rejected';
@@ -237,6 +303,10 @@ export class IdentityVerificationsService {
         where: { id: matchedStudentProfileId },
         data: { lifecycleStatus: verification.verificationType === 'alumni' ? 'alumni' : 'returning' },
       });
+      await this.prisma.identityVerificationDocument.updateMany({
+        where: { verificationId: id, documentType: 'valid_id' },
+        data: { reviewStatus: 'verified', reviewedByUserId: reviewerId, reviewedAt: new Date() },
+      });
     }
 
     await this.prisma.auditLog.create({
@@ -250,7 +320,38 @@ export class IdentityVerificationsService {
       },
     });
 
-    return { message: `Verification marked ${dto.decision}.`, data: updated };
+    let emailNotificationSent = false;
+    if (dto.decision === 'approved' && matchedProfile?.userId) {
+      emailNotificationSent = await this.authService.issueStudentActivationLink(
+        matchedProfile.userId,
+        verification.applicantEmail,
+        'student_reactivation',
+      ).catch(() => false);
+    } else {
+      const message = dto.decision === 'rejected'
+        ? `Your student identity verification was rejected. ${dto.remarks ?? 'Contact the Registrar for assistance.'}`.trim()
+        : dto.decision === 'needs_info'
+          ? `The Registrar needs more information to process your identity verification. ${dto.remarks ?? ''}`.trim()
+          : 'The Registrar has started reviewing your student identity verification.';
+      emailNotificationSent = await this.sendApplicantEmail(
+        verification.applicantEmail,
+        `SISP identity verification ${dto.decision.replace(/_/g, ' ')}`,
+        `<p>${escapeHtml(message)}</p><p>Reference: <strong>${escapeHtml(id)}</strong></p>`,
+        `${message} Reference: ${id}`,
+      );
+    }
+
+    return { message: `Verification marked ${dto.decision}.`, data: updated, emailNotificationSent };
+  }
+
+  private async sendApplicantEmail(email: string, subject: string, html: string, text: string) {
+    if (!this.mailService.isConfigured()) return false;
+    try {
+      await this.mailService.send(email, 'Student applicant', subject, html, text);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private buildObjectKey(verificationId: string, originalFileName: string): string {

@@ -7,7 +7,7 @@ import { Menu, LogOut, Shield, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { NotificationBell } from '@/components/shared/NotificationBell';
 import { Button } from '@/components/ui/button';
-import { navItemsForRole, roleHomePath, isStaffRole } from '@/lib/navigation';
+import { navItemsForRole, roleHomePath, isStaffRole, roleDisplayName } from '@/lib/navigation';
 
 interface AdminTopHeaderProps {
   onOpenMobile: () => void;
@@ -27,9 +27,7 @@ export function AdminTopHeader({ onOpenMobile }: AdminTopHeaderProps) {
     .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
     .sort((a, b) => b.href.length - a.href.length)[0];
 
-  const roleLabel = user?.role
-    ? user.role.split('_').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
-    : 'Admin Staff';
+  const roleLabel = roleDisplayName(user?.role);
 
   return (
     <header className="sticky top-0 z-20 flex h-[68px] shrink-0 items-center justify-between border-b border-[#dce7ef] bg-white/95 px-4 backdrop-blur-md sm:px-6 lg:px-8">

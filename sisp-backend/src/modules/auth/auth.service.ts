@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -240,6 +241,7 @@ export class AuthService {
       data: {
         userId: user.id,
         tokenHash: createHash('sha256').update(token).digest('hex'),
+        purpose: 'password_reset',
         expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS),
         requestedIp: ipAddress?.slice(0, 64) ?? null,
       },
@@ -269,7 +271,12 @@ export class AuthService {
     const record = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash: createHash('sha256').update(token).digest('hex') },
     });
-    if (!record || record.consumedAt || record.expiresAt.getTime() <= Date.now()) {
+    if (
+      !record ||
+      (record.purpose && record.purpose !== 'password_reset') ||
+      record.consumedAt ||
+      record.expiresAt.getTime() <= Date.now()
+    ) {
       throw new UnauthorizedException('Invalid or expired reset link');
     }
     const user = await this.prisma.user.findUnique({ where: { id: record.userId } });
@@ -289,6 +296,136 @@ export class AuthService {
     await this.sessionService.revokeAllForUser(user.id, 'password_reset');
     await this.recordAudit(user, 'PASSWORD_RESET');
     return { message: 'Password has been reset. Sign in with your new password.' };
+  }
+
+  /**
+   * Issue a short-lived, single-use password setup link for a Registrar-approved
+   * student account. The raw token is emailed once and never persisted or logged.
+   */
+  async issueStudentActivationLink(
+    userId: string,
+    recipientEmail: string,
+    purpose: 'student_activation' | 'student_reactivation',
+  ): Promise<boolean> {
+    const email = recipientEmail.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { role: true },
+    });
+    if (!user || user.role?.name !== 'student') {
+      throw new UnauthorizedException('Only a student account can be activated.');
+    }
+
+    if (purpose === 'student_reactivation') {
+      const emailOwner = await this.prisma.user.findUnique({ where: { email } });
+      if (emailOwner && emailOwner.id !== userId) {
+        throw new ConflictException('That email address is already linked to another account.');
+      }
+    }
+
+    // Do not mint a token that cannot be delivered. The staff review result
+    // remains saved, and the caller reports that email needs configuration.
+    if (!this.mailService.isConfigured()) return false;
+
+    const token = randomBytes(48).toString('base64url');
+    const tokenRecord = await this.prisma.passwordResetToken.create({
+      data: {
+        userId,
+        tokenHash: createHash('sha256').update(token).digest('hex'),
+        purpose,
+        targetEmail: purpose === 'student_reactivation' ? email : null,
+        expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS),
+      },
+    });
+
+    const base = (this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002').replace(/\/$/, '');
+    const link = `${base}/activate?token=${encodeURIComponent(token)}`;
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Student';
+    try {
+      await this.mailService.send(
+        email,
+        name,
+        'Set up your SISP student account',
+        `<p>The Registrar approved your student account request.</p><p>Use the secure link below to set your password. This link expires in 30 minutes and can be used once.</p><p><a href="${link}">Set my password</a></p><p>After saving your password, return to SISP and sign in with it. You will not be signed in automatically.</p>`,
+        `The Registrar approved your SISP student account request. Set your password using this one-time link (expires in 30 minutes): ${link}\n\nAfter saving your password, return to SISP and sign in with it.`,
+      );
+      return true;
+    } catch (error) {
+      await this.prisma.passwordResetToken.updateMany({
+        where: { id: tokenRecord.id, consumedAt: null },
+        data: { consumedAt: new Date() },
+      }).catch(() => undefined);
+      this.logger.warn('Student activation email could not be delivered');
+      return false;
+    }
+  }
+
+  /** Complete an emailed student activation/recovery link without creating a session. */
+  async activateStudentAccount(token: string, newPassword: string) {
+    this.assertPasswordPolicy(newPassword);
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const now = new Date();
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const record = await tx.passwordResetToken.findUnique({ where: { tokenHash } });
+      if (
+        !record ||
+        !['student_activation', 'student_reactivation'].includes(record.purpose) ||
+        record.consumedAt ||
+        record.expiresAt.getTime() <= now.getTime()
+      ) {
+        throw new UnauthorizedException('This activation link is invalid or has expired.');
+      }
+
+      const account = await tx.user.findUnique({
+        where: { id: record.userId },
+        include: { role: true },
+      });
+      if (
+        !account ||
+        (record.purpose === 'student_activation' && !account.isActive) ||
+        account.role?.name !== 'student'
+      ) {
+        throw new UnauthorizedException('This activation link is invalid or has expired.');
+      }
+
+      const targetEmail = record.purpose === 'student_reactivation'
+        ? String(record.targetEmail || '').trim().toLowerCase()
+        : '';
+      if (record.purpose === 'student_reactivation' && !targetEmail) {
+        throw new UnauthorizedException('This activation link is invalid or has expired.');
+      }
+      if (targetEmail) {
+        const emailOwner = await tx.user.findUnique({ where: { email: targetEmail } });
+        if (emailOwner && emailOwner.id !== account.id) {
+          throw new ConflictException('That email address is already linked to another account. Contact the Registrar.');
+        }
+      }
+
+      const claimed = await tx.passwordResetToken.updateMany({
+        where: { id: record.id, consumedAt: null, expiresAt: { gt: now } },
+        data: { consumedAt: now },
+      });
+      if (claimed.count !== 1) {
+        throw new UnauthorizedException('This activation link is invalid or has expired.');
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      return tx.user.update({
+        where: { id: account.id },
+        data: {
+          passwordHash,
+          mustChangePassword: false,
+          ...(record.purpose === 'student_reactivation' ? { isActive: true } : {}),
+          ...(targetEmail ? { email: targetEmail } : {}),
+        },
+        include: { role: true },
+      });
+    });
+
+    await this.sessionService.revokeAllForUser(user.id, 'student_account_activation');
+    await this.recordAudit(user, 'STUDENT_ACCOUNT_PASSWORD_SET');
+    return { message: 'Password saved. Sign in to SISP with your new password.' };
   }
 
   private async createAuthenticatedSession(user: AuthUser, ipAddress?: string, userAgent?: string) {

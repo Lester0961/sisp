@@ -1,198 +1,162 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { admissionApi } from '@/lib/api/admission';
-import { Loader2, ArrowLeft, CheckCircle2, ShieldCheck, KeyRound, Sparkles } from 'lucide-react';
+import { authApi } from '@/lib/api/auth';
+import { ArrowLeft, CheckCircle2, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 
 const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
 
 export default function ActivatePage() {
-  const [studentNumber, setStudentNumber] = useState('');
-  const [dob, setDob] = useState('');
-  const [email, setEmail] = useState('');
+  const [token, setToken] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [done, setDone] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!studentNumber || !dob || !email || !password || !confirmPassword) {
-      toast.error('Please fill in all fields to verify identity.');
+  useEffect(() => {
+    setToken(new URLSearchParams(window.location.search).get('token') ?? '');
+  }, []);
+
+  const validPassword =
+    password.length >= 8 && password.length <= 64 && PASSWORD_PATTERN.test(password);
+
+  const requestConfirmation = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!token) {
+      toast.error('Open the secure activation link sent to your email.');
+      return;
+    }
+    if (!validPassword) {
+      toast.error('Use 8–64 characters with at least one uppercase letter, one lowercase letter, and one number.');
       return;
     }
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match.');
+      toast.error('The passwords do not match.');
       return;
     }
-    if (password.length < 8 || !PASSWORD_PATTERN.test(password)) {
-      toast.error(
-        'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, and a number.',
-      );
-      return;
-    }
+    setConfirmOpen(true);
+  };
 
+  const savePassword = async () => {
     setLoading(true);
     try {
-      const res = await admissionApi.activateStudentAccount(
-        studentNumber,
-        dob,
-        email,
-        password,
-      );
-      setResult(res);
-      toast.success('Account successfully verified and activated!');
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Verification failed. Please check your credentials.';
-      toast.error(msg);
+      const response = await authApi.activateStudentAccount(token, password);
+      setDone(true);
+      setConfirmOpen(false);
+      setPassword('');
+      setConfirmPassword('');
+      toast.success(response.message);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message ?? 'This activation link is invalid or has expired.');
+      setConfirmOpen(false);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/login"
-            className="inline-flex items-center text-sm font-semibold text-[#0a439b] hover:text-[#083980]"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to Login
-          </Link>
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
-            <ShieldCheck className="h-3.5 w-3.5" /> Flow B: Existing Student
-          </span>
-        </div>
+    <div className="min-h-screen bg-slate-50 px-4 py-12 sm:px-6">
+      <div className="mx-auto max-w-md space-y-6">
+        <Link href="/login" className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0a439b] hover:text-[#083980]">
+          <ArrowLeft className="size-4" /> Back to Login
+        </Link>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-8 space-y-6">
+        <section className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <div>
-            <h1 className="text-xl font-bold text-[#102f49] flex items-center gap-2">
-              <KeyRound className="h-5 w-5 text-[#0a439b]" />
-              Activate Portal Account
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#0a439b]">
+              <ShieldCheck className="size-3.5" /> Secure student activation
+            </span>
+            <h1 className="mt-4 flex items-center gap-2 text-2xl font-bold text-[#102f49]">
+              <KeyRound className="size-5 text-[#0a439b]" /> Set your password
             </h1>
-            <p className="mt-1 text-xs text-slate-500">
-              For enrolled Regis Marie College students claiming portal access for the first time.
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Choose and confirm the password you will use to sign in to SISP. The email link is single-use and expires after 30 minutes.
             </p>
           </div>
 
-          {result ? (
-            <div className="space-y-5 rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
-              <div className="flex items-center gap-2.5 text-emerald-800">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                <h3 className="font-bold text-sm">Account Activated!</h3>
+          {!token ? (
+            <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              This page needs the secure activation link sent to your email. Request help from the Registrar if it has expired.
+            </p>
+          ) : done ? (
+            <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+              <div className="flex items-center gap-2 text-emerald-800">
+                <CheckCircle2 className="size-5" />
+                <h2 className="font-semibold">Password saved</h2>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                {result.instructions}
+              <p className="text-sm leading-6 text-emerald-900">
+                Your password is set. You are not signed in yet; log in with your account email and the password you just saved.
               </p>
-              <div className="rounded-lg bg-white p-3.5 border border-emerald-200 text-xs space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Student No:</span>
-                  <span className="font-semibold text-slate-800">{result.studentNumber}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Email:</span>
-                  <span className="font-semibold text-slate-800">{result.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Password:</span>
-                  <span className="font-semibold text-emerald-700">Set by you</span>
-                </div>
-              </div>
-
-              <Link
-                href="/login"
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0a439b] py-3 text-xs font-semibold text-white shadow-sm hover:bg-[#083980]"
-              >
-                Proceed to Login
+              <Link href="/login" className="flex w-full justify-center rounded-xl bg-[#0a439b] px-4 py-3 text-sm font-semibold text-white hover:bg-[#083980]">
+                Go to Login
               </Link>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={requestConfirmation} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Student Number</label>
+                <label htmlFor="activation-password" className="text-sm font-semibold text-[#102f49]">New password</label>
                 <input
-                  type="text"
-                  placeholder="e.g. 2026-0001"
-                  value={studentNumber}
-                  onChange={(e) => setStudentNumber(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs outline-none focus:border-[#0a439b] focus:bg-white"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Date of Birth</label>
-                <input
-                  type="date"
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs outline-none focus:border-[#0a439b] focus:bg-white"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Personal / Institutional Email</label>
-                <input
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs outline-none focus:border-[#0a439b] focus:bg-white"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">New Password</label>
-                <input
+                  id="activation-password"
                   type="password"
-                  placeholder="At least 8 characters"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs outline-none focus:border-[#0a439b] focus:bg-white"
-                  required
-                  minLength={8}
+                  onChange={(event) => setPassword(event.target.value)}
                   autoComplete="new-password"
+                  minLength={8}
+                  maxLength={64}
+                  required
+                  className="w-full rounded-xl border border-[#bed1e0] bg-[#f8fbfd] px-4 py-3 text-sm outline-none focus:border-[#0a439b] focus:ring-2 focus:ring-[#0a439b]/15"
                 />
+                <p className="text-xs text-slate-500">8–64 characters, including uppercase, lowercase, and a number.</p>
               </div>
-
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Confirm Password</label>
+                <label htmlFor="activation-confirm-password" className="text-sm font-semibold text-[#102f49]">Confirm password</label>
                 <input
+                  id="activation-confirm-password"
                   type="password"
-                  placeholder="Re-enter your new password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-xs outline-none focus:border-[#0a439b] focus:bg-white"
-                  required
-                  minLength={8}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
                   autoComplete="new-password"
+                  minLength={8}
+                  maxLength={64}
+                  required
+                  className="w-full rounded-xl border border-[#bed1e0] bg-[#f8fbfd] px-4 py-3 text-sm outline-none focus:border-[#0a439b] focus:ring-2 focus:ring-[#0a439b]/15"
                 />
               </div>
-
               <button
                 type="submit"
-                disabled={loading}
-                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#0a439b] py-3 text-xs font-semibold text-white shadow-sm hover:bg-[#083980] disabled:opacity-50"
+                disabled={!validPassword || password !== confirmPassword || loading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0a439b] py-3 text-sm font-semibold text-white transition hover:bg-[#083980] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Verifying Record...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4" /> Claim & Activate Account
-                  </>
-                )}
+                {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+                Review and save password
               </button>
             </form>
           )}
-        </div>
+        </section>
       </div>
+
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="confirm-password-title" className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h2 id="confirm-password-title" className="text-lg font-bold text-[#102f49]">Are you sure about this password?</h2>
+            <p className="text-sm leading-6 text-slate-600">
+              Make sure you remember and save it somewhere secure. After setting it, you must log in again using this password.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmOpen(false)} disabled={loading} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700">
+                Go back
+              </button>
+              <button type="button" onClick={() => void savePassword()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl bg-[#0a439b] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-55">
+                {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+                {loading ? 'Saving…' : 'Yes, save it'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

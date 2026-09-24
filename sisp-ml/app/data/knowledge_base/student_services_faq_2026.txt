@@ -1,6 +1,6 @@
 ARIA STUDENT SERVICES Q&A DATASET - supplied approved-source answers
 Dataset provenance: Transcribed and normalized from the project owner supplied Q&A list pasted on 2026-09-21. Each record retains its stated source. This file is factual retrieval context; it is not intent-classifier training data and does not create new institutional policy.
-Freshness and answer limits: All calendar events in the fixed-date section below are historical and past as of 2026-09-21. Answer those only as events or dates stated in the cited 2025-2026 source; do not present them as upcoming/current dates. The June 11, 2026 memo excerpt lists a June 8-10, 2026 Special Examination Period, which predates the memo date and must be treated as an unresolved source inconsistency. The source does not establish current or future schedules.
+Freshness and answer limits: All calendar events in the fixed-date section below are historical and past as of 2026-09-24. Answer those only as events or dates stated in the cited 2025-2026 source; do not present them as upcoming/current dates. The June 11, 2026 memo excerpt lists a June 8-10, 2026 Special Examination Period, which predates the memo date and must be treated as an unresolved source inconsistency. The source does not establish current or future schedules.
 Payment safety: The undated online-payment announcement is transcribed as supplied. Verify current payment recipient details with the Treasury Office through an independently confirmed school channel before sending money; the pasted source does not state its publication date or proof-submission channel.
 Source limits: Where the Q&A says an amount, contact channel, deadline, checklist, or consequence is not specified, ARIA must preserve that limitation and refer the student to the named office. Do not infer missing institutional rules.
 
@@ -11,7 +11,7 @@ Source:
 Academic Department Announcement
 Memo 2526-00011
 Date: June 11, 2026
-Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+Currentness: Historical, past as of 2026-09-24; this record does not give a current or future schedule.
 
 Topic: FIXED DATES AND DEADLINES
 Q: What Special Examination Period does the June 11, 2026 Academic Department Announcement list?
@@ -20,7 +20,7 @@ Source:
 Academic Department Announcement
 Memo 2526-00011
 Date: June 11, 2026
-Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule. Source consistency: the listed June 8-10, 2026 event predates the June 11, 2026 memo date; verify the original announcement before relying on the date.
+Currentness: Historical, past as of 2026-09-24; this record does not give a current or future schedule. Source consistency: the listed June 8-10, 2026 event predates the June 11, 2026 memo date; verify the original announcement before relying on the date.
 
 Topic: FIXED DATES AND DEADLINES
 Q: What INC Completion Period did the June 11, 2026 announcement specify for the 3rd Term of SY 2025-2026?
@@ -29,7 +29,7 @@ Source:
 Academic Department Announcement
 Memo 2526-00011
 Date: June 11, 2026
-Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+Currentness: Historical, past as of 2026-09-24; this record does not give a current or future schedule.
 
 Topic: FIXED DATES AND DEADLINES
 Q: What grade release date did the June 11, 2026 announcement give for the concluded 3rd Term of SY 2025-2026?
@@ -38,7 +38,7 @@ Source:
 Academic Department Announcement
 Memo 2526-00011
 Date: June 11, 2026
-Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+Currentness: Historical, past as of 2026-09-24; this record does not give a current or future schedule.
 
 Topic: FIXED DATES AND DEADLINES
 Q: What date did the June 11, 2026 announcement list for 4th Year Orientation?
@@ -47,7 +47,7 @@ Source:
 Academic Department Announcement
 Memo 2526-00011
 Date: June 11, 2026
-Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+Currentness: Historical, past as of 2026-09-24; this record does not give a current or future schedule.
 
 Topic: FIXED DATES AND DEADLINES
 Q: What date did the June 11, 2026 announcement list for 2nd and 3rd Year orientation?
@@ -56,7 +56,7 @@ Source:
 Academic Department Announcement
 Memo 2526-00011
 Date: June 11, 2026
-Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+Currentness: Historical, past as of 2026-09-24; this record does not give a current or future schedule.
 
 Topic: FIXED DATES AND DEADLINES
 Q: What Special Exam processing period did the Registrar announce in the February 24, 2026 memo?
@@ -65,7 +65,7 @@ Source:
 Office of the Registrar
 Memo 2026-00004
 Date: February 24, 2026
-Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+Currentness: Historical, past as of 2026-09-24; this record does not give a current or future schedule.
 
 Topic: FIXED DATES AND DEADLINES
 Q: What INC form processing period did the Registrar announce in the February 24, 2026 memo?
@@ -79,7 +79,7 @@ Source:
 Office of the Registrar
 Memo 2026-00004
 Date: February 24, 2026
-Currentness: Historical, past as of 2026-09-21; this record does not give a current or future schedule.
+Currentness: Historical, past as of 2026-09-24; this record does not give a current or future schedule.
 
 Topic: TUITION AND PAYMENT POLICIES
 Q: What online payment methods are available?

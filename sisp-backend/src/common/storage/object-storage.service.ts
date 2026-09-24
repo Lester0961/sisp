@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -93,5 +93,27 @@ export class ObjectStorageService {
       throw new ServiceUnavailableException('Could not create a secure document link.');
     }
     return `${this.supabaseUrl()}${data.signedURL}`;
+  }
+
+  /** Resolve a private document for an authorized reviewer. */
+  async getReviewObject(
+    bucket: string,
+    objectKey: string,
+    expiresInSeconds = 300,
+  ): Promise<{ url: string | null; content: Buffer | null }> {
+    if (this.isRemoteEnabled()) {
+      return { url: await this.createSignedUrl(bucket, objectKey, expiresInSeconds), content: null };
+    }
+
+    const root = path.resolve(this.localRoot(), bucket);
+    const target = path.resolve(root, objectKey);
+    const relative = path.relative(root, target);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new ServiceUnavailableException('Document storage path is invalid.');
+    }
+    if (!fs.existsSync(target) || !fs.statSync(target).isFile()) {
+      throw new NotFoundException('Uploaded document was not found in local storage.');
+    }
+    return { url: null, content: fs.readFileSync(target) };
   }
 }

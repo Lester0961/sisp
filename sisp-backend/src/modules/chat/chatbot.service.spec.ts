@@ -22,7 +22,7 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     enrollment: { findMany: jest.fn() },
     grade: { findMany: jest.fn() },
     documentRequest: { findMany: jest.fn() },
-    chatLog: { create: jest.fn() },
+    chatLog: { create: jest.fn(), update: jest.fn().mockResolvedValue({}) },
     escalationQueue: { create: jest.fn(), findUnique: jest.fn() },
   };
 
@@ -82,10 +82,13 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
 
   afterEach(() => {
     delete (global as any).fetch;
+    // Remove queued one-shot mock results when a case exits before that path
+    // is reached, so later escalation tests always use the intended profile.
+    mockPrisma.user.findUnique.mockReset();
     jest.clearAllMocks();
   });
 
-  it('sends X-ML-Secret and server-derived student_id to the ML service', async () => {
+  it('authenticates to ML without sending the student profile identifier', async () => {
     fetchMock.mockImplementation(() =>
       mlOk({
         response: 'ok',
@@ -106,7 +109,7 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(url).toBe('http://ml.test/chat');
     expect(init.headers['X-ML-Secret']).toBe('test-secret');
     const body = JSON.parse(init.body);
-    expect(body.student_id).toBe('student-profile-1');
+    expect(body.student_id).toBeUndefined();
     expect(mockPrisma.chatLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: 'user-1',
@@ -118,7 +121,7 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     });
   });
 
-  it('omits student_id (but still works) when the user has no profile', async () => {
+  it('keeps policy chat working when the user has no profile', async () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce({ id: 'user-1' });
     fetchMock.mockImplementation(() =>
       mlOk({
@@ -210,6 +213,30 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.escalated).toBe(false);
   });
 
+  it('retries one transient ML transport failure before creating a handoff', async () => {
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockImplementationOnce(() =>
+        mlOk({
+          response: 'Here is the answer.',
+          intent: 'document_request',
+          confidence: 0.9,
+          escalate: false,
+          sources: [],
+          route: 'policy',
+          language: { code: 'en' },
+          parts: [],
+        }),
+      );
+
+    const res = await service.sendMessage('user-1', { message: 'How much is a TOR?' } as any);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.response).toBe('Here is the answer.');
+    expect(res.escalated).toBe(false);
+    expect(mockSessions.createSession).not.toHaveBeenCalled();
+  });
+
   it('uses a truthful localized handoff when the ML service remains unavailable', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 429, headers: { get: () => null } });
 
@@ -271,7 +298,9 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
       },
     ]);
 
-    const res = await service.sendMessage('user-1', { message: 'q' } as any);
+    const res = await service.sendMessage('user-1', {
+      message: 'What classes am I currently enrolled in?',
+    } as any);
 
     expect(res.parts).toHaveLength(2);
     expect(res.parts[1].text).toContain('CS 101');
@@ -311,7 +340,9 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     // resolveStudentId still succeeds (user lookup), resolveDatabasePart fails.
     mockPrisma.user.findUnique.mockResolvedValue(mockUserWithProfile);
 
-    const res = await service.sendMessage('user-1', { message: 'q' } as any);
+    const res = await service.sendMessage('user-1', {
+      message: 'What classes am I currently enrolled in?',
+    } as any);
 
     expect(res.escalated).toBe(true);
     expect(res.sessionId).toBe('sess-1');
@@ -360,5 +391,85 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.response).not.toContain('0.00');
     expect(res.escalated).toBe(true);
     expect(res.sessionId).toBe('sess-1');
+  });
+
+  it('never exposes personal grades when ML misroutes a grade-appeal policy question', async () => {
+    fetchMock.mockImplementation(() =>
+      mlOk({
+        response: 'Your posted grades',
+        intent: 'grade_inquiry',
+        confidence: 0.91,
+        escalate: false,
+        sources: [],
+        route: 'database',
+        action: 'grades',
+        language: { code: 'en' },
+        parts: [],
+      }),
+    );
+
+    const res = await service.sendMessage('user-1', {
+      message: 'How many days are allowed for a grade appeal under a current verified rule?',
+    } as any);
+
+    expect(mockPrisma.grade.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.studentProfile.findUnique).not.toHaveBeenCalled();
+    expect(res.response).toContain("couldn't verify a grade-appeal time limit");
+    expect(res.response).not.toContain('Your posted grades');
+    expect(res.route).toBe('knowledge_gap');
+    expect(res.escalated).toBe(false);
+  });
+
+  it('does not expose grades when a capability question is misrouted as a record lookup', async () => {
+    fetchMock.mockImplementation(() =>
+      mlOk({
+        response: 'Your posted grades',
+        intent: 'grade_inquiry',
+        confidence: 0.91,
+        escalate: false,
+        sources: [],
+        route: 'database',
+        action: 'grades',
+        language: { code: 'en' },
+        parts: [],
+      }),
+    );
+
+    const res = await service.sendMessage('user-1', {
+      message: 'Can ARIA directly change a grade in my record?',
+    } as any);
+
+    expect(mockPrisma.grade.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.studentProfile.findUnique).not.toHaveBeenCalled();
+    expect(res.response).toContain('cannot change or edit posted grades');
+    expect(res.response).not.toContain('Your posted grades');
+    expect(res.route).toBe('knowledge_gap');
+    expect(res.escalated).toBe(false);
+  });
+
+  it('does not read enrollment records to answer whether down-payment proves active status', async () => {
+    fetchMock.mockImplementation(() =>
+      mlOk({
+        response: 'Your enrollment status',
+        intent: 'enrollment_inquiry',
+        confidence: 0.89,
+        escalate: false,
+        sources: [],
+        route: 'database',
+        action: 'enrollment_status',
+        language: { code: 'en' },
+        parts: [],
+      }),
+    );
+
+    const res = await service.sendMessage('user-1', {
+      message: 'Does paying the down-payment by itself prove that my portal enrollment status is active?',
+    } as any);
+
+    expect(mockPrisma.enrollment.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.studentProfile.findUnique).not.toHaveBeenCalled();
+    expect(res.response).not.toContain('Your enrollment status');
+    expect(res.route).toBe('knowledge_gap');
+    expect(res.escalated).toBe(false);
   });
 });

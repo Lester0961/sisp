@@ -31,7 +31,8 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
       findMany: jest.fn(),
       update: jest.fn(),
     },
-    identityVerificationDocument: { create: jest.fn(), findFirst: jest.fn() },
+    identityVerificationDocument: { create: jest.fn(), findFirst: jest.fn(), updateMany: jest.fn() },
+    user: { findUnique: jest.fn() },
     auditLog: { create: jest.fn().mockResolvedValue({}) },
   };
 
@@ -44,7 +45,13 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
         key === 'IDENTITY_STORAGE_BUCKET' ? 'identity-documents' : null,
       ),
     };
-    service = new IdentityVerificationsService(prisma, config, storage as any);
+    service = new IdentityVerificationsService(
+      prisma,
+      config,
+      storage as any,
+      { issueStudentActivationLink: jest.fn().mockResolvedValue(true) } as any,
+      { isConfigured: jest.fn().mockReturnValue(false), send: jest.fn() } as any,
+    );
   });
 
   it('marks a student-number match as a candidate, not an approval', async () => {
@@ -84,6 +91,11 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
 
   it('finalizes review, links the profile, and sets the lifecycle status', async () => {
     prisma.studentIdentityVerification.findUnique.mockResolvedValue(verification);
+    prisma.studentProfile.findUnique.mockResolvedValue({
+      id: 'profile-1', userId: 'user-1', user: { id: 'user-1', email: 'alumni@example.test' },
+    });
+    prisma.identityVerificationDocument.findFirst.mockResolvedValue({ id: 'doc-1' });
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-1' });
     prisma.studentIdentityVerification.update.mockResolvedValue({
       id: 'ver-1',
       status: 'approved',
@@ -91,7 +103,10 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
       reviewedAt: new Date(),
     });
 
-    await service.review('ver-1', 'registrar-1', { decision: 'approved' });
+    await service.review('ver-1', 'registrar-1', {
+      decision: 'approved',
+      matchedStudentProfileId: 'profile-1',
+    });
 
     expect(prisma.studentProfile.update).toHaveBeenCalledWith({
       where: { id: 'profile-1' },
@@ -102,6 +117,24 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
         data: expect.objectContaining({ action: 'IDENTITY_VERIFICATION_APPROVED' }),
       }),
     );
+    expect(prisma.identityVerificationDocument.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ reviewStatus: 'verified', reviewedByUserId: 'registrar-1' }),
+    }));
+  });
+
+  it('does not approve a verification unless a staff member explicitly matches a student record', async () => {
+    prisma.studentIdentityVerification.findUnique.mockResolvedValue(verification);
+    await expect(service.review('ver-1', 'registrar-1', { decision: 'approved' })).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.studentProfile.update).not.toHaveBeenCalled();
+  });
+
+  it('does not approve an identity request without an uploaded valid ID', async () => {
+    prisma.studentIdentityVerification.findUnique.mockResolvedValue(verification);
+    prisma.studentProfile.findUnique.mockResolvedValue({ id: 'profile-1', userId: 'user-1', user: { id: 'user-1' } });
+    prisma.identityVerificationDocument.findFirst.mockResolvedValue(null);
+    await expect(service.review('ver-1', 'registrar-1', {
+      decision: 'approved', matchedStudentProfileId: 'profile-1',
+    })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('refuses to change an already finalized verification', async () => {
@@ -129,7 +162,7 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
 
     await expect(
       service.uploadDocument('ver-1', {
-        documentType: 'school_id',
+        documentType: 'valid_id',
         originalFileName: 'id.png',
         mimeType: 'image/png',
         contentBase64: tinyPng,
@@ -142,19 +175,24 @@ describe('IdentityVerificationsService (Phase 1 onboarding)', () => {
       'image/png',
     );
 
+    const atLimit = Buffer.alloc(10 * 1024 * 1024, 1).toString('base64');
+    await expect(service.uploadDocument('ver-1', {
+      documentType: 'valid_id', originalFileName: 'id.png', mimeType: 'image/png', contentBase64: atLimit,
+    })).resolves.toEqual(expect.objectContaining({ message: expect.stringContaining('uploaded') }));
+
     await expect(
       service.uploadDocument('ver-1', {
-        documentType: 'school_id',
+        documentType: 'valid_id',
         originalFileName: 'id.exe',
         mimeType: 'application/x-msdownload',
         contentBase64: tinyPng,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    const oversized = Buffer.alloc(6 * 1024 * 1024, 1).toString('base64');
+    const oversized = Buffer.alloc(10 * 1024 * 1024 + 1, 1).toString('base64');
     await expect(
       service.uploadDocument('ver-1', {
-        documentType: 'school_id',
+        documentType: 'valid_id',
         originalFileName: 'big.png',
         mimeType: 'image/png',
         contentBase64: oversized,

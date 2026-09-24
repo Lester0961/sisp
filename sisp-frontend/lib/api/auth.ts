@@ -82,4 +82,12 @@ export const authApi = {
     });
     return response.data;
   },
+
+  activateStudentAccount: async (token: string, newPassword: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>('/auth/activate-student', {
+      token,
+      newPassword,
+    });
+    return response.data;
+  },
 };

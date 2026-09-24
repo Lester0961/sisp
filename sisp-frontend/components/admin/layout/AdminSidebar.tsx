@@ -15,6 +15,7 @@ import {
   navItemsForRole,
   roleHomePath,
   rolePortalLabel,
+  roleDisplayName,
 } from '@/lib/navigation';
 
 interface AdminSidebarProps {
@@ -177,7 +178,7 @@ export function AdminSidebar({
             <div className="min-w-0 pr-2">
               <p className="truncate text-xs font-semibold text-[#102f49]">{user?.email}</p>
               <p className="truncate text-[10px] font-medium uppercase text-[#587387]">
-                {role.replace(/_/g, ' ')}
+                {roleDisplayName(role)}
               </p>
             </div>
             <Button

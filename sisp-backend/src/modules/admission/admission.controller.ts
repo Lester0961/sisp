@@ -6,8 +6,10 @@ import {
   Param,
   Body,
   Query,
+  Res,
   BadRequestException,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { AdmissionService } from './admission.service';
 import {
@@ -57,7 +59,7 @@ export class AdmissionController {
     return this.admissionService.getPublicApplicationStatus(applicationNo, email);
   }
 
-  // Public/Applicant: Submit a secure requirement upload (base64, 5 MB cap)
+  // Public/Applicant: Submit the enrollment/down-payment receipt (base64, 10 MB cap)
   @Public()
   @Throttle({ default: { ttl: 15 * 60_000, limit: 20 } })
   @Post('status/:applicationNo/requirements')
@@ -105,5 +107,24 @@ export class AdmissionController {
       user.sub,
       dto,
     );
+  }
+
+  @Get('applications/:applicationNo/requirements/:submissionId/file')
+  @Roles('registrar', 'sys_admin', 'dean')
+  async requirementFile(
+    @Param('applicationNo') applicationNo: string,
+    @Param('submissionId') submissionId: string,
+    @Res() response: Response,
+  ) {
+    const asset = await this.admissionService.getRequirementReviewAsset(applicationNo, submissionId);
+    if (asset.url) return response.redirect(302, asset.url);
+    const filename = asset.fileName.replace(/[\\/\r\n"]+/g, '_');
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('Content-Type', ['application/pdf', 'image/jpeg', 'image/png'].includes(asset.mimeType)
+      ? asset.mimeType
+      : 'application/octet-stream');
+    response.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    if (!asset.content) return response.sendStatus(404);
+    return response.send(asset.content);
   }
 }

@@ -30,10 +30,11 @@ describe('AuthService (Phase 1)', () => {
   const mockPermissions = { getPermissionsForRole: jest.fn().mockResolvedValue(new Set(['student_record.read_own'])) };
   const mockMail = { isConfigured: jest.fn().mockReturnValue(true), send: jest.fn().mockResolvedValue(undefined) };
 
-  const mockPrisma = {
+  const mockPrisma: any = {
     auditLog: { create: jest.fn() },
     user: { findUnique: jest.fn(), update: jest.fn() },
     passwordResetToken: { create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
+    $transaction: jest.fn(async (callback: any) => callback(mockPrisma)),
   };
 
   const mockJwt = {
@@ -86,6 +87,8 @@ describe('AuthService (Phase 1)', () => {
     mockPermissions.getPermissionsForRole.mockResolvedValue(new Set(['student_record.read_own']));
     mockMail.isConfigured.mockReturnValue(true);
     mockJwt.signAsync.mockResolvedValue('signed-access-token');
+    mockPrisma.$transaction.mockImplementation(async (callback: any) => callback(mockPrisma));
+    mockPrisma.passwordResetToken.updateMany.mockResolvedValue({ count: 1 });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -263,5 +266,71 @@ describe('AuthService (Phase 1)', () => {
     await expect(service.resetPassword('token', 'NewPassword1')).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
+  });
+
+  it('sets the student password from an activation token without creating a login session', async () => {
+    mockPrisma.passwordResetToken.findUnique.mockResolvedValue({
+      id: 'activate-1',
+      userId: 'student-1',
+      purpose: 'student_activation',
+      consumedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    mockPrisma.user.findUnique.mockResolvedValue(studentUser);
+    mockPrisma.user.update.mockResolvedValue(studentUser);
+
+    await expect(service.activateStudentAccount('single-use-token', 'NewPassword1')).resolves.toEqual({
+      message: 'Password saved. Sign in to SISP with your new password.',
+    });
+    expect(mockPrisma.passwordResetToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: 'activate-1', consumedAt: null }) }),
+    );
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'student-1' },
+      data: expect.objectContaining({ mustChangePassword: false }),
+    }));
+    expect(mockSessions.createSession).not.toHaveBeenCalled();
+    expect(mockSessions.revokeAllForUser).toHaveBeenCalledWith('student-1', 'student_account_activation');
+  });
+
+  it('emails a hashed single-use activation token without storing the raw token', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(studentUser);
+    mockPrisma.passwordResetToken.create.mockResolvedValue({ id: 'activation-1' });
+
+    await expect(service.issueStudentActivationLink(
+      'student-1', 'student@example.test', 'student_activation',
+    )).resolves.toBe(true);
+
+    const tokenData = mockPrisma.passwordResetToken.create.mock.calls[0][0].data;
+    expect(tokenData).toMatchObject({ userId: 'student-1', purpose: 'student_activation', targetEmail: null });
+    expect(tokenData.tokenHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(mockMail.send).toHaveBeenCalledWith(
+      'student@example.test',
+      expect.any(String),
+      expect.stringContaining('Set up your SISP student account'),
+      expect.stringContaining('/activate?token='),
+      expect.stringContaining('sign in with it'),
+    );
+  });
+
+  it('updates a returning student email only after the one-time activation token is claimed', async () => {
+    mockPrisma.passwordResetToken.findUnique.mockResolvedValue({
+      id: 'reactivate-1',
+      userId: 'student-1',
+      purpose: 'student_reactivation',
+      targetEmail: 'new@student.test',
+      consumedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(studentUser)
+      .mockResolvedValueOnce(null);
+    mockPrisma.user.update.mockResolvedValue(studentUser);
+
+    await service.activateStudentAccount('single-use-token', 'NewPassword1');
+
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ email: 'new@student.test', isActive: true }),
+    }));
   });
 });

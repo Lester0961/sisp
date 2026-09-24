@@ -10,6 +10,8 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ObjectStorageService } from '../../common/storage/object-storage.service';
+import { AuthService } from '../auth/auth.service';
+import { MailService, escapeHtml } from '../auth/mail.service';
 import {
   CreateAdmissionApplicationDto,
   ReviewAdmissionApplicationDto,
@@ -19,7 +21,8 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 
 const ALLOWED_REQUIREMENT_MIME = ['application/pdf', 'image/jpeg', 'image/png'];
-const MAX_REQUIREMENT_BYTES = 5 * 1024 * 1024;
+const MAX_REQUIREMENT_BYTES = 10 * 1024 * 1024;
+const ADMISSION_RECEIPT_CODE = 'ENROLLMENT_RECEIPT';
 const CLOSED_APPLICATION_STATUSES = ['approved', 'rejected', 'withdrawn'];
 
 @Injectable()
@@ -29,6 +32,8 @@ export class AdmissionService {
     private readonly notificationsService: NotificationsService,
     private readonly config: ConfigService,
     private readonly storage: ObjectStorageService,
+    private readonly authService: AuthService,
+    private readonly mailService: MailService,
   ) {}
 
   private bucket(): string {
@@ -39,6 +44,8 @@ export class AdmissionService {
     const definitions = await this.prisma.admissionRequirementDefinition.findMany({
       where: {
         isActive: true,
+        isRequired: true,
+        code: ADMISSION_RECEIPT_CODE,
         ...(applicantType
           ? {
               OR: [{ applicantType: null }, { applicantType }],
@@ -97,7 +104,7 @@ export class AdmissionService {
       const count = await this.prisma.admissionApplication.count();
       const applicationNo = `APP-${currentYear}-${String(count + 1 + attempt).padStart(4, '0')}`;
       try {
-        return await this.prisma.admissionApplication.create({
+        const application = await this.prisma.admissionApplication.create({
           data: buildData(applicationNo),
           include: {
             program: true,
@@ -106,6 +113,14 @@ export class AdmissionService {
             },
           },
         });
+        const emailNotificationSent = await this.sendApplicantEmail(
+          application.email,
+          `${application.firstName} ${application.lastName}`.trim(),
+          'SISP admission application received',
+          `<p>Your admission application <strong>${escapeHtml(application.applicationNo)}</strong> was received.</p><p>Upload your enrollment or down-payment receipt in the application page, then keep the reference number to track Registrar review.</p>`,
+          `Your admission application ${application.applicationNo} was received. Upload your enrollment or down-payment receipt, then keep the reference number to track Registrar review.`,
+        );
+        return { ...application, emailNotificationSent };
       } catch (error: any) {
         if (error?.code === 'P2002') continue;
         throw error;
@@ -207,6 +222,9 @@ export class AdmissionService {
     if (!definition || !definition.isActive) {
       throw new NotFoundException(`Requirement definition ${dto.definitionId} not found.`);
     }
+    if (definition.code !== ADMISSION_RECEIPT_CODE) {
+      throw new BadRequestException('New student applications accept only the enrollment or down-payment receipt.');
+    }
     if (definition.applicantType && definition.applicantType !== application.applicantType) {
       throw new BadRequestException('This requirement does not apply to the selected applicant type.');
     }
@@ -233,7 +251,7 @@ export class AdmissionService {
       throw new BadRequestException('The uploaded file is empty');
     }
     if (content.length > MAX_REQUIREMENT_BYTES) {
-      throw new PayloadTooLargeException('Requirement documents must be 5 MB or smaller');
+      throw new PayloadTooLargeException('The receipt must be 10 MB or smaller');
     }
 
     const extension = (dto.fileName.split('.').pop() || 'bin').toLowerCase().replace(/[^.a-z0-9]/g, '');
@@ -345,7 +363,20 @@ export class AdmissionService {
       },
     });
 
-    return this.safeSubmission(updated);
+    const statusMessage = dto.status === 'verified'
+      ? 'Your enrollment/down-payment receipt was verified.'
+      : dto.status === 'resubmission_required'
+        ? `Please upload a replacement receipt. ${dto.reviewNotes ?? ''}`.trim()
+        : `Your receipt was not accepted. ${dto.reviewNotes ?? ''}`.trim();
+    const emailNotificationSent = await this.sendApplicantEmail(
+      application.email,
+      `${application.firstName} ${application.lastName}`.trim(),
+      'SISP receipt review update',
+      `<p>${escapeHtml(statusMessage)}</p><p>Application reference: <strong>${escapeHtml(application.applicationNo)}</strong></p>`,
+      `${statusMessage} Application reference: ${application.applicationNo}`,
+    );
+
+    return { ...this.safeSubmission(updated), emailNotificationSent };
   }
 
   async reviewApplication(
@@ -369,7 +400,22 @@ export class AdmissionService {
             .join(', ')}`,
         );
       }
-      return this.approveApplicationAndCreateStudent(application, reviewerId, dto);
+      const approved = await this.approveApplicationAndCreateStudent(application, reviewerId, dto);
+      const emailNotificationSent = approved.linkedExistingProfile
+        ? await this.sendApplicantEmail(
+            application.email,
+            `${application.firstName} ${application.lastName}`.trim(),
+            'SISP admission application approved',
+            `<p>Your admission application <strong>${escapeHtml(application.applicationNo)}</strong> was approved. Your existing student account and record were linked.</p><p>Sign in to SISP with your current account credentials. If you cannot access the account, contact the Registrar.</p>`,
+            `Your admission application ${application.applicationNo} was approved and linked to your existing student record. Sign in with your current credentials or contact the Registrar if you cannot access your account.`,
+          )
+        : await this.authService.issueStudentActivationLink(
+            approved.activationUserId,
+            application.email,
+            'student_activation',
+          ).catch(() => false);
+      const { activationUserId, ...safeApproved } = approved;
+      return { ...safeApproved, emailNotificationSent };
     }
 
     const updated = await this.prisma.admissionApplication.update({
@@ -397,29 +443,33 @@ export class AdmissionService {
       },
     });
 
-    return updated;
+    const emailNotificationSent = await this.sendApplicantEmail(
+      application.email,
+      `${application.firstName} ${application.lastName}`.trim(),
+      `SISP admission application ${dto.status.replace(/_/g, ' ')}`,
+      `<p>Your admission application <strong>${escapeHtml(application.applicationNo)}</strong> is now ${escapeHtml(dto.status.replace(/_/g, ' '))}.</p>${dto.reviewNotes ? `<p>Registrar notes: ${escapeHtml(dto.reviewNotes)}</p>` : ''}`,
+      `Your admission application ${application.applicationNo} is now ${dto.status.replace(/_/g, ' ')}.${dto.reviewNotes ? ` Registrar notes: ${dto.reviewNotes}` : ''}`,
+    );
+    return { ...updated, emailNotificationSent };
   }
 
   private async missingRequiredRequirements(application: {
     id: string;
     applicantType: string;
   }): Promise<Array<{ id: string; code: string }>> {
-    const definitions = await this.prisma.admissionRequirementDefinition.findMany({
-      where: {
-        isActive: true,
-        isRequired: true,
-        OR: [{ applicantType: null }, { applicantType: application.applicantType }],
-      },
-      select: { id: true, code: true },
+    const receipt = await this.prisma.admissionRequirementDefinition.findUnique({
+      where: { code: ADMISSION_RECEIPT_CODE },
+      select: { id: true, code: true, isActive: true, isRequired: true },
     });
-    if (definitions.length === 0) return [];
+    if (!receipt?.isActive || !receipt.isRequired) {
+      return [{ id: ADMISSION_RECEIPT_CODE, code: ADMISSION_RECEIPT_CODE }];
+    }
 
-    const verified = await this.prisma.admissionRequirementSubmission.findMany({
-      where: { applicationId: application.id, status: 'verified' },
-      select: { definitionId: true },
+    const verified = await this.prisma.admissionRequirementSubmission.findFirst({
+      where: { applicationId: application.id, definitionId: receipt.id, status: 'verified' },
+      select: { id: true },
     });
-    const verifiedIds = new Set(verified.map((submission) => submission.definitionId));
-    return definitions.filter((definition) => !verifiedIds.has(definition.id));
+    return verified ? [] : [{ id: receipt.id, code: receipt.code }];
   }
 
   private async approveApplicationAndCreateStudent(
@@ -445,7 +495,7 @@ export class AdmissionService {
 
     // Pre-activation placeholder credential: cryptographically random and
     // never disclosed to anyone. The applicant sets their own password
-    // through /api/students/activate, which verifies identity against this
+    // through a one-time email token, which verifies access to this
     // admission record. No public or hard-coded default password is used.
     const preActivationPassword = randomBytes(32).toString('hex');
     const passwordHash = await bcrypt.hash(preActivationPassword, 12);
@@ -457,7 +507,7 @@ export class AdmissionService {
     const result = await this.prisma.$transaction(async (tx) => {
       let user = await tx.user.findUnique({
         where: { email: application.email },
-        include: { studentProfile: true },
+        include: { studentProfile: true, role: true },
       });
       if (!user) {
         user = await tx.user.create({
@@ -469,8 +519,10 @@ export class AdmissionService {
             roleId,
             mustChangePassword: true,
           },
-          include: { studentProfile: true },
+          include: { studentProfile: true, role: true },
         });
+      } else if (user.role?.name && user.role.name !== 'student') {
+        throw new ConflictException('This email is already assigned to a non-student account. Resolve the account with the Registrar before approval.');
       }
 
       let linkedExistingProfile = Boolean(user.studentProfile);
@@ -556,8 +608,8 @@ export class AdmissionService {
       .sendToUser(
         result.studentProfile.userId,
         'Admission Approved',
-        'Your admission application has been approved. Activate your account to access SISP.',
-        { email: true },
+        'Your admission application has been approved. Check your email for password setup instructions, or sign in if you already have an account.',
+        { email: false },
       )
       .catch(() => undefined);
 
@@ -566,7 +618,35 @@ export class AdmissionService {
       linkedExistingProfile: result.linkedExistingProfile,
       curriculumId: result.studentProfile.curriculumId ?? null,
       yearLevel: result.studentProfile.yearLevel,
+      activationUserId: result.studentProfile.userId,
     };
+  }
+
+  async getRequirementReviewAsset(applicationNo: string, submissionId: string) {
+    const application = await this.getApplicationByNo(applicationNo);
+    const submission = await this.prisma.admissionRequirementSubmission.findFirst({
+      where: { id: submissionId, applicationId: application.id },
+      select: { storageObjectKey: true, fileName: true, mimeType: true },
+    });
+    if (!submission?.storageObjectKey) throw new NotFoundException('Uploaded receipt was not found.');
+    const asset = await this.storage.getReviewObject(this.bucket(), submission.storageObjectKey, 300);
+    return { ...asset, fileName: submission.fileName, mimeType: submission.mimeType || 'application/octet-stream' };
+  }
+
+  private async sendApplicantEmail(
+    email: string,
+    name: string,
+    subject: string,
+    html: string,
+    text: string,
+  ): Promise<boolean> {
+    if (!this.mailService.isConfigured()) return false;
+    try {
+      await this.mailService.send(email, name || 'Student applicant', subject, html, text);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async allocateStudentNumber(tx: any, currentYear: number): Promise<string> {

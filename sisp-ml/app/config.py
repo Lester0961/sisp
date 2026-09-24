@@ -23,13 +23,16 @@ class Settings(BaseSettings):
     google_ai_api_key: str = ""
     openrouter_api_key: str = ""
     nvidia_api_key: str = ""
+    deepseek_api_key: str = ""
     groq_model: str = "qwen/qwen3.8-27b"
     gemini_model: str = "gemini-3.5-flash"
     openrouter_model: str = "openrouter/free"
     nvidia_model: str = "z-ai/glm-5.3-flash"
+    deepseek_model: str = "deepseek-flash"
     llm_provider_order: str = "nvidia"
     llm_request_timeout_seconds: float = 18.0
     nvidia_request_timeout_seconds: float = 18.0
+    deepseek_request_timeout_seconds: float = 18.0
     llm_max_tokens: int = 280
     # Paid/third-party providers stay opt-in so a failure never triggers
     # unexpected billable fallback requests.
@@ -37,6 +40,9 @@ class Settings(BaseSettings):
     gemini_enabled: bool = False
     openrouter_enabled: bool = False
     nvidia_enabled: bool = True
+    # Explicit opt-in. A request-scoped budget guard in DeepSeekProvider still
+    # caps local QA usage even when this provider is enabled.
+    deepseek_enabled: bool = False
 
     # ML Config
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"

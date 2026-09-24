@@ -85,8 +85,8 @@ export default function AdmissionPage() {
   };
 
   const onPickRequirementFile = (definitionId: string, file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Requirement documents must be 5 MB or smaller.');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('The enrollment or down-payment receipt must be 10 MB or smaller.');
       return;
     }
     if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
@@ -172,6 +172,9 @@ export default function AdmissionPage() {
       setApplicationNo(res.applicationNo);
       setStep(5); // Success step
       toast.success('Admission application submitted successfully!');
+      if (!res.emailNotificationSent) {
+        toast.info('Your application is saved. Email confirmation is not configured in this local environment.');
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to submit application.');
     } finally {
@@ -564,8 +567,8 @@ export default function AdmissionPage() {
                 <CheckCircle2 className="h-12 w-12 text-emerald-600 mx-auto" />
                 <h2 className="text-xl font-bold text-[#102f49]">Application Submitted!</h2>
                 <p className="text-xs text-slate-600 max-w-md mx-auto">
-                  Save your Application Number. Upload the required documents below for Registrar
-                  verification.
+                  Save your Application Number. Upload only your enrollment or down-payment receipt
+                  below for Registrar verification.
                 </p>
 
                 <div className="inline-block rounded-xl bg-blue-50 border border-blue-200 px-6 py-3 font-mono font-bold text-lg text-[#0a439b]">
@@ -576,7 +579,7 @@ export default function AdmissionPage() {
               {reqDefs.length > 0 && (
                 <div className="text-left space-y-2 rounded-xl border border-slate-200 p-4">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Required documents
+                    Required upload
                   </h3>
                   {reqDefs.map((definition) => {
                     const status = requirementStatuses[definition.id];
@@ -586,7 +589,7 @@ export default function AdmissionPage() {
                         <div className="flex items-center justify-between gap-2">
                           <div>
                             <p className="text-xs font-semibold text-slate-800">
-                              {definition.title}
+                            {definition.title}
                               {definition.isRequired ? (
                                 <span className="ml-2 text-[10px] font-bold text-rose-600">REQUIRED</span>
                               ) : null}
@@ -613,6 +616,7 @@ export default function AdmissionPage() {
                           <input
                             type="file"
                             accept="application/pdf,image/jpeg,image/png"
+                            aria-label="Enrollment or down-payment receipt"
                             onChange={(event) =>
                               event.target.files?.[0] &&
                               onPickRequirementFile(definition.id, event.target.files[0])
@@ -630,6 +634,7 @@ export default function AdmissionPage() {
                             {uploadingDefinitionId === definition.id ? 'Uploading…' : 'Upload'}
                           </button>
                         </div>
+                        <p className="text-[11px] text-slate-500">PDF, JPEG, or PNG · maximum 10 MB</p>
                       </div>
                     );
                   })}

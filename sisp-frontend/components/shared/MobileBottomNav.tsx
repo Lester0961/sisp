@@ -57,7 +57,7 @@ export function MobileBottomNav() {
                   <span className="absolute right-1 top-0 size-2.5 rounded-full bg-amber-500 ring-2 ring-white" aria-label={`${escalationCount} escalations need attention`} />
                 )}
               </span>
-              <span className={cn('max-w-full truncate text-[10px] leading-none', isActive && 'font-bold')}>
+              <span className={cn('max-w-full truncate text-[11px] leading-none', isActive && 'font-bold')}>
                 {item.shortLabel ?? item.label}
               </span>
             </Link>

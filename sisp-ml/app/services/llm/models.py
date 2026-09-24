@@ -48,3 +48,6 @@ class LLMResponse:
     provider: str
     model: str
     latency_ms: int
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    estimated_cost_upper_usd: float | None = None

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AdmissionService } from './admission.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -54,6 +54,8 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
     $transaction: jest.fn(),
   };
   const mockNotifications = { sendToUser: jest.fn().mockResolvedValue(undefined) };
+  const mockAuth = { issueStudentActivationLink: jest.fn().mockResolvedValue(true) };
+  const mockMail = { isConfigured: jest.fn().mockReturnValue(false), send: jest.fn() };
   const mockStorage = {
     save: jest.fn().mockResolvedValue(undefined),
     createSignedUrl: jest.fn().mockResolvedValue('https://signed.example/doc'),
@@ -68,14 +70,18 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
   beforeEach(() => {
     jest.clearAllMocks();
     mockPrisma.admissionRequirementDefinition.findMany.mockResolvedValue([]);
+    mockPrisma.admissionRequirementDefinition.findUnique.mockResolvedValue(null);
     mockPrisma.admissionRequirementSubmission.findUnique.mockResolvedValue(null);
     mockPrisma.admissionRequirementSubmission.findMany.mockResolvedValue([]);
+    mockPrisma.admissionRequirementSubmission.findFirst.mockResolvedValue(null);
     mockPrisma.$transaction.mockImplementation(async (callback: any) => callback(mockPrisma));
     service = new AdmissionService(
       mockPrisma as PrismaService,
       mockNotifications as any,
       mockConfig as any,
       mockStorage as any,
+      mockAuth as any,
+      mockMail as any,
     );
   });
 
@@ -138,9 +144,9 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
 
   it('blocks approval until every required requirement is verified', async () => {
     mockPrisma.admissionApplication.findUnique.mockResolvedValue(application);
-    mockPrisma.admissionRequirementDefinition.findMany.mockResolvedValue([
-      { id: 'def-1', code: 'FORM_137' },
-    ]);
+    mockPrisma.admissionRequirementDefinition.findUnique.mockResolvedValue({
+      id: 'receipt-def', code: 'ENROLLMENT_RECEIPT', isActive: true, isRequired: true,
+    });
 
     await expect(
       service.reviewApplication('APP-2026-0001', 'registrar-1', { status: 'approved' } as any),
@@ -148,12 +154,25 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
+  it('exposes only the enrollment receipt as a new-applicant requirement', async () => {
+    mockPrisma.admissionRequirementDefinition.findMany.mockResolvedValue([{ id: 'receipt-def', code: 'ENROLLMENT_RECEIPT' }]);
+    const result = await service.getRequirementDefinitions('freshman');
+    expect(result).toHaveLength(1);
+    expect(mockPrisma.admissionRequirementDefinition.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ code: 'ENROLLMENT_RECEIPT', isRequired: true }),
+    }));
+  });
+
   it('links an existing student profile instead of creating a duplicate', async () => {
     mockPrisma.admissionApplication.findUnique.mockResolvedValue(application);
+    mockPrisma.admissionRequirementDefinition.findUnique.mockResolvedValue({
+      id: 'receipt-def', code: 'ENROLLMENT_RECEIPT', isActive: true, isRequired: true,
+    });
+    mockPrisma.admissionRequirementSubmission.findFirst.mockResolvedValue({ id: 'verified-receipt' });
     const existingProfile = { id: 'profile-existing', userId: 'user-1', curriculumId: 'curriculum-1', yearLevel: 2 };
     const tx: any = {
       user: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'user-1', studentProfile: existingProfile }),
+        findUnique: jest.fn().mockResolvedValue({ id: 'user-1', role: { name: 'student' }, studentProfile: existingProfile }),
         create: jest.fn(),
       },
       studentProfile: {
@@ -187,16 +206,20 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
       }),
     );
     expect(result.linkedExistingProfile).toBe(true);
-      expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
-        'user-1',
-        'Admission Approved',
-        'Your admission application has been approved. Activate your account to access SISP.',
-        { email: true },
+    expect(mockNotifications.sendToUser).toHaveBeenCalledWith(
+      'user-1',
+      'Admission Approved',
+      'Your admission application has been approved. Check your email for password setup instructions, or sign in if you already have an account.',
+        { email: false },
       );
   });
 
   it('creates a new student account with a random non-disclosed password', async () => {
     mockPrisma.admissionApplication.findUnique.mockResolvedValue(application);
+    mockPrisma.admissionRequirementDefinition.findUnique.mockResolvedValue({
+      id: 'receipt-def', code: 'ENROLLMENT_RECEIPT', isActive: true, isRequired: true,
+    });
+    mockPrisma.admissionRequirementSubmission.findFirst.mockResolvedValue({ id: 'verified-receipt' });
     const userCreate = jest.fn().mockImplementation(({ data }: any) => ({
       id: 'user-1',
       ...data,
@@ -235,6 +258,7 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
     expect(createdData.mustChangePassword).toBe(true);
     expect(bcrypt.compareSync('local-demo-only', createdData.passwordHash)).toBe(false);
     expect(JSON.stringify(result)).not.toContain('passwordHash');
+    expect(mockAuth.issueStudentActivationLink).toHaveBeenCalledWith('user-1', 'jane.doe@example.com', 'student_activation');
   });
 
   it('rejects requirement submission with a mismatched email', async () => {
@@ -255,7 +279,7 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
     mockPrisma.admissionApplication.findUnique.mockResolvedValue(application);
     mockPrisma.admissionRequirementDefinition.findUnique.mockResolvedValue({
       id: 'def-1',
-      code: 'FORM_137',
+      code: 'ENROLLMENT_RECEIPT',
       isActive: true,
       applicantType: null,
     });
@@ -282,7 +306,7 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
     mockPrisma.admissionApplication.findUnique.mockResolvedValue(application);
     mockPrisma.admissionRequirementDefinition.findUnique.mockResolvedValue({
       id: 'def-1',
-      code: 'FORM_137',
+      code: 'ENROLLMENT_RECEIPT',
       isActive: true,
       applicantType: null,
     });
@@ -308,12 +332,36 @@ describe('AdmissionService — lifecycle, requirement verification, no duplicate
 
     expect(mockStorage.save).toHaveBeenCalledWith(
       'admission-requirements',
-      expect.stringMatching(/^app-1\/form_137-[0-9a-f]{24}\.pdf$/),
+      expect.stringMatching(/^app-1\/enrollment_receipt-[0-9a-f]{24}\.pdf$/),
       expect.any(Buffer),
       'application/pdf',
     );
     expect(JSON.stringify(result)).not.toContain('storageObjectKey');
     expect(JSON.stringify(result)).not.toContain('form_137-abc');
+  });
+
+  it('accepts a receipt up to 10 MB and rejects a larger file', async () => {
+    mockPrisma.admissionApplication.findUnique.mockResolvedValue(application);
+    mockPrisma.admissionRequirementDefinition.findUnique.mockResolvedValue({
+      id: 'receipt-def', code: 'ENROLLMENT_RECEIPT', isActive: true, applicantType: null,
+    });
+    mockPrisma.admissionRequirementSubmission.findUnique.mockResolvedValue(null);
+    mockPrisma.admissionRequirementSubmission.upsert.mockResolvedValue({
+      id: 'receipt-sub', definitionId: 'receipt-def', fileName: 'receipt.png', fileSize: 10 * 1024 * 1024,
+      mimeType: 'image/png', status: 'submitted', reviewNotes: null,
+    });
+    const atLimit = Buffer.alloc(10 * 1024 * 1024, 1).toString('base64');
+
+    await expect(service.submitRequirement('APP-2026-0001', {
+      email: 'jane.doe@example.com', definitionId: 'receipt-def', fileName: 'receipt.png',
+      mimeType: 'image/png', contentBase64: atLimit,
+    } as any)).resolves.toEqual(expect.objectContaining({ fileSize: 10 * 1024 * 1024 }));
+
+    const aboveLimit = Buffer.alloc((10 * 1024 * 1024) + 1, 1).toString('base64');
+    await expect(service.submitRequirement('APP-2026-0001', {
+      email: 'jane.doe@example.com', definitionId: 'receipt-def', fileName: 'receipt.png',
+      mimeType: 'image/png', contentBase64: aboveLimit,
+    } as any)).rejects.toBeInstanceOf(PayloadTooLargeException);
   });
 
   it('records requirement review decisions with an audit trail', async () => {

@@ -54,6 +54,10 @@ def test_language_and_scope_routing():
     assert scope_service.route("Paano mag-enroll?")["route"] == "policy"
     assert scope_service.route("How much is a TOR?")["route"] == "policy"
     assert scope_service.route("How much is the TOR?")["route"] == "policy"
+    assert scope_service.route(
+        "How much does a Certificate of Good Moral cost?"
+    )["route"] == "policy"
+    assert scope_service.route("Tagpila ang transcript of records kada pahina?")["route"] == "policy"
 
 
 def test_unsupported_academic_policy_does_not_create_automatic_handoff():
@@ -81,13 +85,50 @@ def test_approved_document_fee_answer_is_specific_and_source_cited():
     assert tor_with_article["response"].count("Records Office confirms the page count") == 1
     assert tor_with_article["sources"][0]["source"] == "document_fees_user_approved.txt"
 
+    tor_quantity = asyncio.run(
+        chat_service.process_query("How much for a 4-page TOR?")
+    )
+    assert "PHP 500 per page" in tor_quantity["response"]
+    assert "PHP 2,000 total" in tor_quantity["response"]
+    assert "Records Office confirms the page count" in tor_quantity["response"]
+
+    waray_quantity = asyncio.run(
+        chat_service.process_query("Tagpira an 4 pahina nga TOR?")
+    )
+    assert "PHP 2,000" in waray_quantity["response"]
+    assert waray_quantity["language"]["code"] == "war"
+
     grades = asyncio.run(chat_service.process_query("How much is the 2nd copy of grades?"))
     assert "PHP 150 per copy" in grades["response"]
     assert "PHP 300 per copy" not in grades["response"]
 
+    tagpila_tor = asyncio.run(
+        chat_service.process_query("Tagpila ang transcript of records kada pahina?")
+    )
+    assert "PHP 500" in tagpila_tor["response"]
+    assert "pahina" in tagpila_tor["response"].casefold()
+    assert tagpila_tor["sources"][0]["source"] == "document_fees_user_approved.txt"
+
     enrollment_certificate = asyncio.run(
         chat_service.process_query("How much is the Certificate of Enrollment?"))
     assert "COE: PHP 300 per copy" in enrollment_certificate["response"]
+    assert "I don't have that information" not in enrollment_certificate["response"]
+
+    fee_comparison = asyncio.run(
+        chat_service.process_query("Compare the listed COR and COE fees.")
+    )
+    assert "COR: PHP 300 per copy" in fee_comparison["response"]
+    assert "COE: PHP 300 per copy" in fee_comparison["response"]
+
+    combined_request = asyncio.run(
+        chat_service.process_query(
+            "If I request a two-page TOR and one COE, what listed total should I expect, "
+            "and what can change the final TOR amount?"
+        )
+    )
+    assert "PHP 1,000 total" in combined_request["response"]
+    assert "PHP 1,300" in combined_request["response"]
+    assert "Records Office confirms the page count" in combined_request["response"]
 
 
 def test_document_fee_shortcut_does_not_hijack_enrollment_or_tuition_questions(monkeypatch):
@@ -135,6 +176,14 @@ def test_generic_document_fee_request_still_lists_approved_fees():
     assert result["intent"] == "document_request"
     assert "PHP 500 per page" in result["response"]
     assert "PHP 150 per copy" in result["response"]
+
+    plural_prices = asyncio.run(
+        chat_service.process_query("Can you list the current prices for document requests?")
+    )
+    assert plural_prices["intent"] == "document_request"
+    assert "PHP 500 per page" in plural_prices["response"]
+    assert "PHP 150 per copy" in plural_prices["response"]
+    assert plural_prices["sources"][0]["source"] == "document_fees_user_approved.txt"
 
 
 def test_mixed_answer_does_not_repeat_a_paraphrased_document_fee():

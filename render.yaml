@@ -81,6 +81,8 @@ services:
         sync: false
       - key: NVIDIA_API_KEY
         sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
       - key: GROQ_MODEL
         value: qwen/qwen3.6-27b
       - key: GEMINI_MODEL
@@ -89,8 +91,16 @@ services:
         value: openrouter/free
       - key: NVIDIA_MODEL
         value: z-ai/glm-5.3-flash
+      - key: DEEPSEEK_MODEL
+        value: deepseek-flash
+      - key: DEEPSEEK_ENABLED
+        value: "false"
+      - key: DEEPSEEK_USAGE_BACKEND
+        value: postgres
+      - key: DEEPSEEK_REQUEST_TIMEOUT_SECONDS
+        value: "18"
       - key: LLM_PROVIDER_ORDER
-        value: nvidia
+        value: deepseek
       - key: LLM_REQUEST_TIMEOUT_SECONDS
         value: "18"
       - key: NVIDIA_REQUEST_TIMEOUT_SECONDS
@@ -104,7 +114,7 @@ services:
       - key: OPENROUTER_ENABLED
         value: "false"
       - key: NVIDIA_ENABLED
-        value: "true"
+        value: "false"
       - key: ADVISORY_SUPPORTED_LANGUAGES
         value: en,fil,ceb,ilo,hil,war
       - key: RETRIEVAL_SIMILARITY_THRESHOLD

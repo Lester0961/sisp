@@ -41,7 +41,7 @@ export const identityApi = {
     claimedLastName: string;
     previousName?: string;
     dateOfBirth?: string;
-  }): Promise<{ id: string; status: string; matchedExistingRecord: boolean; message: string }> => {
+  }): Promise<{ id: string; status: string; matchedExistingRecord: boolean; message: string; emailNotificationSent?: boolean }> => {
     const response = await apiClient.post('/identity-verifications', payload);
     return response.data;
   },
@@ -66,6 +66,20 @@ export const identityApi = {
     return response.data;
   },
 
+  openReviewDocument: async (id: string, documentId: string): Promise<Blob> => {
+    const response = await apiClient.get(`/admin/identity-verifications/${id}/documents/${documentId}/file`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  searchStudentRecords: async (query: string): Promise<{ data: NonNullable<IdentityVerificationRecord['matchedStudentProfile']>[]; total: number }> => {
+    const response = await apiClient.get('/admin/identity-verifications/student-candidates', {
+      params: { query },
+    });
+    return response.data;
+  },
+
   listForReview: async (status?: string): Promise<{ data: IdentityVerificationRecord[]; total: number }> => {
     const response = await apiClient.get('/admin/identity-verifications', { params: { status } });
     return response.data;
@@ -76,6 +90,6 @@ export const identityApi = {
     payload: { decision: 'under_review' | 'approved' | 'rejected' | 'needs_info'; remarks?: string; matchedStudentProfileId?: string | null },
   ) => {
     const response = await apiClient.patch(`/admin/identity-verifications/${id}/review`, payload);
-    return response.data;
+    return response.data as { emailNotificationSent?: boolean; message: string };
   },
 };

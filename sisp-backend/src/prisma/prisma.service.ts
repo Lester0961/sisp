@@ -1020,11 +1020,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     const admissionApplications: any[] = [];
     const admissionRequirementDefinitions: any[] = [
-      { id: 'req-def-1', code: 'FORM_137', title: 'High School Report Card (Form 138 / SF9)', applicantType: 'freshman', isRequired: true, sortOrder: 10, isActive: true, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'req-def-2', code: 'GOOD_MORAL', title: 'Certificate of Good Moral Character', applicantType: null, isRequired: true, sortOrder: 20, isActive: true, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'req-def-3', code: 'PSA_BIRTH', title: 'PSA Birth Certificate', applicantType: null, isRequired: true, sortOrder: 30, isActive: true, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'req-def-4', code: 'ID_PHOTO', title: '2x2 Recent Colored Photo', applicantType: null, isRequired: true, sortOrder: 40, isActive: true, createdAt: new Date(), updatedAt: new Date() },
-      { id: 'req-def-5', code: 'HONORABLE_DISMISSAL', title: 'Honorable Dismissal / Transfer Credential', applicantType: 'transferee', isRequired: true, sortOrder: 50, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+      { id: '20000000-0000-4000-8000-000000000006', code: 'ENROLLMENT_RECEIPT', title: 'Enrollment or Down-payment Receipt', applicantType: null, isRequired: true, sortOrder: 10, isActive: true, createdAt: new Date(), updatedAt: new Date() },
     ];
     const admissionRequirementSubmissions: any[] = [];
 

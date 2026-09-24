@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { IdentityVerificationsService } from './identity-verifications.service';
 import { CreateIdentityVerificationDto } from './dto/create-identity-verification.dto';
@@ -45,6 +46,12 @@ export class IdentityVerificationsAdminController {
     return this.service.listForReview(status);
   }
 
+  @Get('student-candidates')
+  @RequirePermissions('student_record.update')
+  async studentCandidates(@Query('query') query = '') {
+    return this.service.searchStudentRecords(query);
+  }
+
   @Patch(':id/review')
   @RequirePermissions('student_record.update')
   async review(
@@ -59,5 +66,24 @@ export class IdentityVerificationsAdminController {
   @RequirePermissions('student_record.update')
   async documentUrl(@Param('id') id: string, @Param('documentId') documentId: string) {
     return this.service.getDocumentSignedUrl(id, documentId);
+  }
+
+  @Get(':id/documents/:documentId/file')
+  @RequirePermissions('student_record.update')
+  async documentFile(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @Res() response: Response,
+  ) {
+    const asset = await this.service.getDocumentReviewAsset(id, documentId);
+    if (asset.url) return response.redirect(302, asset.url);
+    const filename = asset.fileName.replace(/[\\/\r\n"]+/g, '_');
+    response.setHeader('Cache-Control', 'private, no-store');
+    response.setHeader('Content-Type', ['application/pdf', 'image/jpeg', 'image/png'].includes(asset.mimeType)
+      ? asset.mimeType
+      : 'application/octet-stream');
+    response.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    if (!asset.content) return response.sendStatus(404);
+    return response.send(asset.content);
   }
 }

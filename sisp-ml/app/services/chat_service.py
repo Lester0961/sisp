@@ -6,7 +6,7 @@ from app.services.response_service import response_service
 from app.services.response_validator import response_validator
 from app.services.language_service import language_service
 from app.services.llm.errors import AllProvidersFailed
-from app.services.llm.models import ConversationMessage, LLMRequest
+from app.services.llm.models import LLMRequest
 from app.services.llm.router import llm_router
 from app.services.localized_messages import DOCUMENT_FEE_MESSAGES, message
 from app.services.moderation_service import moderation_service
@@ -21,6 +21,10 @@ from app.services.curriculum_service import (
     is_explicit_full_course_list_query,
     is_curriculum_query,
     is_curriculum_follow_up,
+    extract_curriculum_filters,
+    extract_curriculum_filters_with_history,
+    infer_next_term_filters,
+    is_ambiguous_next_term_follow_up,
 )
 from app.approved_sources import APPROVED_STATIC_SOURCES
 from pathlib import Path
@@ -85,9 +89,18 @@ PAYMENT_AMOUNT_MARKERS = (
 )
 RETURNING_ENROLLMENT_MARKERS = (
     "returning student", "returning", "after a break", "after my break",
+    "after time away", "after time away from school", "student returning",
     "resume studying", "return to school", "bumalik sa pag aaral", "babalik sa pag aaral",
     "nagbabalik", "balik eskwela", "mibalik sa eskwela", "mobalik sa eskwela",
-    "ag subli", "agsubli", "nagbalik eskwela", "nabalik ha eskwelahan",
+    "ag subli", "agsubli", "ag subli kalpasan", "agsubli kalpasan",
+    "nagbalik eskwela", "nabalik ha eskwelahan", "mobalik human mohunong",
+    "mobalik human mohunong sa pag eskwela", "mobalik pagkatapos mohunong",
+    "nagabalik matapos sang pag untat", "mabalik pagkatapos sang pag untat",
+    "nagabalik pagkatapos sang pag untat sa pag eskwela",
+    "mabalik katapos umundang", "katapos umundang", "mabalik ha eskwelahan",
+    "mobalik ko human mohunong", "mobalik ko human mohunong sa pag eskwela",
+    "agsubliak kalpasan", "ag subliak kalpasan", "mabalik ako pagkatapos sang",
+    "mabalik ako ha eskwelahan katapos umundang",
 )
 TRANSFEREE_ENROLLMENT_MARKERS = (
     "transferee", "transfer student", "transferring", "transfer ako",
@@ -109,11 +122,24 @@ def _has_query_marker(query: str, markers: tuple[str, ...]) -> bool:
     return False
 
 
+def _faq_question_fragment(chunk: dict) -> str:
+    content = str(chunk.get("content", ""))
+    match = re.search(r"(?is)^.*?\bQ:\s*(.*?)(?=\n\s*A:)", content)
+    return re.sub(r"\s+", " ", match.group(1)).strip().casefold() if match else ""
+
+
 def _with_follow_up_context(query: str, history: list[dict]) -> str:
     """Use the last user turn for short referential questions, without changing the prompt."""
     if not history:
         return query
     normalized = re.sub(r"\s+", " ", (query or "").casefold()).strip()
+    self_contained_markers = (
+        "how much", "how many", "fee", "fees", "cost", "price", "prerequisite", "prereq",
+        "course", "courses", "subject", "subjects", "curriculum", "schedule", "trimester",
+        "term", "enrollment", "enrolment", "grade", "grades", "special exam", "inc", "document",
+    )
+    if _has_query_marker(normalized, self_contained_markers):
+        return query
     short_question = len(normalized.split()) <= 8 and bool(re.match(
         r"^(?:(?:and|also)\s+)?(?:who|where|when|what|how)\b", normalized
     ))
@@ -134,14 +160,25 @@ def _with_follow_up_context(query: str, history: list[dict]) -> str:
     return f"{previous_user[:500]}\nFollow-up: {query}"
 
 
+def _normalize_common_question_typos(query: str) -> str:
+    """Normalize a small set of common texting abbreviations before routing."""
+    return re.sub(r"(?i)\bhw\s*mch\b", "how much", query or "")
+
+
+def _remove_trailing_generation_artifact(response: str) -> str:
+    """Remove a stray standalone lowercase 's' occasionally appended by a model."""
+    return re.sub(r"(?<=[.!?])s\s*$", "", response or "").rstrip()
+
+
 class ChatService:
     @staticmethod
     def _approved_document_fee_answer(query: str, language_code: str) -> dict | None:
         """Answer owner-approved document fee questions without an LLM."""
         normalized = query.casefold()
         fee_cues = (
-            "fee", "fees", "how much", "magkano", "bayad", "bayranan", "presyo", "cost", "price",
-            "tagpira", "tag pira", "pira", "pila", "mano",
+            "fee", "fees", "how much", "magkano", "bayad", "bayranan", "presyo", "cost", "costs", "price", "prices",
+            "total", "altogether", "combined amount", "what should i expect",
+            "tagpira", "tag pira", "tagpila", "tag pila", "pira", "pila", "mano",
         )
         has_fee_cue = any(
             re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized)
@@ -173,13 +210,18 @@ class ChatService:
         def contains_term(term: str) -> bool:
             return bool(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", normalized))
 
-        matched = next((
+        matched_names = [
             name for name, terms, _ in fee_options
             if any(contains_term(term) for term in terms)
-        ), None)
+        ]
+        matched = matched_names[0] if matched_names else None
         tuition_cues = ("tuition", "matrikula", "matriculation")
         asks_about_tuition = any(contains_term(term) for term in tuition_cues)
-        document_terms = ("document", "documents", "dokumento", "dokumentos", "document request", "mga dokumento")
+        document_terms = (
+            "document", "documents", "dokumento", "dokumentos", "document request",
+            "document requests", "document request fee", "document request fees",
+            "request fees", "mga dokumento",
+        )
         asks_for_all_document_fees = any(contains_term(term) for term in document_terms)
         if asks_about_tuition:
             return None
@@ -188,8 +230,13 @@ class ChatService:
         lines = content.splitlines()
         fee_text = DOCUMENT_FEE_MESSAGES.get(language_code, DOCUMENT_FEE_MESSAGES["en"])
         if matched:
-            row_marker = next(marker for name, _, marker in fee_options if name == matched)
-            selected = [line for line in lines if line.lstrip("- ").casefold().startswith(row_marker)]
+            row_markers = {
+                marker for name, _, marker in fee_options if name in matched_names
+            }
+            selected = [
+                line for line in lines
+                if line.lstrip("- ").casefold().startswith(tuple(row_markers))
+            ]
         else:
             selected = [
                 line for line in lines if line.lstrip().startswith("-")
@@ -216,8 +263,90 @@ class ChatService:
                 include_tor_note = True
 
         answer = fee_text["heading"] + "\n" + "\n".join(rendered_lines)
+        page_count = None
         if include_tor_note:
+            page_count = re.search(
+                r"(?<!\w)(?P<count>\d{1,4}|one|two|three|four|five|six|seven|eight|nine|ten)"
+                r"\s*(?:-\s*)?(?:pages?|pgs?|pp\.?|pahinas?|panid)(?!\w)",
+                normalized,
+            )
+            tor_fee = next(
+                (item for item in fee_items if item["label"].casefold() == "tor"),
+                None,
+            )
+            if page_count and tor_fee:
+                count_text = page_count.group("count").casefold()
+                count = int(count_text) if count_text.isdigit() else {
+                    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+                    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+                }[count_text]
+                rate = int(tor_fee["amount"].replace(",", ""))
+                total = rate * count
+                answer += "\n" + fee_text["tor_total"].format(
+                    pages=count,
+                    rate=f"{rate:,}",
+                    total=f"{total:,}",
+                )
+            asks_combined_total = any(contains_term(term) for term in (
+                "total", "altogether", "combined amount", "what should i expect",
+            ))
+            if asks_combined_total and len(fee_items) > 1:
+                quantity_words = {
+                    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+                    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+                }
+                combined_total = 0
+                has_all_quantities = True
+                for item in fee_items:
+                    if item["label"].casefold() == "tor":
+                        if not page_count:
+                            has_all_quantities = False
+                            continue
+                        page_text = page_count.group("count").casefold()
+                        quantity = int(page_text) if page_text.isdigit() else quantity_words[page_text]
+                    else:
+                        aliases = next(
+                            terms for name, terms, _ in fee_options
+                            if name == item["label"].casefold()
+                        )
+                        quantity = 1
+                        for alias in aliases:
+                            escaped = re.escape(alias)
+                            quantity_match = re.search(
+                                rf"(?<!\w)(?P<count>\d+|one|two|three|four|five|six|seven|eight|nine|ten)"
+                                rf"\s+(?:(?:copies|copy)\s+of\s+)?{escaped}(?!\w)",
+                                normalized,
+                            )
+                            if quantity_match:
+                                count_text = quantity_match.group("count").casefold()
+                                quantity = int(count_text) if count_text.isdigit() else quantity_words[count_text]
+                                break
+                    combined_total += int(item["amount"].replace(",", "")) * quantity
+                if has_all_quantities:
+                    answer += f"\nThe listed combined amount is PHP {combined_total:,}, based on the quantities you gave."
+                elif any(item["label"].casefold() == "tor" for item in fee_items):
+                    answer += "\nI can calculate the combined amount once the Records Office confirms the TOR page count."
             answer += "\n" + fee_text["tor_note"]
+        comparison_markers = (
+            "compare", "compared", "comparison", "difference", "versus", " vs ",
+            "how much more", "how much less", "kumpara", "pagtandi", "pagkumpara",
+        )
+        asks_for_comparison = any(contains_term(term) for term in comparison_markers)
+        if asks_for_comparison and len(fee_items) == 2 and fee_items[0]["unit"] == fee_items[1]["unit"]:
+            first, second = fee_items
+            first_amount = int(first["amount"].replace(",", ""))
+            second_amount = int(second["amount"].replace(",", ""))
+            unit = fee_text["per_page"] if first["unit"] == "page" else fee_text["per_copy"]
+            if first_amount == second_amount:
+                answer += "\n" + fee_text["comparison_same"].format(
+                    first=first["label"], second=second["label"], amount=f"{first_amount:,}", unit=unit
+                )
+            else:
+                higher, lower = (first, second) if first_amount > second_amount else (second, first)
+                answer += "\n" + fee_text["comparison_more"].format(
+                    higher=higher["label"], lower=lower["label"],
+                    difference=f"{abs(first_amount - second_amount):,}", unit=unit,
+                )
         return {
             "response": answer,
             "intent": "document_request",
@@ -359,7 +488,10 @@ class ChatService:
         return answer
 
     @staticmethod
-    def _student_services_provider_fallback(context_chunks: list[dict]) -> str | None:
+    def _student_services_provider_fallback(
+        context_chunks: list[dict],
+        language_code: str = "en",
+    ) -> str | None:
         """Return the approved FAQ answer when generation fails or is rejected.
 
         FAQ chunks are stored as Q/A records. Returning only their A section,
@@ -377,6 +509,13 @@ class ChatService:
             )
             if not answer_match:
                 continue
+            question = _faq_question_fragment(chunk)
+            if "inc form processing period" in question:
+                return message(language_code, "inc_form_processing_period")
+            if "where should i pay the fee for a special exam" in question:
+                return message(language_code, "special_exam_payment")
+            if "how do i process a special exam" in question and language_code != "en":
+                return message(language_code, "special_exam_process")
             answer = answer_match.group(1).strip().replace("\r\n", "\n")
             answer = re.sub(r"[ \t]*\n[ \t]*\n(?:[ \t]*\n)*", "\n\n", answer)
             answer = re.sub(
@@ -396,6 +535,420 @@ class ChatService:
                 return answer
         return None
 
+    @staticmethod
+    def _direct_policy_answer(query: str, language_code: str) -> tuple[str, str, str, tuple[str, ...]] | None:
+        """Answer recurring interview/source-gap questions without uncertain routing."""
+        normalized = re.sub(r"\s+", " ", (query or "").casefold()).strip()
+
+        def has(*phrases: str) -> bool:
+            return _has_query_marker(normalized, tuple(phrases))
+
+        if has("can aria directly change", "can aria change a grade", "can aria edit my grade", "change a grade in my record"):
+            return (
+                message(language_code, "aria_grade_edit_capability"),
+                "grade_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has("down-payment", "down payment", "downpayment", "paunang bayad", "unang bayad") and has(
+            "by itself", "alone", "prove", "proof", "active", "status", "complete", "enough",
+            "sapat", "patunay", "aktibo", "igo ba", "mismo", "kompleto", "kumpleto",
+        ):
+            return (
+                message(language_code, "down_payment_not_sufficient"),
+                "enrollment_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has("someone else", "another person", "representative", "someone requests", "other person") and has(
+            "student information", "student's information", "student records", "student data", "requests my information"
+        ):
+            return (
+                message(language_code, "representative_authorization"),
+                "general_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has("grade appeal", "appeal a final grade", "appeal deadline", "posted grade", "incorrect grade", "wrong grade") or (
+            has("grade") and has("incorrect", "wrong", "appeal")
+        ):
+            return (
+                message(language_code, "grade_correction_unspecified"),
+                "grade_inquiry",
+                "knowledge_gap",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if scope_service.is_subject_change_query(normalized) and has(
+            "fee", "fees", "how much", "magkano", "pila", "cost", "price", "amount"
+        ) and has("deadline", "old deadline", "what date", "when", "current"):
+            return (
+                message(language_code, "add_drop_fee_deadline_historical"),
+                "general_inquiry",
+                "policy",
+                ("student_services_faq_2026.txt",),
+            )
+
+        if has("online", "entirely online", "fully online", "online only") and has(
+            "enrollment", "enrolment", "enroll", "enrol"
+        ):
+            return (
+                message(language_code, "online_enrollment_unspecified"),
+                "enrollment_inquiry",
+                "partially_answered",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has("online payment method", "online payment methods", "payment methods", "payment options"):
+            return (
+                message(language_code, "online_payment_methods"),
+                "payment_inquiry",
+                "policy",
+                ("student_services_faq_2026.txt",),
+            )
+
+        if has("tuition", "matrikula", "matriculation") and not has(*ENROLLMENT_MARKERS) and has(
+            "how much", "amount", "fee", "cost", "price", "next term", "next semester", "upcoming"
+        ):
+            return (
+                message(language_code, "tuition_unverified"),
+                "payment_inquiry",
+                "knowledge_gap",
+                (),
+            )
+
+        if has("exam permit", "examination permit", "permit for exam", "permit for exams") and not has(
+            "special exam", "special examination"
+        ):
+            return (
+                message(language_code, "exam_permit_scope_unknown"),
+                "examination_permit_inquiry",
+                "knowledge_gap",
+                ("student_services_faq_2026.txt",),
+            )
+
+        if (
+            has("student details", "student information", "personal information", "personal data")
+            and has("records", "records office")
+            and has("update", "updating", "change", "correct", "requesting", "discuss", "tell")
+        ):
+            return (
+                message(language_code, "record_update_fields"),
+                "general_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has("record update", "record updates", "records update", "updating records", "updating both portal", "portal and paper", "portal and paper records") and (
+            has("form", "workflow", "complete", "exact", "which office", "contact")
+        ):
+            return (
+                message(language_code, "record_update_unspecified"),
+                "general_inquiry",
+                "knowledge_gap",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has("records", "records office") and has("services", "responsibilities", "documents/services", "documents", "maintain"):
+            return (
+                message(language_code, "records_services"),
+                "general_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has("late enrollment", "late enrolment", "enroll late", "enrol late", "register late"):
+            return (
+                message(language_code, "late_enrollment_guidance"),
+                "enrollment_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has(*TRANSFEREE_ENROLLMENT_MARKERS) and has(
+            "document", "documents", "dokumento", "dokumentos", "checklist", "requirements",
+            "requirement", "papers", "submit", "complete list", "listaan", "lista", "kasapulan",
+        ):
+            return (
+                message(language_code, "enrollment_transferee_fallback"),
+                "enrollment_inquiry",
+                "partially_answered",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has(*RETURNING_ENROLLMENT_MARKERS) and has(
+            "what should", "what do", "what steps", "first", "how do", "what to do", "unsa", "ania", "ania ti", "ano"
+        ):
+            return (
+                message(language_code, "enrollment_returning_fallback"),
+                "enrollment_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has("continuing student", "continuing students", "continue my studies", "continuing studies") and has(
+            "what should", "what do", "what steps", "before enrolling", "before enrollment", "first", "how do", "unsa", "ania", "ano"
+        ):
+            return (
+                message(language_code, "enrollment_continuing_fallback"),
+                "enrollment_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        asks_document_requirements = has(
+            "document", "documents", "checklist", "requirements", "requirement",
+            "papers", "what should i submit", "what do i submit", "what to submit",
+        )
+        asks_document_validity = has("validity", "valid", "verify", "verification", "check")
+        if has("admissions") and asks_document_validity and (
+            has("document", "documents", "information", "student information")
+            or has("during enrollment", "during enrolment", "enrollment", "enrolment")
+        ):
+            return (
+                message(language_code, "admissions_validation"),
+                "enrollment_inquiry",
+                "policy",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        if has(
+            "new student", "new applicant", "first time student", "first-time student",
+            "bagong estudyante", "bagong aplikante", "baro nga estudiante",
+        ) and asks_document_requirements:
+            return (
+                message(language_code, "new_student_checklist_unknown"),
+                "enrollment_inquiry",
+                "partially_answered",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        asks_timing = has(
+            "how long", "processing time", "processing times", "turnaround", "release date",
+            "guaranteed", "exactly four weeks", "how many weeks", "take to process", "how long does",
+        )
+        is_tor = has("tor", "transcript of records", "transcript")
+        if is_tor and asks_timing:
+            return (
+                message(language_code, "tor_processing_estimate"),
+                "document_request",
+                "partially_answered",
+                ("enrollment_interview_guidance.txt",),
+            )
+
+        is_document_timing = has(
+            "document request", "document requests", "six document", "certificate of good moral",
+            "second copy of grades", "certified true copy", "coe", "cor", "document processing",
+        )
+        if is_document_timing and asks_timing:
+            return (
+                message(language_code, "document_processing_times"),
+                "document_request",
+                "partially_answered",
+                ("document_fees_user_approved.txt", "enrollment_interview_guidance.txt"),
+            )
+
+        if has("class schedule", "schedule") and has(
+            "upcoming", "next term", "new", "bagong", "darating na term",
+            "sunod nga term", "masunod nga semester",
+        ):
+            return (
+                message(language_code, "upcoming_schedule_unknown"),
+                "general_inquiry",
+                "knowledge_gap",
+                ("student_services_faq_2026.txt",),
+            )
+
+        if has("inc form processing period", "inc form processing") and has("period", "when", "date", "february", "feb 24"):
+            return (
+                message(language_code, "inc_form_processing_period"),
+                "grade_inquiry",
+                "policy",
+                ("student_services_faq_2026.txt",),
+            )
+
+        if has("where should i pay", "where do i pay", "where to pay") and has("special exam", "special examination"):
+            return (
+                message(language_code, "special_exam_payment"),
+                "examination_permit_inquiry",
+                "policy",
+                ("student_services_faq_2026.txt",),
+            )
+
+        asks_second_and_third_year_orientation = (
+            has("second year", "2nd year", "second and third year", "2nd and 3rd year")
+            or has("second year", "2nd year") and has("third year", "3rd year")
+        )
+        if has("orientation", "orientations", "oryentasyon", "orientasyon", "oriyentasyon") and asks_second_and_third_year_orientation and has(
+            "date", "when", "june 11", "2026"
+        ):
+            return (
+                message(language_code, "orientation_date_historical"),
+                "general_inquiry",
+                "policy",
+                ("student_services_faq_2026.txt",),
+            )
+
+        return None
+
+    def _source_backed_fixed_result(
+        self,
+        response: str,
+        intent: str,
+        route: str,
+        language: dict,
+        moderation: dict,
+        source_names: tuple[str, ...],
+    ) -> dict:
+        result = self._fixed_result(response, intent, 1.0, False, route, language, moderation)
+        source_chunks = [
+            chunk
+            for source_name in source_names
+            for chunk in retrieval_service.retrieve_source(source_name)
+        ]
+        result["sources"] = self._sources(source_chunks)
+        return result
+
+    @staticmethod
+    def _sanitize_faq_payment_identifiers(context_chunks: list[dict] | None) -> list[dict]:
+        """Keep old payment identifiers out of prompts and fallback answers."""
+        safe_chunks = []
+        for chunk in context_chunks or []:
+            safe_chunk = dict(chunk)
+            if safe_chunk.get("source") == "student_services_faq_2026.txt":
+                content = str(safe_chunk.get("content", ""))
+                # Source text wraps long sentences at physical line breaks.
+                # Rejoin those wraps while retaining bullets, headings, Q/A
+                # boundaries, and numbered procedure steps.
+                content = re.sub(
+                    r"(?<!\n)\n(?!\n)(?!\s*(?:[•*\-]|\d+[.)]|Step\s+\d+\b|Source\s*:|Currentness\s*:|NOTE\s*:|Q\s*:|A\s*:|Topic\s*:))",
+                    " ",
+                    content,
+                )
+                content = re.sub(
+                    r"(?im)^\s*(?:account\s+)?number\s*:\s*.*$",
+                    "Number: [not repeated; verify with Treasury]",
+                    content,
+                )
+                content = re.sub(
+                    r"(?im)^\s*account\s+number\s*:\s*.*$",
+                    "Account Number: [not repeated; verify with Treasury]",
+                    content,
+                )
+                content = re.sub(
+                    r"(?<!\d)(?:\+?\d(?:[\s().-]*\d){9,15})(?!\d)",
+                    "[number not repeated; verify with Treasury]",
+                    content,
+                )
+                safe_chunk["content"] = content
+            safe_chunks.append(safe_chunk)
+        return safe_chunks
+
+    @staticmethod
+    def _approved_student_services_faq_context(query: str) -> list[dict]:
+        """Pin clear FAQ questions to their matching approved Q/A record.
+
+        Dense retrieval can rank a neighboring FAQ (for example, the INC form
+        when asked about add/drop forms). Use the source's question wording to
+        select a single record for those explicit student-service intents.
+        The answer remains grounded in the approved source and is still
+        naturally rendered by the configured response path.
+        """
+        source = "student_services_faq_2026.txt"
+        if source not in APPROVED_STATIC_SOURCES:
+            return []
+
+        normalized = re.sub(r"\s+", " ", (query or "").casefold()).strip()
+
+        def has(*phrases: str) -> bool:
+            return _has_query_marker(normalized, tuple(phrases))
+
+        target_questions = []
+
+        if has("school address", "address appears", "address shown", "address in the memorandum", "address in official memoranda"):
+            target_questions.append("what is the school's address")
+        elif has("classes scheduled to start", "when do classes start", "when were classes", "class start date", "start date of classes"):
+            target_questions.append("when were classes scheduled to start")
+        elif has("orientation", "orientations", "oryentasyon", "orientasyon", "oriyentasyon") and has(
+            "date", "when", "june 11", "2026"
+        ):
+            if has("fourth year", "4th year"):
+                target_questions.append(
+                    "what date did the june 11, 2026 announcement list for 4th year orientation"
+                )
+            elif (
+                has("second and third year", "2nd and 3rd year")
+                or has("second year", "2nd year") and has("third year", "3rd year")
+            ):
+                target_questions.append(
+                    "what date did the june 11, 2026 announcement list for 2nd and 3rd year orientation"
+                )
+        elif has("proof of payment", "payment proof", "proof-of-payment submission") or (
+            has("proof") and has("payment")
+        ):
+            if has("who", "person", "identified", "recipient"):
+                target_questions.append("who is identified for proof-of-payment submission")
+            else:
+                target_questions.append("what should i do after making an online payment")
+        elif has("online payment method", "payment method", "payment options", "payment methods", "gcash", "pnb", "bank transfer", "payment recipient", "recipient details"):
+            target_questions.append("what online payment methods are available")
+        elif has("special exam", "special examination"):
+            if has("processing period", "february", "feb 24", "registrar memo", "registrar announced"):
+                target_questions.append("what special exam processing period did the registrar announce")
+            if has("june 11", "upcoming", "exam dates", "exam date", "exam period"):
+                target_questions.append("what special examination period does the june 11")
+            if has("schedule", "scheduling", "which office", "who gives"):
+                target_questions.append("which office handles special exam scheduling after payment")
+            if has("procedure", "process", "steps", "how do i"):
+                target_questions.append("how do i process a special exam")
+            if has("fee", "pay", "paid", "where"):
+                target_questions.append("where should i pay the fee for a special exam")
+            if not target_questions:
+                target_questions.append("how do i process a special exam")
+        elif has(
+            "inc form", "inc fee", "inc requirements", "incomplete form",
+            "inc completion period", "inc processing period",
+        ):
+            if has("procedure", "process", "steps", "how do i", "how can i"):
+                target_questions.append("what is the procedure for processing an inc form")
+            if has("completion period", "june 11", "3rd term", "third term"):
+                target_questions.append("what inc completion period did the june 11")
+            if has("processing period", "february", "feb 24", "registrar memo"):
+                target_questions.append("what inc form processing period did the registrar announce")
+            if has("proof", "receipt", "payment", "fee", "pay") and not has("procedure", "process", "signed", "submit"):
+                target_questions.append("where should i pay the fee for an inc form")
+            if (has("signed", "submit") and not has("procedure", "process", "steps", "how do i", "how can i")) or not target_questions:
+                target_questions.append("what is the procedure for processing an inc form")
+        elif scope_service.is_subject_change_query(normalized):
+            if has("reason", "reasons", "why"):
+                target_questions.append("what reasons are allowed for adding, dropping, or changing")
+            if has("deadline", "due date", "until when", "what date", "old deadline"):
+                target_questions.append("what was the add/drop/change deadline")
+            if has("fee", "fees", "cost", "price", "how much", "per subject"):
+                target_questions.append("is there a fee for adding, dropping, or changing a subject")
+            if has("procedure", "process", "steps", "how do i", "offices involved") or not target_questions:
+                target_questions.append("what is the procedure for adding, dropping, or changing")
+
+        if not target_questions:
+            return []
+
+        fragments = [
+            (chunk, _faq_question_fragment(chunk))
+            for chunk in retrieval_service.retrieve_source(source)
+        ]
+        selected = []
+        for target_question in target_questions:
+            match = next(
+                (chunk for chunk, fragment in fragments if target_question in fragment),
+                None,
+            )
+            if match and match not in selected:
+                selected.append(match)
+        return ChatService._sanitize_faq_payment_identifiers(selected)
+
     async def process_query(
         self,
         query: str,
@@ -403,10 +956,22 @@ class ChatService:
         preferred_language: str | None = None,
     ) -> dict:
         history = (conversation_history or [])[-12:]
+        # The frontend optimistically inserts the current user message before
+        # it creates the request. Treat that duplicate as the current prompt,
+        # not as a prior context anchor, or term/year inheritance can stop on
+        # the duplicate before it reaches the earlier curriculum question.
+        if (
+            history
+            and history[-1].get("role") == "user"
+            and str(history[-1].get("content", "")).strip().casefold()
+            == str(query or "").strip().casefold()
+        ):
+            history = history[:-1]
         language = language_service.detect(query, history, preferred_language)
         language_code = language["code"]
         moderation = moderation_service.evaluate(query)
-        routing_query = _with_follow_up_context(query, history)
+        normalized_query = _normalize_common_question_typos(query)
+        routing_query = _with_follow_up_context(normalized_query, history)
 
         if moderation["action"] in {"block", "escalate"}:
             critical = moderation["action"] == "escalate"
@@ -420,20 +985,42 @@ class ChatService:
                 moderation,
             )
 
-        curriculum_query = is_curriculum_query(query)
-        curriculum_entities = entity_service.extract_curriculum_request(query)
-        full_list_requested = is_full_course_list_query(query) and (
+        # Explicit student lifecycle wording outranks a generic mention of
+        # subjects. Without this guard, "returning after a break" questions
+        # can be mistaken for a curriculum lookup and ask the student to name
+        # a program instead of answering the enrollment guidance.
+        lifecycle_enrollment_markers = (
+            RETURNING_ENROLLMENT_MARKERS
+            + TRANSFEREE_ENROLLMENT_MARKERS
+            + (
+                "new student", "new applicant", "first time student",
+                "first-time student", "bagong estudyante", "bagong aplikante",
+                "bag o nga estudyante", "baro nga estudiante",
+            )
+        )
+        lifecycle_enrollment_query = _has_query_marker(query, lifecycle_enrollment_markers)
+        subject_change_query = scope_service.is_subject_change_query(query)
+        curriculum_query = (
+            is_curriculum_query(routing_query)
+            and not lifecycle_enrollment_query
+            and not subject_change_query
+        )
+        curriculum_entities = entity_service.extract_curriculum_request(routing_query)
+        selected_year, selected_trimester = extract_curriculum_filters_with_history(routing_query, history)
+        full_list_requested = is_full_course_list_query(routing_query) and not (
+            selected_year or selected_trimester
+        ) and (
             curriculum_entities["request_type"] == "curriculum_question"
-            or is_explicit_full_course_list_query(query)
+            or is_explicit_full_course_list_query(routing_query)
         )
         curriculum_source, curriculum_source_from_history = (
-            get_curriculum_source(query, history)
-            if curriculum_query or is_curriculum_follow_up(query)
+            get_curriculum_source(routing_query, history)
+            if curriculum_query or is_curriculum_follow_up(routing_query)
             else (None, False)
         )
         curriculum_query = curriculum_query or curriculum_source is not None
         scope = scope_service.route(routing_query)
-        if curriculum_query and scope["route"] == "out_of_scope":
+        if (curriculum_query or lifecycle_enrollment_query) and scope["route"] == "out_of_scope":
             scope = {"route": "policy", "action": None, "inScope": True}
         if scope["route"] == "out_of_scope":
             return self._fixed_result(
@@ -455,14 +1042,90 @@ class ChatService:
                 language,
                 moderation,
             )
-        document_fee_answer = None
-        if scope["route"] == "policy":
-            fee_answer = self._approved_document_fee_answer(query, language_code)
-            if fee_answer:
-                if _has_query_marker(routing_query, ENROLLMENT_MARKERS):
-                    document_fee_answer = fee_answer
-                else:
-                    return fee_answer
+
+        if curriculum_source and is_ambiguous_next_term_follow_up(query):
+            next_year, next_trimester = infer_next_term_filters(query, history)
+            if next_year and next_trimester:
+                next_query = f"{next_year} {next_trimester}"
+                next_answer = curriculum_service.format_year_term_answer(
+                    curriculum_source,
+                    next_query,
+                    language_code,
+                )
+                if next_answer:
+                    result = self._source_backed_fixed_result(
+                        next_answer,
+                        "curriculum_inquiry",
+                        "policy",
+                        language,
+                        moderation,
+                        (curriculum_source,),
+                    )
+                    return result
+            return self._source_backed_fixed_result(
+                message(language_code, "curriculum_followup_ambiguous"),
+                "curriculum_inquiry",
+                "clarification",
+                language,
+                moderation,
+                (curriculum_source,),
+            )
+
+        catalog_answer = curriculum_service.format_catalog_answer(routing_query, language_code)
+        if catalog_answer:
+            catalog_response = catalog_answer
+            example_chunks = []
+            asks_for_examples = _has_query_marker(
+                routing_query,
+                ("give examples", "examples from", "example from", "show examples", "such as"),
+            )
+            if (
+                asks_for_examples
+                and curriculum_source
+                and selected_trimester
+                and is_course_list_query(routing_query)
+            ):
+                example_query = routing_query
+                if not selected_year:
+                    example_query = f"{routing_query} first year"
+                example_answer = curriculum_service.format_year_term_answer(
+                    curriculum_source,
+                    example_query,
+                    language_code,
+                    history,
+                )
+                if example_answer:
+                    catalog_response += "\n\n" + example_answer
+                    example_chunks = curriculum_service.retrieve(curriculum_source)
+            result = self._fixed_result(
+                catalog_response,
+                "curriculum_inquiry",
+                1.0,
+                False,
+                "policy",
+                language,
+                moderation,
+            )
+            result["sources"] = self._sources(
+                retrieval_service.retrieve_source("program_catalog.txt") + example_chunks
+            )
+            return result
+
+        # A named degree program plus a curriculum question refers to its
+        # public planned sequence. Only explicit current/enrolled wording uses
+        # the signed-in student's private schedule service.
+        explicit_current_record = _has_query_marker(
+            query,
+            ("currently enrolled", "currently taking", "this term", "this trimester", "right now", "current classes", "current subjects", "current courses", "naka-enroll", "kasalukuyang klase", "kasalukuyang subject", "subong nga klase", "yana nga klase"),
+        )
+        if (
+            scope["route"] == "database"
+            and scope.get("action") == "schedule"
+            and curriculum_source
+            and not explicit_current_record
+        ):
+            scope = {"route": "policy", "action": None, "inScope": True}
+
         if scope["route"] == "database":
             result = self._fixed_result(
                 message(language_code, "database"),
@@ -476,7 +1139,41 @@ class ChatService:
             result["action"] = scope["action"]
             return result
 
-        asks_enrollment = _has_query_marker(routing_query, ENROLLMENT_MARKERS)
+        direct_answer = self._direct_policy_answer(routing_query, language_code)
+        if direct_answer:
+            response, intent, route, source_names = direct_answer
+            return self._source_backed_fixed_result(
+                response,
+                intent,
+                route,
+                language,
+                moderation,
+                source_names,
+            )
+
+        document_fee_answer = None
+        if scope["route"] == "policy":
+            fee_answer = self._approved_document_fee_answer(routing_query, language_code)
+            if fee_answer:
+                enrollment_context_query = re.sub(
+                    r"\b(?:certificate\s+of\s+enrollment|enrollment\s+certificate|coe)\b",
+                    " ",
+                    routing_query,
+                    flags=re.I,
+                )
+                asks_enrollment_context = _has_query_marker(
+                    enrollment_context_query,
+                    ENROLLMENT_MARKERS + lifecycle_enrollment_markers,
+                )
+                if asks_enrollment_context:
+                    document_fee_answer = fee_answer
+                else:
+                    return fee_answer
+
+        asks_enrollment = (
+            _has_query_marker(routing_query, ENROLLMENT_MARKERS)
+            or _has_query_marker(routing_query, lifecycle_enrollment_markers)
+        )
         asks_tuition = _has_query_marker(routing_query, TUITION_MARKERS) or (
             asks_enrollment
             and not document_fee_answer
@@ -492,9 +1189,37 @@ class ChatService:
                 retrieval_service.retrieve(routing_query, limit=4, category="payment_policy")
                 if asks_tuition else []
             )
+            if asks_tuition:
+                # A generic payment retriever can rank unrelated per-subject
+                # fees for a tuition question. Only attach a chunk that
+                # explicitly discusses tuition/matriculation so the model
+                # cannot imply an add/drop fee is the term's tuition amount.
+                payment_chunks = [
+                    chunk for chunk in payment_chunks
+                    if re.search(
+                        r"(?i)\b(?:tuition|matrikula|matriculation)\b",
+                        str(chunk.get("content", "")),
+                    )
+                ]
             combined_context_chunks = enrollment_chunks + payment_chunks
+            if lifecycle_enrollment_query and _has_query_marker(
+                query, RETURNING_ENROLLMENT_MARKERS
+            ):
+                # Short dialect prompts can score below the lexical retrieval
+                # threshold against the English interview note. This is a
+                # precise lifecycle intent, so pin its approved source rather
+                # than returning a false knowledge gap.
+                interview_chunks = retrieval_service.retrieve_source(
+                    "enrollment_interview_guidance.txt"
+                )
+                if interview_chunks and not any(
+                    chunk.get("source") == "enrollment_interview_guidance.txt"
+                    for chunk in enrollment_chunks
+                ):
+                    enrollment_chunks.extend(interview_chunks)
+                combined_context_chunks = enrollment_chunks + payment_chunks
 
-        if curriculum_query and is_ambiguous_filipino_bsed(query):
+        if curriculum_query and is_ambiguous_filipino_bsed(routing_query):
             return self._fixed_result(
                 response_service.clarify_filipino_bsed_year(language_code),
                 "curriculum_inquiry",
@@ -505,7 +1230,7 @@ class ChatService:
                 moderation,
             )
 
-        if curriculum_query and not curriculum_source and is_course_list_query(query):
+        if curriculum_query and not curriculum_source and is_course_list_query(routing_query):
             return self._fixed_result(
                 response_service.ask_for_program(language_code),
                 "curriculum_inquiry",
@@ -516,7 +1241,7 @@ class ChatService:
                 moderation,
             )
 
-        lowered = query.casefold()
+        lowered = routing_query.casefold()
         if asks_enrollment:
             intent = "enrollment_inquiry"
             confidence = 1.0
@@ -584,7 +1309,7 @@ class ChatService:
         if curriculum_source:
             intent = "curriculum_inquiry"
             confidence = max(confidence, 0.95)
-        elif (curriculum_query or intent == "curriculum_inquiry") and is_course_list_query(query):
+        elif (curriculum_query or intent == "curriculum_inquiry") and is_course_list_query(routing_query):
             return self._fixed_result(
                 response_service.ask_for_program(language_code),
                 "curriculum_inquiry",
@@ -600,32 +1325,38 @@ class ChatService:
             if intent == "general_inquiry" and scope_service.is_student_services_faq_query(routing_query)
             else INTENT_CATEGORIES.get(intent)
         )
+        approved_faq_context = self._approved_student_services_faq_context(routing_query)
         if combined_context_chunks is not None:
             context_chunks = combined_context_chunks
+        elif approved_faq_context:
+            context_chunks = approved_faq_context
         elif intent == "curriculum_inquiry" and curriculum_source:
-            if full_list_requested:
+            if full_list_requested or selected_year or selected_trimester:
                 context_chunks = curriculum_service.retrieve(curriculum_source)
             else:
                 context_chunks = curriculum_service.retrieve_for_query(
                     curriculum_source,
-                    query,
+                    routing_query,
                     curriculum_entities["course_codes"],
                     course_name=curriculum_entities.get("course_name"),
                 )
         else:
             context_chunks = retrieval_service.retrieve(routing_query, limit=3, category=category)
 
+        context_chunks = self._sanitize_faq_payment_identifiers(context_chunks)
+
+        if intent == "examination_permit_inquiry" and not context_chunks:
+            # This process is documented in an approved Q/A source. Retrieve
+            # that exact source record if category search misses it; never
+            # fall back to an unapproved code-defined procedure.
+            context_chunks = [
+                chunk
+                for chunk in retrieval_service.retrieve_source("student_services_faq_2026.txt")
+                if "q: how do i process a special exam?" in str(chunk.get("content", "")).casefold()
+                or "q: which office handles special exam scheduling after payment?" in str(chunk.get("content", "")).casefold()
+            ][:1]
+
         if not context_chunks:
-            if intent == "examination_permit_inquiry":
-                return self._fixed_result(
-                    message(language_code, "exam_permit"),
-                    intent,
-                    confidence,
-                    False,
-                    "policy",
-                    language,
-                    moderation,
-                )
             if document_fee_answer:
                 missing_enrollment = message(language_code, "enrollment_unverified")
                 result = self._fixed_result(
@@ -658,18 +1389,18 @@ class ChatService:
             result["quotaRefund"] = True
             return result
 
-        # Examination-permit policy is an approved, deterministic institutional
-        # rule. Return the complete localized wording directly instead of
-        # allowing long conversation history or provider output limits to cut
-        # an official instruction off mid-sentence. Retrieved policy sources
-        # remain attached for transparency.
+        # The exam process must come from the approved FAQ. Never substitute
+        # the old localized hard-coded directions when retrieval misses.
         if intent == "examination_permit_inquiry":
+            answer = self._student_services_provider_fallback(context_chunks, language_code)
+            if not answer:
+                answer = message(language_code, "knowledge_unavailable")
             result = self._fixed_result(
-                message(language_code, "exam_permit"),
+                answer,
                 intent,
                 confidence,
                 False,
-                "policy",
+                "policy" if answer != message(language_code, "knowledge_unavailable") else "knowledge_gap",
                 language,
                 moderation,
             )
@@ -701,6 +1432,7 @@ class ChatService:
             intent == "curriculum_inquiry"
             and curriculum_source
             and response_plan["mode"] == "curriculum_full_list"
+            and not (selected_year or selected_trimester)
         ):
             full_answer = curriculum_service.format_full_answer(
                 curriculum_source,
@@ -710,6 +1442,37 @@ class ChatService:
             if full_answer:
                 result = self._fixed_result(
                     full_answer,
+                    intent,
+                    confidence,
+                    False,
+                    "policy",
+                    language,
+                    moderation,
+                )
+                result["sources"] = self._sources(context_chunks)
+                return result
+
+        if (
+            intent == "curriculum_inquiry"
+            and curriculum_source
+            and (selected_year or selected_trimester)
+            and (
+                is_course_list_query(routing_query)
+                or _has_query_marker(
+                    routing_query,
+                    ("what is in", "what's in", "what is included", "what appears in", "what comes in"),
+                )
+            )
+        ):
+            section_answer = curriculum_service.format_year_term_answer(
+                curriculum_source,
+                routing_query,
+                language_code,
+                history,
+            )
+            if section_answer:
+                result = self._fixed_result(
+                    section_answer,
                     intent,
                     confidence,
                     False,
@@ -792,20 +1555,14 @@ class ChatService:
             system_prompt += (
                 " Answer only the enrollment steps here. Do not mention fees, costs, amounts, or unrelated missing details."
             )
-        llm_history = [
-            ConversationMessage(item["role"], item["content"][:2000])
-            for item in (
-                history[-4:]
-                if intent == "curriculum_inquiry" and curriculum_source_from_history and is_curriculum_follow_up(query)
-                else [] if intent == "curriculum_inquiry" else history
-            )
-            if item.get("role") in {"user", "assistant"} and item.get("content", "").strip()
-        ]
-
         request = LLMRequest(
             system_prompt=system_prompt,
             user_prompt=query,
-            history=llm_history,
+            # Avoid sending prior assistant messages, which may contain private
+            # student records returned by the authenticated backend. Follow-up
+            # routing uses local history; provider prompts contain only the
+            # current question and approved institutional sources.
+            history=[],
             context_chunks=context_chunks,
             max_tokens=(
                 max(settings.llm_max_tokens, 2200)
@@ -840,7 +1597,7 @@ class ChatService:
                     else None
                 )
                 if not response_text and intent != "enrollment_inquiry":
-                    response_text = self._student_services_provider_fallback(context_chunks)
+                    response_text = self._student_services_provider_fallback(context_chunks, language_code)
                 if response_text:
                     route = "policy_fallback"
                 else:
@@ -848,11 +1605,7 @@ class ChatService:
                     route = "knowledge_gap"
                 escalate = False
         except AllProvidersFailed:
-            if intent == "examination_permit_inquiry":
-                response_text = message(language_code, "exam_permit")
-                escalate = False
-                route = "policy"
-            elif intent == "enrollment_inquiry":
+            if intent == "enrollment_inquiry":
                 response_text = self._enrollment_provider_fallback(
                     routing_query,
                     language_code,
@@ -863,7 +1616,7 @@ class ChatService:
                     escalate = False
                     route = "partially_answered" if asks_tuition else "policy_fallback"
                 else:
-                    response_text = self._student_services_provider_fallback(context_chunks)
+                    response_text = self._student_services_provider_fallback(context_chunks, language_code)
                     if response_text:
                         escalate = False
                         route = "policy_fallback"
@@ -882,11 +1635,11 @@ class ChatService:
                     escalate = False
                     route = "policy"
                 else:
-                    response_text = message(language_code, "provider_unavailable")
+                    response_text = message(language_code, "knowledge_unavailable")
                     escalate = False
-                    route = "provider_unavailable"
+                    route = "knowledge_gap"
             else:
-                response_text = self._student_services_provider_fallback(context_chunks)
+                response_text = self._student_services_provider_fallback(context_chunks, language_code)
                 if response_text:
                     escalate = False
                     route = "policy_fallback"
@@ -895,11 +1648,26 @@ class ChatService:
                     escalate = False
                     route = "provider_unavailable"
 
+        if language_code != "en":
+            response_language = language_service.detect(response_text)
+            if (
+                response_language["code"] != language_code
+                and response_language["confidence"] >= 0.80
+            ):
+                localized_faq = self._student_services_provider_fallback(
+                    context_chunks,
+                    language_code,
+                )
+                if localized_faq:
+                    response_text = localized_faq
+                    route = "policy_fallback"
+
         response_text = self._remove_separately_answered_fee_claims(
             response_text,
             document_fee_answer,
         )
         response_text = self._append_document_fee_answer(response_text, document_fee_answer)
+        response_text = _remove_trailing_generation_artifact(response_text)
         source_chunks = list(context_chunks)
         if document_fee_answer:
             source_chunks.extend(document_fee_answer.get("context_chunks", []))
@@ -963,6 +1731,7 @@ class ChatService:
         margin: float | None = None,
         model_version: str | None = None,
     ) -> dict:
+        response = _remove_trailing_generation_artifact(response)
         return {
             "response": response,
             "intent": intent,

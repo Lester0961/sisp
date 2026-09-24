@@ -31,6 +31,7 @@ export interface AdmissionApplication {
   strandTrack?: string;
   programId: string;
   reviewNotes?: string;
+  emailNotificationSent?: boolean;
   program?: {
     id: string;
     code: string;
@@ -71,7 +72,7 @@ export const admissionApi = {
     return response.data;
   },
 
-  createApplication: async (data: Record<string, any>) => {
+  createApplication: async (data: Record<string, any>): Promise<AdmissionApplication> => {
     const response = await apiClient.post<AdmissionApplication>('/admission/apply', data);
     return response.data;
   },
@@ -110,6 +111,14 @@ export const admissionApi = {
     return response.data;
   },
 
+  openRequirementFile: async (applicationNo: string, submissionId: string): Promise<Blob> => {
+    const response = await apiClient.get(
+      `/admission/applications/${applicationNo}/requirements/${submissionId}/file`,
+      { responseType: 'blob' },
+    );
+    return response.data;
+  },
+
   listApplications: async (status?: string, programId?: string, applicantType?: string) => {
     const response = await apiClient.get<AdmissionApplication[]>('/admission/applications', {
       params: { status, programId, applicantType },
@@ -126,18 +135,4 @@ export const admissionApi = {
     return response.data;
   },
 
-  activateStudentAccount: async (
-    studentNumber: string,
-    dob: string,
-    email: string,
-    newPassword: string,
-  ) => {
-    const response = await apiClient.post('/students/activate', {
-      studentNumber,
-      dob,
-      email,
-      newPassword,
-    });
-    return response.data;
-  },
 };

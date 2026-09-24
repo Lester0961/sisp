@@ -123,8 +123,9 @@ export function navItemsForRole(role?: string | null): PortalNavItem[] {
 
 export function mobileNavItemsForRole(role?: string | null): PortalNavItem[] {
   const items = navItemsForRole(role).filter((item) => item.mobile);
-  // Student needs the ARIA handoff and its escalation inbox side by side.
-  return items.slice(0, role === 'student' ? 6 : 5);
+  // Student uses a dedicated five-slot mobile bar; this shared helper is also
+  // capped at five so an accidental reuse cannot reintroduce the crowded bar.
+  return items.slice(0, 5);
 }
 
 export function roleHomePath(role?: string | null): string {
@@ -144,7 +145,21 @@ export function roleHomePath(role?: string | null): string {
 }
 
 export function rolePortalLabel(role?: string | null): string {
-  return role && role !== 'student' ? 'ADMIN' : 'PORTAL';
+  if (role === 'student') return 'STUDENT';
+  return role ? 'STAFF' : 'PORTAL';
+}
+
+export function roleDisplayName(role?: string | null): string {
+  switch (role) {
+    case 'student': return 'Student';
+    case 'faculty': return 'Faculty';
+    case 'dean': return 'Dean / Academic Adviser';
+    case 'registrar': return 'Registrar';
+    case 'treasury': return 'Treasury';
+    case 'sys_admin': return 'System Administrator';
+    case 'live_agent': return 'Live Agent (retired)';
+    default: return 'Staff';
+  }
 }
 
 export function isStaffRole(role?: string | null): boolean {

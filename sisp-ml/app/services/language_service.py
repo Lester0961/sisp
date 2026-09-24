@@ -21,10 +21,11 @@ MARKERS = {
     "ceb": {
         "ako", "akong", "asa", "bisaya", "ganahan", "giunsa", "kanus a", "mga", "nako",
         "kinahanglan", "maayo", "mangutana", "magsugod", "ngano", "palihug", "pila", "pwede", "salamat", "ug", "unsa", "unsaon", "walay",
+        "mobalik", "mohunong", "unsay",
     },
     "ilo": {
         "ania", "dagiti", "ko", "siak", "kayat", "manong", "mano", "sadino", "mabalin", "wen", "wenno", "asino",
-        "apay", "kasano", "ti", "iti", "nagan",
+        "apay", "kasano", "ti", "iti", "nagan", "agsubliak",
     },
     "hil": {
         "akon", "ano", "bala", "diin", "gani", "gid", "hiligaynon", "indi", "kag", "ko", "mga", "ukon", "sang",
@@ -37,6 +38,9 @@ MARKERS = {
     "en": {
         "my", "can", "when", "where", "what", "please", "i", "the", "how",
         "do", "is", "why", "could", "has", "yet", "due", "posted", "still", "says",
+        # Common English chat shorthand and fee terms help brief typo queries
+        # avoid inheriting an unrelated language from the previous turn.
+        "hw", "mch", "much", "for", "fee", "fees", "cost", "price",
     },
 }
 
@@ -46,8 +50,8 @@ MARKERS = {
 # ambiguous messages can still be resolved by the broader marker sets above.
 STRONG_MARKERS = {
     "fil": {"ng", "opo", "po", "magkano", "saan", "bakit", "kailan", "kailangan", "gusto", "yung", "malaman", "magsimula", "magbubukas", "magsasara", "pano", "puwede", "pwedeng"},
-    "ceb": {"unsa", "unsaon", "giunsa", "ngano", "ganahan", "kinahanglan", "walay", "kanus a", "ug", "bisaya", "pila", "asa", "mangutana", "magsugod"},
-    "ilo": {"ania", "dagiti", "siak", "kayat", "mabalin", "wenno", "asino", "apay", "kasano", "sadino", "iti", "nagan", "mano"},
+    "ceb": {"unsa", "unsay", "unsaon", "giunsa", "ngano", "ganahan", "kinahanglan", "walay", "kanus a", "ug", "bisaya", "pila", "asa", "mangutana", "magsugod", "mobalik", "mohunong"},
+    "ilo": {"ania", "dagiti", "siak", "kayat", "mabalin", "wenno", "asino", "apay", "kasano", "sadino", "iti", "nagan", "mano", "agsubliak"},
     "hil": {"gid", "indi", "sang", "ukon", "kag", "subong", "bala", "hiligaynon", "diin"},
     "war": {"waray", "diri", "han", "hit", "hin", "ngan", "ha", "pira", "tagpira", "paonan o", "hain", "hiya", "mahimo", "maaram", "maupay"},
     "en": set(),
@@ -64,8 +68,8 @@ SLANG_MARKERS = {"pre", "bro", "fr", "lods", "unsaon", "idk", "sis", "lodi", "ma
 # context instead of arbitrarily switching the response language.
 EXPLICIT_LANGUAGE_MARKERS = {
     "fil": {"ng", "opo", "po", "magkano", "saan", "bakit", "yung", "hindi", "kailangan", "maaari", "puwede"},
-    "ceb": {"unsa", "unsaon", "giunsa", "ngano", "walay", "ug", "og", "asa", "kanus a", "ganahan", "mangutana", "bisaya"},
-    "ilo": {"ti", "iti", "dagiti", "kasano", "mabalin", "wen", "wenno", "kayat", "apay", "sadino", "siak", "mano"},
+    "ceb": {"unsa", "unsay", "unsaon", "giunsa", "ngano", "walay", "ug", "og", "asa", "kanus a", "ganahan", "mangutana", "bisaya", "mobalik", "mohunong"},
+    "ilo": {"ti", "iti", "dagiti", "kasano", "mabalin", "wen", "wenno", "kayat", "apay", "sadino", "siak", "mano", "agsubliak"},
     "hil": {"kag", "sang", "gid", "indi", "ukon", "subong", "bala", "sini", "ngaa", "hiligaynon"},
     "war": {"han", "hit", "hin", "ngan", "diri", "pira", "tagpira", "paonan o", "hain", "maupay", "maaram", "waray"},
     "en": set(),

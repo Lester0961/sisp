@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { identityApi } from '@/lib/api/identity';
 import { ArrowLeft, GraduationCap, History, Loader2, UploadCloud, UserRound } from 'lucide-react';
 
-type Step = 'choose' | 'returning' | 'alumni' | 'submitted' | 'track';
+type Step = 'choose' | 'returning' | 'alumni' | 'upload' | 'submitted' | 'track';
 
 /**
  * Public onboarding for people who already have (or previously had) an RMC
@@ -17,6 +17,7 @@ export default function AccountEntryPage() {
   const [step, setStep] = useState<Step>('choose');
   const [loading, setLoading] = useState(false);
   const [verificationId, setVerificationId] = useState('');
+  const [verificationType, setVerificationType] = useState<'returning' | 'alumni'>('returning');
   const [trackId, setTrackId] = useState('');
   const [trackEmail, setTrackEmail] = useState('');
   const [trackResult, setTrackResult] = useState<string | null>(null);
@@ -42,11 +43,11 @@ export default function AccountEntryPage() {
     try {
       const result = await identityApi.submit({ verificationType: type, ...form });
       setVerificationId(result.id);
-      if (type === 'alumni') {
-        toast.success('Details saved. Upload a valid ID to complete your request.');
-      } else {
-        setStep('submitted');
-        toast.success(result.message);
+      setVerificationType(type);
+      setStep('upload');
+      toast.success('Details saved. Upload a valid ID to complete your request.');
+      if (!result.emailNotificationSent) {
+        toast.info('Your request is saved. Email confirmation is not configured in this local environment.');
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message ?? 'Could not submit your verification.');
@@ -56,8 +57,8 @@ export default function AccountEntryPage() {
   };
 
   const onFile = (file: File) => {
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Identification documents must be 5 MB or smaller.');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('A valid ID must be 10 MB or smaller.');
       return;
     }
     if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
@@ -139,6 +140,7 @@ export default function AccountEntryPage() {
             {step === 'choose' && 'Existing or former student?'}
             {step === 'returning' && 'Returning / Old Student'}
             {step === 'alumni' && 'Alumni verification'}
+            {step === 'upload' && 'Upload a valid ID'}
             {step === 'submitted' && 'Verification submitted'}
             {step === 'track' && 'Track your verification'}
           </h2>
@@ -175,21 +177,27 @@ export default function AccountEntryPage() {
         {step === 'alumni' && (
           <>
             {formFields}
-            {!verificationId ? (
-              <button type="button" onClick={() => void submit('alumni')} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0a439b] py-3.5 text-sm font-semibold text-white hover:bg-[#083980] disabled:opacity-55">
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />} Continue to ID upload
-              </button>
-            ) : (
-              <div className="space-y-3 rounded-xl border border-[#dce7ef] p-4">
-                <p className="text-sm font-semibold text-[#102f49]">Upload a valid ID</p>
-                <input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="block w-full text-xs" />
-                {idFile && <p className="text-xs text-emerald-700">Selected: {idFile.name}</p>}
-                <button type="button" onClick={() => void uploadId()} disabled={loading || !idFile} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0a439b] py-3 text-sm font-semibold text-white hover:bg-[#083980] disabled:opacity-55">
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />} Upload identification
-                </button>
-              </div>
-            )}
+            <button type="button" onClick={() => void submit('alumni')} disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0a439b] py-3.5 text-sm font-semibold text-white hover:bg-[#083980] disabled:opacity-55">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />} Continue to ID upload
+            </button>
           </>
+        )}
+
+        {step === 'upload' && (
+          <div className="space-y-4">
+            <p className="text-sm text-[#587387]">
+              Upload a clear valid ID for the Registrar to verify your {verificationType === 'returning' ? 'returning-student' : 'alumni'} request.
+            </p>
+            <div className="space-y-3 rounded-xl border border-[#dce7ef] p-4">
+              <label htmlFor="valid-id-upload" className="text-sm font-semibold text-[#102f49]">Valid ID</label>
+              <input id="valid-id-upload" type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} className="block w-full text-xs" />
+              <p className="text-xs text-[#6c879a]">PDF, JPEG, or PNG · maximum 10 MB</p>
+              {idFile && <p className="text-xs text-emerald-700">Selected: {idFile.name}</p>}
+              <button type="button" onClick={() => void uploadId()} disabled={loading || !idFile} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0a439b] py-3 text-sm font-semibold text-white hover:bg-[#083980] disabled:opacity-55">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />} Upload identification
+              </button>
+            </div>
+          </div>
         )}
 
         {step === 'submitted' && (

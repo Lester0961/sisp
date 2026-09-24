@@ -16,6 +16,7 @@ export default function AdminAdmissionPage() {
   const [reviewing, setReviewing] = useState(false);
   const [requiredDefs, setRequiredDefs] = useState<RequirementDefinition[]>([]);
   const [requirementBusyId, setRequirementBusyId] = useState<string | null>(null);
+  const [openingReceiptId, setOpeningReceiptId] = useState<string | null>(null);
 
   useEffect(() => {
     loadApplications();
@@ -61,8 +62,11 @@ export default function AdminAdmissionPage() {
     }
     setRequirementBusyId(submissionId);
     try {
-      await admissionApi.reviewRequirement(appNo, submissionId, status, requirementNotes);
+      const result = await admissionApi.reviewRequirement(appNo, submissionId, status, requirementNotes);
       toast.success(`Requirement marked ${status.replace(/_/g, ' ')}.`);
+      if (!result.emailNotificationSent) {
+        toast.info('Review saved, but email delivery is not configured in this local environment.');
+      }
       setSelectedApp((current) =>
         current
           ? {
@@ -94,8 +98,11 @@ export default function AdminAdmissionPage() {
   const handleReview = async (appNo: string, status: string) => {
     setReviewing(true);
     try {
-      await admissionApi.reviewApplication(appNo, status, reviewNotes);
+      const result = await admissionApi.reviewApplication(appNo, status, reviewNotes);
       toast.success(`Application ${appNo} marked as ${status}!`);
+      if (!result.emailNotificationSent) {
+        toast.info('Review saved, but email delivery is not configured in this local environment.');
+      }
       setSelectedApp(null);
       setReviewNotes('');
       loadApplications();
@@ -103,6 +110,26 @@ export default function AdminAdmissionPage() {
       toast.error(err.response?.data?.message || 'Review action failed.');
     } finally {
       setReviewing(false);
+    }
+  };
+
+  const openReceipt = async (appNo: string, submissionId: string) => {
+    const preview = window.open('about:blank', '_blank');
+    if (!preview) {
+      toast.error('Allow pop-ups to preview the uploaded receipt.');
+      return;
+    }
+    setOpeningReceiptId(submissionId);
+    try {
+      const blob = await admissionApi.openRequirementFile(appNo, submissionId);
+      const url = URL.createObjectURL(blob);
+      preview.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error: any) {
+      preview.close();
+      toast.error(error?.response?.data?.message ?? 'Could not open the uploaded receipt.');
+    } finally {
+      setOpeningReceiptId(null);
     }
   };
 
@@ -261,10 +288,20 @@ export default function AdminAdmissionPage() {
                           </span>
                         </div>
                         {submission?.fileName && (
-                          <p className="text-[10px] text-slate-500">
-                            {submission.fileName}
-                            {submission.fileSize ? ` · ${Math.round(submission.fileSize / 1024)} KB` : ''}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-[10px] text-slate-500">
+                              {submission.fileName}
+                              {submission.fileSize ? ` · ${Math.round(submission.fileSize / 1024)} KB` : ''}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => void openReceipt(selectedApp.applicationNo, submission.id)}
+                              disabled={openingReceiptId === submission.id}
+                              className="rounded-md border border-slate-200 px-2 py-1 text-[10px] font-semibold text-[#0a439b] hover:bg-blue-50 disabled:opacity-50"
+                            >
+                              {openingReceiptId === submission.id ? 'Opening…' : 'View receipt'}
+                            </button>
+                          </div>
                         )}
                         {submission?.reviewNotes && (
                           <p className="text-[10px] text-slate-500">Notes: {submission.reviewNotes}</p>

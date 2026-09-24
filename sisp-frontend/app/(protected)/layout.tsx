@@ -3,11 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
+import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
 import { AdminSidebar } from '@/components/admin/layout/AdminSidebar';
 import { AdminTopHeader } from '@/components/admin/layout/AdminTopHeader';
 import { MobileBottomNav } from '@/components/shared/MobileBottomNav';
+import { StudentSidebar } from '@/components/student/layout/StudentSidebar';
+import { StudentTopHeader } from '@/components/student/layout/StudentTopHeader';
+import { StudentMobileBottomNav } from '@/components/student/layout/StudentMobileBottomNav';
 import { useEscalationAttentionStore } from '@/stores/escalationAttentionStore';
 
 const STORAGE_KEY = 'sisp_sidebar_collapsed';
@@ -20,11 +24,13 @@ export default function ProtectedLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { user, isAuthenticated, isLoading, hasHydrated } = useAuthStore();
+  const { logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const refreshEscalations = useEscalationAttentionStore((state) => state.refresh);
   const clearEscalations = useEscalationAttentionStore((state) => state.clear);
+  const isStudent = user?.role === 'student';
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -93,22 +99,35 @@ export default function ProtectedLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f8fbfd] antialiased">
-      <AdminSidebar
-        isCollapsed={mounted ? isCollapsed : false}
-        onToggleCollapse={handleToggleCollapse}
-        mobileOpen={mobileOpen}
-        onCloseMobile={() => setMobileOpen(false)}
-      />
+    <div className={isStudent ? 'student-portal-shell flex min-h-screen antialiased' : 'staff-portal-shell flex min-h-screen antialiased'}>
+      {isStudent ? (
+        <StudentSidebar
+          mobileOpen={mobileOpen}
+          onCloseMobile={() => setMobileOpen(false)}
+          user={user}
+          onSignOut={() => void logout()}
+        />
+      ) : (
+        <AdminSidebar
+          isCollapsed={mounted ? isCollapsed : false}
+          onToggleCollapse={handleToggleCollapse}
+          mobileOpen={mobileOpen}
+          onCloseMobile={() => setMobileOpen(false)}
+        />
+      )}
 
-      <div className="flex flex-1 flex-col min-w-0">
-        <AdminTopHeader onOpenMobile={() => setMobileOpen(true)} />
-        <div className="flex-1 min-w-0 pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <div className="flex min-w-0 flex-1 flex-col">
+        {isStudent ? (
+          <StudentTopHeader onOpenMobile={() => setMobileOpen(true)} />
+        ) : (
+          <AdminTopHeader onOpenMobile={() => setMobileOpen(true)} />
+        )}
+        <div className="min-w-0 flex-1 pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-0">
           {children}
         </div>
       </div>
 
-      <MobileBottomNav />
+      {isStudent ? <StudentMobileBottomNav /> : <MobileBottomNav />}
     </div>
   );
 }

@@ -270,7 +270,7 @@ export default function ChatPage() {
             <section className="portal-surface p-4">
               <div className="flex items-center justify-between gap-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Daily allowance</p><span className="text-xs font-semibold text-[#102f49]">{quota ? `${quota.remainingToday}/${quota.dailyLimit}` : '—'}</span></div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e8f0f5]"><div className="h-full rounded-full bg-[#0a439b] transition-all" style={{ width: `${quota ? Math.min(100, (quota.remainingToday / quota.dailyLimit) * 100) : 0}%` }} /></div>
-              <p className="mt-2 text-xs leading-relaxed text-[#587387]">Twenty advisory messages are available each day. Human support is not counted as ARIA quota.</p>
+              <p className="mt-2 text-xs leading-relaxed text-[#587387]">Up to {quota?.dailyLimit ?? 20} advisory messages are available each day. Human support is not counted as ARIA quota.</p>
             </section>
             <section className="rounded-2xl border border-[#cfe6db] bg-[#edf9f1] p-4">
               <p className="text-sm font-semibold text-[#16794c]">Need a person?</p>

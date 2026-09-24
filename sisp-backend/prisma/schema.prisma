@@ -714,6 +714,27 @@ model ChatDailyUsage {
   @@map("chat_daily_usage")
 }
 
+// Persistent, provider-wide budget for the opt-in DeepSeek adapter. This
+// counter is shared by every ML service instance so restarts cannot reset the
+// configured cost/token ceiling.
+model DeepSeekUsageBudget {
+  provider                 String   @id
+  model                    String
+  reservedTokens           BigInt   @default(0) @map("reserved_tokens")
+  actualInputTokens        BigInt   @default(0) @map("actual_input_tokens")
+  actualOutputTokens       BigInt   @default(0) @map("actual_output_tokens")
+  actualTotalTokens        BigInt   @default(0) @map("actual_total_tokens")
+  estimatedCostUpperUsd    Decimal  @default(0) @map("estimated_cost_upper_usd") @db.Decimal(12, 8)
+  usageUnavailableCalls    Int      @default(0) @map("usage_unavailable_calls")
+  providerAttempts         Int      @default(0) @map("provider_attempts")
+  successfulResponses      Int      @default(0) @map("successful_responses")
+  unobservedPriorRequests  Int      @default(0) @map("unobserved_prior_requests")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  @@map("deepseek_usage_budgets")
+}
+
 // ============================================================
 // PHASE 3 SUPPORTING STRUCTURES
 // Additive implementation-support entities required by the written
@@ -903,6 +924,8 @@ model PasswordResetToken {
   userId      String    @map("user_id")
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash   String    @unique @map("token_hash")
+  purpose     String    @default("password_reset")
+  targetEmail String?   @map("target_email")
   expiresAt   DateTime  @map("expires_at")
   consumedAt  DateTime? @map("consumed_at")
   requestedIp String?   @map("requested_ip")

@@ -1,13 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 async function bootstrap() {
   // Required environment variables are validated by ConfigModule (P1-06)
   // as soon as AppModule initializes, before any request handling.
-  const app = await NestFactory.create(AppModule);
+  // Uploads are sent as base64 JSON. A 10 MB file expands to about 13.4 MB,
+  // so parser limits must exceed the encoded payload while service-level
+  // validators continue to enforce the actual 10 MB file limit.
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(json({ limit: '16mb' }));
+  app.use(urlencoded({ extended: true, limit: '16mb' }));
 
   // Global prefix for all routes
   app.setGlobalPrefix('api');

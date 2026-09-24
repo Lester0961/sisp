@@ -99,6 +99,9 @@ sisp-frontend/.env.production
 !sisp-ml/app/data/local_vector_index.pkl
 !sisp-ml/app/ml/models/intent_classifier_v*.pkl
 
+# Local-only provider usage ledgers and QA run artifacts.
+sisp-ml/tmp/
+
 # Hermes
 .env.*
 !.env.example

@@ -206,4 +206,12 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.newPassword);
   }
+
+  @Public()
+  @Throttle({ default: { ttl: 15 * 60_000, limit: 5 } })
+  @Post('activate-student')
+  @HttpCode(HttpStatus.OK)
+  async activateStudent(@Body() dto: ResetPasswordDto) {
+    return this.authService.activateStudentAccount(dto.token, dto.newPassword);
+  }
 }

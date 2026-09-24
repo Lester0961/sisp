@@ -3,6 +3,7 @@ import logging
 from app.config import get_settings
 from .base import LLMProvider
 from .errors import AllProvidersFailed, ProviderError
+from .deepseek_provider import DeepSeekProvider
 from .gemini_provider import GeminiProvider
 from .groq_provider import GroqProvider
 from .models import LLMRequest, LLMResponse
@@ -25,6 +26,14 @@ class LLMRouter:
                     settings.nvidia_request_timeout_seconds,
                 ),
                 settings.nvidia_enabled,
+            ),
+            "deepseek": (
+                DeepSeekProvider(
+                    settings.deepseek_api_key,
+                    settings.deepseek_model,
+                    settings.deepseek_request_timeout_seconds,
+                ),
+                settings.deepseek_enabled,
             ),
             "groq": (GroqProvider(settings.groq_api_key, settings.groq_model, timeout), settings.groq_enabled),
             "gemini": (
@@ -76,6 +85,14 @@ class LLMRouter:
         return [
             {"provider": provider.name, "model": provider.model, "configured": provider.configured}
             for provider in self.providers
+        ]
+
+    def usage_snapshot(self) -> list[dict[str, int | float | str]]:
+        """Return provider usage counters without exposing credentials or prompts."""
+        return [
+            provider.usage_snapshot()
+            for provider in self.providers
+            if callable(getattr(provider, "usage_snapshot", None))
         ]
 
 

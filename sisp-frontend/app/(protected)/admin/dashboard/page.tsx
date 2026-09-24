@@ -53,6 +53,7 @@ const dashboardCopy = {
 } as const;
 
 interface MetricCard {
+  category: string;
   label: string;
   value: number | string;
   icon: typeof Users;
@@ -124,19 +125,19 @@ export default function AdminDashboardPage() {
 
   const metricGroups = useMemo(() => {
     const people: MetricCard[] = [
-      { label: 'User accounts', value: value(dashboardStats?.totalUsers), icon: Users },
-      { label: 'Active students', value: value(dashboardStats?.totalStudents), icon: GraduationCap },
-      { label: 'Faculty records', value: value(dashboardStats?.totalFaculty), icon: BookOpenCheck },
+      { category: 'People', label: 'User accounts', value: value(dashboardStats?.totalUsers), icon: Users },
+      { category: 'People', label: 'Active students', value: value(dashboardStats?.totalStudents), icon: GraduationCap },
+      { category: 'People', label: 'Faculty records', value: value(dashboardStats?.totalFaculty), icon: BookOpenCheck },
     ];
     const operations: MetricCard[] = [
-      { label: 'Document requests', value: value(dashboardStats?.totalRequests), icon: FileText },
-      { label: 'Open requests', value: value(dashboardStats?.openDocumentRequests), icon: FileText },
-      { label: 'Awaiting payment', value: value(dashboardStats?.awaitingPaymentRequests), icon: Wallet, tone: 'warning' },
+      { category: 'Records & requests', label: 'Document requests', value: value(dashboardStats?.totalRequests), icon: FileText },
+      { category: 'Records & requests', label: 'Open requests', value: value(dashboardStats?.openDocumentRequests), icon: FileText },
+      { category: 'Records & requests', label: 'Awaiting payment', value: value(dashboardStats?.awaitingPaymentRequests), icon: Wallet, tone: 'warning' },
     ];
     const aria: MetricCard[] = [
-      { label: 'Pending escalations', value: value(dashboardStats?.pendingEscalations), icon: ShieldAlert, tone: 'warning' },
-      { label: 'Resolved escalations', value: value(dashboardStats?.resolvedEscalations), icon: ShieldAlert, tone: 'success' },
-      { label: 'Active sessions', value: value(dashboardStats?.activeSessions), icon: Activity },
+      { category: 'ARIA & security', label: 'Pending escalations', value: value(dashboardStats?.pendingEscalations), icon: ShieldAlert, tone: 'warning' },
+      { category: 'ARIA & security', label: 'Resolved escalations', value: value(dashboardStats?.resolvedEscalations), icon: ShieldAlert, tone: 'success' },
+      { category: 'ARIA & security', label: 'Active sessions', value: value(dashboardStats?.activeSessions), icon: Activity },
     ];
     return { people, operations, aria };
   }, [dashboardStats, dashboardLoading]);
@@ -151,29 +152,27 @@ export default function AdminDashboardPage() {
       ]
     : [];
 
-  const renderGroup = (title: string, metrics: MetricCard[]) => (
-    <section className="space-y-2">
-      <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6c879a]">{title}</h2>
-      <div className="grid grid-cols-2 divide-x divide-y divide-[#dce7ef] overflow-hidden rounded-2xl border border-[#dce7ef] bg-white shadow-[0_10px_28px_rgb(15_45_74_/_0.055)] sm:grid-cols-3 sm:divide-y-0">
-        {metrics.map((metric) => {
-          const Icon = metric.icon;
-          const toneClass =
-            metric.tone === 'warning'
-              ? 'text-amber-700'
-              : metric.tone === 'success'
-                ? 'text-emerald-700'
-                : 'text-[#0a439b]';
-          return (
-            <div key={metric.label} className="min-w-0 p-3 sm:p-4">
-              <Icon className={`mb-3 size-4 ${toneClass}`} strokeWidth={1.8} />
-              <p className="truncate text-[11px] text-[#587387]">{metric.label}</p>
-              <p className="mt-1 text-2xl font-semibold tracking-[-0.03em] text-[#102f49]">{metric.value}</p>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
+  const renderMetric = (metric: MetricCard) => {
+    const Icon = metric.icon;
+    const toneClass =
+      metric.tone === 'warning'
+        ? 'text-amber-700 bg-amber-50'
+        : metric.tone === 'success'
+          ? 'text-emerald-700 bg-emerald-50'
+          : 'text-[#0a439b] bg-[#edf4fb]';
+    return (
+      <article key={`${metric.category}-${metric.label}`} className="min-w-0 rounded-2xl border border-[#dce7ef] bg-white p-3.5 shadow-[0_8px_24px_rgb(15_45_74_/_0.045)] sm:p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <span className="truncate text-[9px] font-bold uppercase tracking-[0.1em] text-[#7890a0]">{metric.category}</span>
+          <span className={`flex size-8 shrink-0 items-center justify-center rounded-xl ${toneClass}`}>
+            <Icon className="size-4" strokeWidth={1.8} />
+          </span>
+        </div>
+        <p className="truncate text-[11px] text-[#587387]">{metric.label}</p>
+        <p className="mt-1 text-[1.35rem] font-semibold tracking-[-0.035em] text-[#102f49]">{metric.value}</p>
+      </article>
+    );
+  };
 
   return (
     <div className="flex min-h-full flex-col">
@@ -213,9 +212,12 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {renderGroup('People', metricGroups.people)}
-        {renderGroup('Records & requests', metricGroups.operations)}
-        {renderGroup('ARIA & security', metricGroups.aria)}
+        <section className="space-y-2.5" aria-label="Dashboard summary">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#6c879a]">At a glance</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            {[...metricGroups.people, ...metricGroups.operations, ...metricGroups.aria].map(renderMetric)}
+          </div>
+        </section>
 
         {financeSummary && (
           <section className="space-y-2">

@@ -26,20 +26,9 @@ export class ChatbotService {
     this.mlSecret = this.config.get<string>('ML_SECRET_TOKEN') || '';
   }
 
-  /** Server-derived student identity. Never taken from client input. */
-  private async resolveStudentId(userId: string): Promise<string | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { studentProfile: true },
-    });
-    return user?.studentProfile?.id ?? null;
-  }
-
   async sendMessage(userId: string, sendMessageDto: SendMessageDto) {
     const { message, history, preferredLanguage } = sendMessageDto;
     let quota = await this.chatQuotaService.consume(userId);
-    // Non-throwing: students without a profile can still use policy answers.
-    const studentId = await this.resolveStudentId(userId);
     let mlResponse: any;
     // Keep the synchronous proxy comfortably below Render's request window.
     // A sleeping/unavailable ML service should become a persisted live-agent
@@ -71,19 +60,33 @@ export class ChatbotService {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              // Internal service authentication. student_id below is derived
-              // server-side via resolveStudentId — never from client input
-              // (the global ValidationPipe rejects unknown body properties).
+              // Internal service authentication. Student identity and private
+              // records remain inside Nest; the ML service receives only the
+              // question and approved institutional knowledge.
               'X-ML-Secret': this.mlSecret,
             },
             body: JSON.stringify({
               query: message,
               history: history || [],
               preferred_language: preferredLanguage,
-              ...(studentId ? { student_id: studentId } : {}),
             }),
             signal: controller.signal,
           });
+        } catch (fetchError: any) {
+          // A short local connection reset can reject fetch before Nest gets an
+          // HTTP response. Retry that transport failure once, within the same
+          // overall deadline, just like a transient gateway response.
+          const retryDelayMs = 300;
+          if (
+            attempt === 1 ||
+            fetchError?.name === 'AbortError' ||
+            deadline - Date.now() <= retryDelayMs
+          ) {
+            throw fetchError;
+          }
+          this.logger.warn('ML transport request failed; retrying once.');
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          continue;
         } finally {
           clearTimeout(timeout);
         }
@@ -142,30 +145,46 @@ export class ChatbotService {
 
     const responseLang = mlResponse.language?.code || preferredLanguage || 'en';
     if (mlResponse.route === 'database' && mlResponse.action) {
-      try {
-        // Personal records are resolved from this authenticated user's SISP
-        // data. Missing records become an explicit fallback, never a made-up
-        // zero or an LLM-generated value.
-        if (mlResponse.action === 'balance') {
-          const result = await this.resolveBalance(userId, responseLang);
-          mlResponse.response = result.text;
-          if (!result.available) {
-            mlResponse.escalate = true;
-            mlResponse.route = 'live_advisor';
-          }
-        } else {
-          mlResponse.response = await this.resolveDatabaseResponse(
-            userId,
-            mlResponse.action,
-            responseLang,
-          );
+      if (!this.isExplicitPersonalRecordRequest(message, mlResponse.action)) {
+        // The ML router is advisory. Never disclose profile data for a policy
+        // question that happens to contain words like "current" and "grade".
+        mlResponse.response = this.personalRecordGuardResponse(
+          message,
+          mlResponse.action,
+          responseLang,
+        );
+        if (mlResponse.action === 'grades' && this.isPolicyQuestion(message)) {
+          mlResponse.intent = 'grade_inquiry';
         }
-      } catch (error: any) {
-        this.logger.error(`Student record lookup failed for '${mlResponse.action}': ${error?.message || error}`);
-        mlResponse.response =
-          'SISP could not verify this student record. Please consult an authorized school representative.';
-        mlResponse.escalate = true;
-        mlResponse.route = 'live_advisor';
+        mlResponse.route = 'knowledge_gap';
+        mlResponse.action = null;
+        mlResponse.escalate = false;
+      } else {
+        try {
+          // Personal records are resolved from this authenticated user's SISP
+          // data. Missing records become an explicit fallback, never a made-up
+          // zero or an LLM-generated value.
+          if (mlResponse.action === 'balance') {
+            const result = await this.resolveBalance(userId, responseLang);
+            mlResponse.response = result.text;
+            if (!result.available) {
+              mlResponse.escalate = true;
+              mlResponse.route = 'live_advisor';
+            }
+          } else {
+            mlResponse.response = await this.resolveDatabaseResponse(
+              userId,
+              mlResponse.action,
+              responseLang,
+            );
+          }
+        } catch (error: any) {
+          this.logger.error(`Student record lookup failed for '${mlResponse.action}': ${error?.message || error}`);
+          mlResponse.response =
+            'SISP could not verify this student record. Please consult an authorized school representative.';
+          mlResponse.escalate = true;
+          mlResponse.route = 'live_advisor';
+        }
       }
     }
     // Multi-intent parts the ML service flagged for backend resolution.
@@ -176,6 +195,18 @@ export class ChatbotService {
       let patched = false;
       for (const part of mlResponse.parts) {
         if (part?.data?.needs_backend_resolution && part?.action) {
+          if (!this.isExplicitPersonalRecordRequest(message, part.action)) {
+            part.text = this.personalRecordGuardResponse(message, part.action, responseLang);
+            part.data = {
+              ...(part.data || {}),
+              needs_backend_resolution: false,
+              resolvedBy: 'policy_guard',
+            };
+            part.error = null;
+            part.escalated = false;
+            patched = true;
+            continue;
+          }
           try {
             const resolved = await this.resolveDatabasePart(
               userId,
@@ -504,5 +535,91 @@ export class ChatbotService {
       available: true,
       balance,
     };
+  }
+
+  private isExplicitPersonalRecordRequest(message: string, action: string): boolean {
+    const normalized = (message || '').toLocaleLowerCase().replace(/[’]/g, "'");
+    if (this.isPolicyQuestion(normalized) || this.isPersonalRecordMutationRequest(normalized)) {
+      return false;
+    }
+
+    const personal = /\b(my|mine|for me|i owe|am i|i am|ko|akin|akong|akon|nako|naton)\b/.test(normalized);
+    if (!personal) return false;
+
+    const patterns: Record<string, RegExp> = {
+      grades: /\b(grades?|marks?|scores?|gpa)\b/,
+      schedule: /\b(classes?|schedule|subjects?|courses?|enrolled)\b/,
+      balance: /\b(balance|owe|amount due|tuition|matrikula|bayranan)\b/,
+      enrollment_status: /\b(enrollment|enrolment|enrolled|registration)\b/,
+      document_request_status: /\b(document|request|status)\b/,
+    };
+    return Boolean(patterns[action]?.test(normalized));
+  }
+
+  private isPolicyQuestion(message: string): boolean {
+    const normalized = (message || '').toLocaleLowerCase().replace(/[’]/g, "'");
+    return /\b(appeal|policy|policies|rule|rules|guideline|deadline|passing grade|grade scale|probation)\b/.test(normalized)
+      || this.isPersonalRecordMutationRequest(normalized)
+      || this.isEnrollmentStatusPolicyQuestion(normalized);
+  }
+
+  private isPersonalRecordMutationRequest(message: string): boolean {
+    const normalized = (message || '').toLocaleLowerCase().replace(/[’]/g, "'");
+    const changesRecord = /\b(change|update|edit|correct|modify|alter|amend|replace|delete|erase|override|post)\b/.test(normalized);
+    const namesRecord = /\b(grade|grades|record|records|mark|marks|score|scores)\b/.test(normalized);
+    return changesRecord && namesRecord;
+  }
+
+  private isEnrollmentStatusPolicyQuestion(message: string): boolean {
+    const normalized = (message || '').toLocaleLowerCase().replace(/[’]/g, "'");
+    const mentionsPayment = /\b(pay|paid|payment|down[ -]?payment|deposit|bayad|nagbayad|mobayad|nagbabayad)\b/.test(normalized);
+    const asksWhatPaymentMeans = /\b(prove|proof|mean|means|make|makes|confirm|indicate|indicates|active|automatically|patunay|pasabot|pamatuod|status)\b/.test(normalized);
+    return mentionsPayment && asksWhatPaymentMeans;
+  }
+
+  private personalRecordGuardResponse(message: string, action: string, language: string): string {
+    const normalized = (message || '').toLocaleLowerCase().replace(/[’]/g, "'");
+    if (action === 'grades' && this.isPersonalRecordMutationRequest(normalized)) {
+      const gradeMutationResponses: Record<string, string> = {
+        en: 'ARIA cannot change or edit posted grades. Please ask the Registrar to review a grade correction request.',
+        fil: 'Hindi kayang baguhin o i-edit ng ARIA ang mga naka-post na grado. Hilingin sa Registrar na suriin ang kahilingan para sa pagwawasto ng grado.',
+        ceb: 'Dili makausab o maka-edit ang ARIA sa na-post nga mga grado. Palihog hangyoa ang Registrar nga susihon ang hangyo sa pagtul-id sa grado.',
+        ilo: 'Saan a mabalbaliw wenno ma-edit ti ARIA dagiti naipaskil a grado. Dawaten iti Registrar a repasuenna ti kiddaw a panangurnos iti grado.',
+        hil: 'Indi mabag-o ukon ma-edit sang ARIA ang mga na-post nga grado. Palihog pangayua sa Registrar nga usisaon ang request para sa pagtul-id sang grado.',
+        war: 'Diri mahimo han ARIA nga bag-uhon o i-edit an mga na-post nga grado. Alayon pakihangyoa an Registrar nga usisahon an hangyo para ha pagtadong han grado.',
+      };
+      return gradeMutationResponses[language] || gradeMutationResponses.en;
+    }
+    if (action === 'grades' && /\b(appeal|policy|policies|rule|rules|guideline|deadline|passing grade|grade scale|probation)\b/.test(normalized)) {
+      const gradePolicyResponses: Record<string, string> = {
+        en: "I couldn't verify a grade-appeal time limit from approved school sources. Please confirm it with the Registrar.",
+        fil: 'Wala akong naverify na takdang panahon para sa grade appeal mula sa mga aprubadong sanggunian ng paaralan. Pakikumpirma ito sa Registrar.',
+        ceb: 'Wala koy napamatud-ang takdang panahon para sa grade appeal gikan sa giaprubahang tinubdan sa eskwelahan. Palihog kumpirmaha kini sa Registrar.',
+        ilo: 'Awan ti napasingkedak a tiempo para iti grade appeal manipud kadagiti naaprobaran a pagtaudan ti eskuela. Paki-verify daytoy iti Registrar.',
+        hil: 'Wala ako sang napamatud-an nga takdang panahon para sa grade appeal halin sa gin-aprubahan nga mga source sang eskwelahan. Palihog kumpirmaha ini sa Registrar.',
+        war: 'Waray ako mapamatud-i nga takna para ha grade appeal tikang ha gin-aprubaran nga mga source han eskwelahan. Alayon kumpirmaha ini ha Registrar.',
+      };
+      return gradePolicyResponses[language] || gradePolicyResponses.en;
+    }
+
+    const policyResponses: Record<string, string> = {
+      en: "I couldn't verify that school policy from approved sources. Please confirm it with the office responsible for the topic.",
+      fil: 'Hindi ko naverify ang patakarang iyon mula sa mga aprubadong sanggunian. Pakikumpirma ito sa responsableng tanggapan.',
+      ceb: 'Wala nako mapamatud-i kana nga polisiya gikan sa giaprubahang mga tinubdan. Palihog kumpirmaha kini sa responsableng opisina.',
+      ilo: 'Awan ko napasingkedan dayta a pagannurotan manipud kadagiti naaprobaran a pagtaudan. Paki-verify daytoy iti responsable nga opisina.',
+      hil: 'Wala ko napamatud-an ina nga polisiya halin sa gin-aprubahan nga mga source. Palihog kumpirmaha ini sa responsableng opisina.',
+      war: 'Waray ko mapamatud-i ito nga polisiya tikang ha gin-aprubaran nga mga source. Alayon kumpirmaha ini ha responsable nga opisina.',
+    };
+    if (this.isPolicyQuestion(normalized)) return policyResponses[language] || policyResponses.en;
+
+    const requestResponses: Record<string, string> = {
+      en: "I didn't access personal records because this question doesn't clearly ask about your own SISP record. If that's what you mean, please name the record you want to check.",
+      fil: 'Hindi ako nagbukas ng personal na rekord dahil hindi malinaw na tungkol ito sa sarili mong SISP record. Kung iyon ang ibig mong sabihin, tukuyin kung anong rekord ang gusto mong tingnan.',
+      ceb: 'Wala ko nag-access sa personal nga rekord kay dili klaro nga nangutana ka bahin sa imong kaugalingong SISP record. Kung mao kana, isulti kung unsang rekord ang imong gustong susihon.',
+      ilo: 'Saanak inakses dagiti personal a rekord ta saan a nalawag a maipapan daytoy iti bukodmo a SISP record. No dayta ti kayatmo, ibaga no ania a rekord ti kayatmo a kitaen.',
+      hil: 'Wala ako nag-access sang personal nga rekord kay indi klaro nga parte ini sang imo kaugalingon nga SISP record. Kon amo ina, isulti kon ano nga rekord ang gusto mo tan-awon.',
+      war: 'Waray ako mag-access hin personal nga rekord kay diri klaro nga mahitungod ini ha imo kalugaringon nga SISP record. Kon amo ito an imo karuyag, sumati ako kon ano nga rekord an imo karuyag usisahon.',
+    };
+    return requestResponses[language] || requestResponses.en;
   }
 }

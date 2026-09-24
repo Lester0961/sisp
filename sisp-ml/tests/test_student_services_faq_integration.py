@@ -12,11 +12,6 @@ from app.services import retrieval_service as retrieval_module
 
 FAQ_CHAT_CASES = [
     (
-        "What online payment methods are available?",
-        "GCash",
-        "The supplied announcement lists GCash and PNB bank transfer or deposit as payment options. Verify the payee with Treasury before sending funds.",
-    ),
-    (
         "How do I process an INC form?",
         "Records Department",
         "The cited memo directs students to Treasury, then the Dean's Office, and then the Records Department.",

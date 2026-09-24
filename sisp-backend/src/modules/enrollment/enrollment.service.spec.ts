@@ -8,7 +8,9 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
 
   const mockPrisma: any = {
     studentProfile: { findUnique: jest.fn() },
-    course: { findUnique: jest.fn() },
+    curriculum: { findUnique: jest.fn(), findFirst: jest.fn() },
+    curriculumCourse: { findFirst: jest.fn(), findMany: jest.fn() },
+    course: { findUnique: jest.fn(), findMany: jest.fn() },
     academicTerm: { findUnique: jest.fn(), findFirst: jest.fn() },
     accountBalance: { findUnique: jest.fn() },
     coursePrerequisite: { findMany: jest.fn() },
@@ -27,11 +29,13 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   beforeEach(() => {
     jest.resetAllMocks();
     mockPrisma.$transaction.mockImplementation(async (callback: any) => callback(mockPrisma));
+    mockPrisma.curriculum.findUnique.mockResolvedValue({ id: 'curriculum-1' });
+    mockPrisma.curriculumCourse.findFirst.mockResolvedValue({ courseId: 'course-1' });
     service = new EnrollmentService(mockPrisma as PrismaService, mockNotifications as any);
   });
 
   it('derives the student profile from the authenticated user id', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.enrollment.findMany.mockResolvedValue([]);
 
     await service.getMyEnrollments('user-1');
@@ -99,7 +103,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   });
 
   it('writes automatic enrollment history when a student enrolls', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.course.findUnique.mockResolvedValue(course);
     mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
     mockPrisma.accountBalance.findUnique.mockResolvedValue(null);
@@ -130,7 +134,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   });
 
   it('rejects a second enrollment for the same student/course/term', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.course.findUnique.mockResolvedValue(course);
     mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
     mockPrisma.accountBalance.findUnique.mockResolvedValue(null);
@@ -143,7 +147,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   });
 
   it('reports a dropped record as a Registrar reinstatement case', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.course.findUnique.mockResolvedValue(course);
     mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
     mockPrisma.accountBalance.findUnique.mockResolvedValue(null);
@@ -152,6 +156,45 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
     await expect(
       service.enroll('user-1', { courseId: 'course-1' } as any),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('never falls back to the entire course catalog when a student has no current term', async () => {
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({
+      id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1,
+    });
+    mockPrisma.academicTerm.findFirst.mockResolvedValue(null);
+
+    const result = await service.getAvailableCourses('user-1');
+
+    expect(result).toMatchObject({ data: [], total: 0, scoped: true });
+    expect(mockPrisma.course.findMany).not.toHaveBeenCalled();
+  });
+
+  it('lists only curriculum courses for the student year level and term', async () => {
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({
+      id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 2,
+    });
+    mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
+    mockPrisma.curriculumCourse.findMany.mockResolvedValue([]);
+
+    await service.getAvailableCourses('user-1');
+
+    expect(mockPrisma.curriculumCourse.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { curriculumId: 'curriculum-1', termNumber: 1, yearLevel: 2 },
+    }));
+  });
+
+  it('rejects enrollment for a course outside the assigned curriculum year and term', async () => {
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({
+      id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 2,
+    });
+    mockPrisma.course.findUnique.mockResolvedValue(course);
+    mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
+    mockPrisma.curriculumCourse.findFirst.mockResolvedValue(null);
+
+    await expect(service.enroll('user-1', { courseId: 'course-1' } as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(mockPrisma.accountBalance.findUnique).not.toHaveBeenCalled();
+    expect(mockPrisma.enrollment.create).not.toHaveBeenCalled();
   });
 
   it('records previous/new status and actor on staff status updates', async () => {
@@ -267,7 +310,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   });
 
   it('writes history when a student drops their own enrollment', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.enrollment.findUnique.mockResolvedValue({
       id: 'enrollment-1',
       studentId: 'student-1',
@@ -298,7 +341,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   });
 
   it('blocks enrollment when a structured prerequisite is not completed (P5-03)', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.course.findUnique.mockResolvedValue(course);
     mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
     mockPrisma.accountBalance.findUnique.mockResolvedValue(null);
@@ -315,7 +358,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   });
 
   it('allows enrollment once the resolved prerequisite is completed', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.course.findUnique.mockResolvedValue(course);
     mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
     mockPrisma.accountBalance.findUnique.mockResolvedValue(null);
@@ -348,7 +391,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   });
 
   it('inherits the section code and faculty owner from a scheduled section (P5-07/P5-08)', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.course.findUnique.mockResolvedValue(course);
     mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
     mockPrisma.classSection.findUnique.mockResolvedValue({
@@ -380,7 +423,7 @@ describe('EnrollmentService — ownership and automatic history (P2-04/P3-03)', 
   });
 
   it('rejects a section that belongs to a different course', async () => {
-    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockPrisma.studentProfile.findUnique.mockResolvedValue({ id: 'student-1', programId: 'program-1', curriculumId: 'curriculum-1', yearLevel: 1 });
     mockPrisma.course.findUnique.mockResolvedValue(course);
     mockPrisma.academicTerm.findFirst.mockResolvedValue(term);
     mockPrisma.classSection.findUnique.mockResolvedValue({

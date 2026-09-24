@@ -10,6 +10,7 @@ ACADEMIC_TERMS = {
     "pagsusulit", "permiso", "subject ko", "enrolment", "eskwela", "iskwela", "pag enroll", "pasulit",
     "grades", "enrollment_status", "document_request_status", "dean", "faculty", "teacher",
     "official", "officials", "advice", "advising", "advisory", "policy", "policies", "handbook",
+    "program", "programs", "programme", "programmes", "degree", "degrees",
     "school hours", "academic calendar", "requirements", "student services", "office", "publication",
     "guro", "titser", "tagapayo", "opisina", "patakaran", "payong", "payo",
     "eskuelaan", "eskwelahan", "pangutana", "pamangkot", "pakiana", "saludsod",
@@ -28,17 +29,36 @@ ACADEMIC_PHRASES = (
     "pila ang matrikula", "pila sang matrikula", "pila sa matrikula", "pira an matrikula", "mano ti matrikula",
 )
 
+DOCUMENT_FEE_TERMS = (
+    "good moral", "moral certificate", "2nd copy of grades", "second copy of grades",
+    "copy of grades", "certified true copy", "certificate of registration", "certificate of enrollment",
+    "transcript of records", "transcript", "document request", "document requests",
+    "request fees",
+    "cor", "tor", "coe",
+)
+DOCUMENT_FEE_CUES = (
+    "fee", "fees", "how much", "cost", "costs", "price", "prices", "total", "altogether", "combined amount", "magkano", "bayad", "presyo",
+    "tagpira", "tagpila", "pila", "mano",
+)
+
 # These cues are covered by the owner-supplied ARIA student-services FAQ.
 # Keep this list specific so arbitrary non-school payment, travel, or calendar
 # questions do not become in-scope by accident.
 STUDENT_SERVICE_PHRASES = (
+    "student record update", "student record updates", "student records update",
+    "updating student records", "portal and paper records", "paper records and portal",
+    "records office responsibilities", "records office services",
     "payment", "online payment", "payment method", "payment methods", "proof of payment",
     "payment option", "payment options", "payment process", "pay online",
     "bank transfer", "gcash", "pnb", "add/drop", "add drop", "adding a subject",
     "dropping a subject", "changing subjects", "subject change", "inc", "special exam",
-    "special examination", "orientation", "orientasyon", "oryentasyon", "oriyentasyon",
+    "special examination", "orientation", "orientations", "orientasyon", "oryentasyon", "oriyentasyon",
     "classes start", "class start", "grade release", "grades release", "school address",
     "school's address", "contact number", "general email", "academic department email",
+    "classes scheduled to start", "when do classes start", "when were classes scheduled",
+    "class start date", "school address in the memo", "address in the official memorandum",
+    "address in official memoranda", "address shown in the memorandum", "school location",
+    "address appears in the official", "address in the official 2026 school memoranda",
     "where to pay", "where do i pay", "where can i pay", "where should i pay",
     "how to pay", "how do i pay", "how can i pay", "how should i pay",
     "saan magbayad", "saan ako magbabayad", "saan ko babayaran", "paano magbayad",
@@ -66,6 +86,28 @@ CONTINUING_ENROLLMENT_PHRASES = (
     "continuing student", "continuing students", "continue my studies",
     "continuing studies", "magpatuloy", "magpapatuloy", "magpadayon",
     "magpapadayon", "magapadayon", "agtultuloy",
+    "returning after a break", "returning after time away", "return to school",
+    "mobalik human mohunong", "mobalik human mohunong sa pag eskwela",
+    "mobalik sa eskwela", "ag subli kalpasan", "agsubli kalpasan",
+    "nagabalik pagkatapos sang pag untat", "mabalik pagkatapos sang pag untat",
+    "mabalik katapos umundang", "mabalik ha eskwelahan",
+)
+
+SUBJECT_CHANGE_PHRASES = (
+    "add/drop", "add drop", "adding a subject", "dropping a subject",
+    "adding or changing subjects", "changing subjects", "subject change",
+    "change of subject", "change a subject", "add a subject", "drop a subject",
+    "add or drop", "add, drop", "add drop change", "schedule change",
+)
+
+POLICY_RECORD_COLLISION_PHRASES = (
+    "grade appeal", "grade appeals", "appeal deadline", "appeal policy",
+    "passing grade", "grading policy", "grade policy", "grade scale",
+    "academic probation", "current verified rule", "institutional rule",
+    "change a grade", "change my grade", "change grades", "update my grade",
+    "correct my grade", "edit my grade", "modify my grade", "change a grade in my record",
+    "paying the down-payment", "paying the down payment", "paying the downpayment",
+    "payment proves enrollment", "prove my enrollment status", "down-payment by itself",
 )
 
 OUT_OF_SCOPE_TERMS = {
@@ -79,7 +121,12 @@ PERSONAL_MARKERS = {
 }
 PERSONAL_ROUTES = {
     "grades": {"grades", "grado", "grade", "marka"},
-    "schedule": {"class schedule", "schedule", "oras ng klase", "iskedyul"},
+    "schedule": {
+        "class schedule", "schedule", "oras ng klase", "iskedyul", "my subjects", "my subject",
+        "my courses", "my classes", "subjects ko", "subject ko", "courses ko", "mga subject ko",
+        "mga kurso ko", "subjects nako", "akong mga subject", "akong kurso", "akong mga kurso",
+        "subject ko ha", "subjects ko ha", "mga subject ko ha", "class list ko",
+    },
     "balance": {
         "account balance", "balance", "bayranan", "matrikula", "tuition",
         "owe", "amount due", "outstanding amount", "how much do i owe",
@@ -112,6 +159,14 @@ class ScopeService:
         )
 
     @staticmethod
+    def is_subject_change_query(query: str) -> bool:
+        normalized = re.sub(r"\s+", " ", (query or "").casefold()).strip()
+        return any(
+            ScopeService._contains_phrase(normalized, phrase)
+            for phrase in SUBJECT_CHANGE_PHRASES
+        )
+
+    @staticmethod
     def route(query: str) -> dict:
         normalized = re.sub(r"\s+", " ", (query or "").casefold()).strip()
 
@@ -123,7 +178,11 @@ class ScopeService:
         ):
             return {"route": "policy", "action": None, "inScope": True}
 
-        is_personal = any(
+        asks_policy_about_personal_topic = any(
+            ScopeService._contains_phrase(normalized, phrase)
+            for phrase in POLICY_RECORD_COLLISION_PHRASES
+        )
+        is_personal = not asks_policy_about_personal_topic and any(
             ScopeService._contains_phrase(normalized, marker)
             for marker in PERSONAL_MARKERS
         )
@@ -132,8 +191,15 @@ class ScopeService:
                 if any(ScopeService._contains_phrase(normalized, term) for term in terms):
                     return {"route": "database", "action": action, "inScope": True}
 
-        if any(term in normalized for term in OUT_OF_SCOPE_TERMS):
+        if any(ScopeService._contains_phrase(normalized, term) for term in OUT_OF_SCOPE_TERMS):
             return {"route": "out_of_scope", "action": None, "inScope": False}
+
+        asks_document_fee = (
+            any(ScopeService._contains_phrase(normalized, cue) for cue in DOCUMENT_FEE_CUES)
+            and any(ScopeService._contains_phrase(normalized, term) for term in DOCUMENT_FEE_TERMS)
+        )
+        if asks_document_fee:
+            return {"route": "policy", "action": None, "inScope": True}
 
         has_document_code = any(
             re.search(rf"(?<!\w){code}(?!\w)", normalized)

@@ -51,6 +51,32 @@ export class EnrollmentService {
       throw new BadRequestException('Enrollment for this academic term is already closed.');
     }
 
+    const curriculum = profile.curriculumId
+      ? await this.prisma.curriculum.findUnique({
+          where: { id: profile.curriculumId },
+          select: { id: true },
+        })
+      : await this.prisma.curriculum.findFirst({
+          where: { programId: profile.programId },
+          orderBy: { effectiveYear: 'desc' },
+          select: { id: true },
+        });
+    if (!curriculum) {
+      throw new BadRequestException('Your program has no active curriculum on file. Please contact the Registrar before enrolling.');
+    }
+    const curriculumCourse = await this.prisma.curriculumCourse.findFirst({
+      where: {
+        curriculumId: curriculum.id,
+        courseId: dto.courseId,
+        yearLevel: profile.yearLevel,
+        termNumber: term.termNumber,
+      },
+      select: { courseId: true },
+    });
+    if (!curriculumCourse) {
+      throw new BadRequestException('This course is not listed for your year level and academic term in your assigned curriculum.');
+    }
+
     // Optional scheduled section (P5-07). A section must belong to the same
     // course and term and be active; the faculty owner is inherited from the
     // section (P5-08) instead of maintaining a separate assignment list.
@@ -636,6 +662,9 @@ export class EnrollmentService {
       const term = termId
         ? await this.prisma.academicTerm.findUnique({ where: { id: termId } })
         : await this.prisma.academicTerm.findFirst({ where: { isCurrent: true } });
+      if (!term) {
+        return { data: [], total: 0, term: null, scoped: true, reason: 'No academic term is configured.' };
+      }
       // Use the curriculum assigned to the student when present; fall back to
       // the newest effective curriculum for the program (P5-04).
       const curriculum = profile.curriculumId
@@ -648,9 +677,16 @@ export class EnrollmentService {
             orderBy: { effectiveYear: 'desc' },
             select: { id: true },
           });
+      if (!curriculum) {
+        return { data: [], total: 0, term: term.code, scoped: true, reason: 'No curriculum is assigned to this program.' };
+      }
       if (curriculum && term) {
         const links = await this.prisma.curriculumCourse.findMany({
-          where: { curriculumId: curriculum.id, termNumber: term.termNumber },
+          where: {
+            curriculumId: curriculum.id,
+            termNumber: term.termNumber,
+            yearLevel: profile.yearLevel,
+          },
           include: { course: { include: { prerequisites: { select: { requiresCode: true } } } } },
           orderBy: { course: { code: 'asc' } },
         });
@@ -662,6 +698,7 @@ export class EnrollmentService {
         }));
         return { data: courses, total: courses.length, term: term.code, scoped: true };
       }
+      return { data: [], total: 0, term: term.code, scoped: true };
     }
     const courses = await this.prisma.course.findMany({
       orderBy: { code: 'asc' },

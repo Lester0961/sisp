@@ -223,8 +223,8 @@ export default function AdminUsersPage() {
             </div>
           </div>
 
-          {/* Mobile: card records (NEXT 12) so actions never require horizontal scrolling */}
-          <div className="space-y-3 md:hidden">
+          {/* Compact account cards keep all row actions visible on phones and tablets. */}
+          <div className="space-y-3 xl:hidden">
             {isLoading ? (
               <p className="py-6 text-center text-xs font-medium text-slate-400">
                 Retrieving active user records...
@@ -329,7 +329,7 @@ export default function AdminUsersPage() {
             )}
           </div>
 
-          <div className="hidden overflow-x-auto md:block" role="region" aria-label="Account directory table" tabIndex={0}>
+          <div className="hidden overflow-x-auto xl:block" role="region" aria-label="Account directory table" tabIndex={0}>
             <Table className="min-w-[850px]">
               <TableHeader className="border-b border-[#e8f0f5]">
                 <TableRow className="hover:bg-transparent">
