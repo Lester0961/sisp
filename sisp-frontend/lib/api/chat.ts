@@ -46,6 +46,7 @@ export interface ChatQuota {
   usedToday: number;
   remainingToday: number;
   resetsAt: string;
+  isUnlimited: boolean;
 }
 
 export interface ChatLogDb {

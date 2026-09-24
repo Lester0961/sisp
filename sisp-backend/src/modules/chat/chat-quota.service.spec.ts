@@ -3,6 +3,7 @@ import { ChatQuotaService } from './chat-quota.service';
 
 describe('ChatQuotaService', () => {
   const originalLocalLimit = process.env.SISP_LOCAL_CHAT_DAILY_LIMIT;
+  const originalUnlimitedUserIds = process.env.SISP_CHAT_UNLIMITED_USER_IDS;
   let prisma: any;
   let service: ChatQuotaService;
   let usage: any;
@@ -20,6 +21,7 @@ describe('ChatQuotaService', () => {
 
   beforeEach(() => {
     process.env.SISP_LOCAL_CHAT_DAILY_LIMIT = '200';
+    delete process.env.SISP_CHAT_UNLIMITED_USER_IDS;
     usage = {
       id: 'usage-1',
       userId: 'student-1',
@@ -40,6 +42,8 @@ describe('ChatQuotaService', () => {
   afterAll(() => {
     if (originalLocalLimit === undefined) delete process.env.SISP_LOCAL_CHAT_DAILY_LIMIT;
     else process.env.SISP_LOCAL_CHAT_DAILY_LIMIT = originalLocalLimit;
+    if (originalUnlimitedUserIds === undefined) delete process.env.SISP_CHAT_UNLIMITED_USER_IDS;
+    else process.env.SISP_CHAT_UNLIMITED_USER_IDS = originalUnlimitedUserIds;
   });
 
   it('keeps the standard 20-message limit even if a local override is set', async () => {
@@ -78,6 +82,46 @@ describe('ChatQuotaService', () => {
       dailyLimit: 20,
       usedToday: 20,
       remainingToday: 0,
+    });
+  });
+
+  it('reports unlimited quota only for a configured account', async () => {
+    process.env.SISP_CHAT_UNLIMITED_USER_IDS = ' student-1 ';
+
+    await expect(service.status('student-1')).resolves.toEqual(expect.objectContaining({
+      isUnlimited: true,
+      dailyLimit: 20,
+      usedToday: 19,
+    }));
+    await expect(service.status('student-2')).resolves.toEqual(expect.objectContaining({
+      isUnlimited: false,
+      dailyLimit: 20,
+    }));
+  });
+
+  it('allows the configured account to continue past twenty messages', async () => {
+    process.env.SISP_CHAT_UNLIMITED_USER_IDS = 'student-1';
+    usage.count = 20;
+
+    await expect(service.consume('student-1')).resolves.toEqual(expect.objectContaining({
+      isUnlimited: true,
+      dailyLimit: 20,
+      usedToday: 21,
+      remainingToday: 0,
+    }));
+    expect(prisma.chatDailyUsage.update).toHaveBeenCalledWith({
+      where: { id: 'usage-1' },
+      data: { count: 21 },
+    });
+  });
+
+  it('keeps the cap for every account outside the configured allowlist', async () => {
+    process.env.SISP_CHAT_UNLIMITED_USER_IDS = 'student-1';
+    usage.userId = 'student-2';
+    usage.count = 20;
+
+    await expect(service.consume('student-2')).rejects.toMatchObject({
+      status: HttpStatus.TOO_MANY_REQUESTS,
     });
   });
 });

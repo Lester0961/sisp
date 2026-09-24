@@ -9,6 +9,7 @@ type QuotaStatus = {
   usedToday: number;
   remainingToday: number;
   resetsAt: string;
+  isUnlimited: boolean;
 };
 
 @Injectable()
@@ -17,6 +18,7 @@ export class ChatQuotaService {
 
   async consume(userId: string): Promise<QuotaStatus> {
     const window = this.manilaWindow();
+    const isUnlimited = this.isUnlimitedUser(userId);
     let usedToday: number;
 
     if (this.prisma.isOffline) {
@@ -24,7 +26,7 @@ export class ChatQuotaService {
       const current = records.find(
         (record: any) => this.dateKey(new Date(record.usageDate)) === window.dayKey,
       );
-      if ((current?.count ?? 0) >= DAILY_LIMIT) throw this.limitError(window.resetsAt);
+      if (!isUnlimited && (current?.count ?? 0) >= DAILY_LIMIT) throw this.limitError(window.resetsAt);
       if (current) {
         usedToday = current.count + 1;
         await (this.prisma as any).chatDailyUsage.update({
@@ -57,7 +59,11 @@ export class ChatQuotaService {
           throw error;
         }
         const updated = await this.prisma.chatDailyUsage.updateMany({
-          where: { userId, usageDate, count: { lt: DAILY_LIMIT } },
+          where: {
+            userId,
+            usageDate,
+            ...(isUnlimited ? {} : { count: { lt: DAILY_LIMIT } }),
+          },
           data: { count: { increment: 1 } },
         });
         if (updated.count === 0) throw this.limitError(window.resetsAt);
@@ -68,7 +74,7 @@ export class ChatQuotaService {
       }
     }
 
-    return this.toStatus(usedToday, window.resetsAt);
+    return this.toStatus(usedToday, window.resetsAt, isUnlimited);
   }
 
   async refund(userId: string): Promise<QuotaStatus> {
@@ -78,26 +84,26 @@ export class ChatQuotaService {
       const current = records.find(
         (record: any) => this.dateKey(new Date(record.usageDate)) === window.dayKey,
       );
-      if (!current) return this.toStatus(0, window.resetsAt);
+      if (!current) return this.toStatus(0, window.resetsAt, this.isUnlimitedUser(userId));
       const usedToday = Math.max(0, current.count - 1);
       await (this.prisma as any).chatDailyUsage.update({
         where: { id: current.id },
         data: { count: usedToday },
       });
-      return this.toStatus(usedToday, window.resetsAt);
+      return this.toStatus(usedToday, window.resetsAt, this.isUnlimitedUser(userId));
     }
 
     const usageDate = new Date(`${window.dayKey}T00:00:00.000Z`);
     const current = await this.prisma.chatDailyUsage.findUnique({
       where: { userId_usageDate: { userId, usageDate } },
     });
-    if (!current) return this.toStatus(0, window.resetsAt);
+    if (!current) return this.toStatus(0, window.resetsAt, this.isUnlimitedUser(userId));
     const usedToday = Math.max(0, current.count - 1);
     await this.prisma.chatDailyUsage.update({
       where: { id: current.id },
       data: { count: usedToday },
     });
-    return this.toStatus(usedToday, window.resetsAt);
+    return this.toStatus(usedToday, window.resetsAt, this.isUnlimitedUser(userId));
   }
 
   async status(userId: string): Promise<QuotaStatus> {
@@ -107,7 +113,7 @@ export class ChatQuotaService {
       const current = records.find(
         (record: any) => this.dateKey(new Date(record.usageDate)) === window.dayKey,
       );
-      return this.toStatus(Number(current?.count ?? 0), window.resetsAt);
+      return this.toStatus(Number(current?.count ?? 0), window.resetsAt, this.isUnlimitedUser(userId));
     }
 
     const record = await (this.prisma as any).chatDailyUsage.findFirst({
@@ -116,7 +122,7 @@ export class ChatQuotaService {
         usageDate: new Date(`${window.dayKey}T00:00:00.000Z`),
       },
     });
-    return this.toStatus(Number(record?.count ?? 0), window.resetsAt);
+    return this.toStatus(Number(record?.count ?? 0), window.resetsAt, this.isUnlimitedUser(userId));
   }
 
   private limitError(resetsAt: string): HttpException {
@@ -132,13 +138,22 @@ export class ChatQuotaService {
     );
   }
 
-  private toStatus(usedToday: number, resetsAt: string): QuotaStatus {
+  private toStatus(usedToday: number, resetsAt: string, isUnlimited = false): QuotaStatus {
     return {
       dailyLimit: DAILY_LIMIT,
       usedToday,
       remainingToday: Math.max(0, DAILY_LIMIT - usedToday),
       resetsAt,
+      isUnlimited,
     };
+  }
+
+  private isUnlimitedUser(userId: string): boolean {
+    const allowedUserIds = (process.env.SISP_CHAT_UNLIMITED_USER_IDS || '')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    return allowedUserIds.includes(userId.toLowerCase());
   }
 
   private manilaWindow(now = new Date()): { dayKey: string; resetsAt: string } {

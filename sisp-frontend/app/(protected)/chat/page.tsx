@@ -206,9 +206,9 @@ export default function ChatPage() {
               <>
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#dce7ef] bg-[#f7fbfd] px-5 py-2 text-xs text-[#587387]">
                   <span>ARIA messages today</span>
-                  <span className="font-semibold text-[#102f49]">{quota.remainingToday} of {quota.dailyLimit} remaining</span>
+                  <span className="font-semibold text-[#102f49]">{quota.isUnlimited ? 'Unlimited' : `${quota.remainingToday} of ${quota.dailyLimit} remaining`}</span>
                 </div>
-                {quota.remainingToday === 0 ? (
+                {quota.remainingToday === 0 && !quota.isUnlimited ? (
                   <p role="status" className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-xs text-amber-900">
                     Today&apos;s ARIA allowance has been used. The question box will be available again after the daily reset. You can still request human assistance from a reply.
                   </p>
@@ -225,9 +225,9 @@ export default function ChatPage() {
                   <div><h2 className="font-semibold text-[#102f49]">What can I help with?</h2><p className="mt-2 max-w-sm text-sm leading-relaxed text-[#587387]">ARIA explains approved school procedures and refers exceptional cases to a staff member.</p></div>
                   {!isLiveChatMode ? (
                     <div className="grid w-full max-w-xl gap-2 sm:grid-cols-3">
-                      <Button variant="outline" disabled={quota?.remainingToday === 0} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I request my Transcript of Records?')}><FileText className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Request records</Button>
-                      <Button variant="outline" disabled={quota?.remainingToday === 0} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('What is the late enrollment fee?')}><BookOpen className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Enrollment fees</Button>
-                      <Button variant="outline" disabled={quota?.remainingToday === 0} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I appeal a final grade?')}><AlertCircle className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Grade appeal</Button>
+                      <Button variant="outline" disabled={quota?.remainingToday === 0 && quota?.isUnlimited !== true} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I request my Transcript of Records?')}><FileText className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Request records</Button>
+                      <Button variant="outline" disabled={quota?.remainingToday === 0 && quota?.isUnlimited !== true} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('What is the late enrollment fee?')}><BookOpen className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Enrollment fees</Button>
+                      <Button variant="outline" disabled={quota?.remainingToday === 0 && quota?.isUnlimited !== true} className="h-auto justify-start whitespace-normal py-3 text-left" onClick={() => void sendMessage('How do I appeal a final grade?')}><AlertCircle className="size-4 shrink-0 text-[#0a439b]" strokeWidth={1.8} />Grade appeal</Button>
                     </div>
                   ) : null}
                 </div>
@@ -247,10 +247,10 @@ export default function ChatPage() {
                   placeholder={isLiveChatMode ? 'Write a message' : 'Ask ARIA a question'}
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
-                  disabled={isTyping || isLoadingHistory || (!isLiveChatMode && quota?.remainingToday === 0) || (isLiveChatMode && !activeSessionId)}
+                  disabled={isTyping || isLoadingHistory || (!isLiveChatMode && quota?.remainingToday === 0 && quota?.isUnlimited !== true) || (isLiveChatMode && !activeSessionId)}
                   className="h-11 min-w-0 flex-1 rounded-xl border border-[#cbdde9] bg-[#fbfdfe] px-4 text-sm text-[#102f49] placeholder:text-[#6c879a] focus:border-[#0a439b] focus:outline-none focus:ring-4 focus:ring-[#0a439b]/10"
                 />
-                <Button type="submit" size="icon" disabled={!input.trim() || isTyping || isLoadingHistory || (!isLiveChatMode && quota?.remainingToday === 0) || (isLiveChatMode && !activeSessionId)} aria-label="Send message"><Send className="size-4" strokeWidth={1.8} /></Button>
+                <Button type="submit" size="icon" disabled={!input.trim() || isTyping || isLoadingHistory || (!isLiveChatMode && quota?.remainingToday === 0 && quota?.isUnlimited !== true) || (isLiveChatMode && !activeSessionId)} aria-label="Send message"><Send className="size-4" strokeWidth={1.8} /></Button>
               </div>
             </form>
           </section>
@@ -268,9 +268,9 @@ export default function ChatPage() {
               <p className="mt-1 text-xs leading-relaxed text-[#587387]">ARIA detects code-switching and keeps the explanation natural for the selected language.</p>
             </section>
             <section className="portal-surface p-4">
-              <div className="flex items-center justify-between gap-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Daily allowance</p><span className="text-xs font-semibold text-[#102f49]">{quota ? `${quota.remainingToday}/${quota.dailyLimit}` : '—'}</span></div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e8f0f5]"><div className="h-full rounded-full bg-[#0a439b] transition-all" style={{ width: `${quota ? Math.min(100, (quota.remainingToday / quota.dailyLimit) * 100) : 0}%` }} /></div>
-              <p className="mt-2 text-xs leading-relaxed text-[#587387]">Up to {quota?.dailyLimit ?? 20} advisory messages are available each day. Human support is not counted as ARIA quota.</p>
+              <div className="flex items-center justify-between gap-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#587387]">Daily allowance</p><span className="text-xs font-semibold text-[#102f49]">{quota ? quota.isUnlimited ? 'No cap' : `${quota.remainingToday}/${quota.dailyLimit}` : '—'}</span></div>
+              {!quota?.isUnlimited ? <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e8f0f5]"><div className="h-full rounded-full bg-[#0a439b] transition-all" style={{ width: `${quota ? Math.min(100, (quota.remainingToday / quota.dailyLimit) * 100) : 0}%` }} /></div> : null}
+              <p className="mt-2 text-xs leading-relaxed text-[#587387]">{quota?.isUnlimited ? 'This account has no daily ARIA message limit. Provider usage safeguards remain active.' : `Up to ${quota?.dailyLimit ?? 20} advisory messages are available each day. Human support is not counted as ARIA quota.`}</p>
             </section>
             <section className="rounded-2xl border border-[#cfe6db] bg-[#edf9f1] p-4">
               <p className="text-sm font-semibold text-[#16794c]">Need a person?</p>

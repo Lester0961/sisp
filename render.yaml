@@ -34,6 +34,9 @@ services:
         sync: false
       - key: RATE_LIMIT_PROFILE
         value: production
+      # Comma-separated user IDs exempt from ARIA's daily message cap.
+      - key: SISP_CHAT_UNLIMITED_USER_IDS
+        sync: false
       - key: ML_SERVICE_URL
         sync: false # Set to the deployed sisp-ml service URL
       - key: ML_SECRET_TOKEN
