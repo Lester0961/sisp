@@ -94,7 +94,7 @@ services:
       - key: DEEPSEEK_MODEL
         value: deepseek-flash
       - key: DEEPSEEK_ENABLED
-        value: "false"
+        value: "true"
       - key: DEEPSEEK_USAGE_BACKEND
         value: postgres
       - key: DEEPSEEK_REQUEST_TIMEOUT_SECONDS
