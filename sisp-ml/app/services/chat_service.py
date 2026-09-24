@@ -868,7 +868,7 @@ class ChatService:
 
         target_questions = []
 
-        if has("school address", "address appears", "address shown", "address in the memorandum", "address in official memoranda"):
+        if has("school address", "school's address", "address appears", "address shown", "address in the memorandum", "address in official memoranda"):
             target_questions.append("what is the school's address")
         elif has("classes scheduled to start", "when do classes start", "when were classes", "class start date", "start date of classes"):
             target_questions.append("when were classes scheduled to start")

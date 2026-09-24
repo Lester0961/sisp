@@ -31,6 +31,20 @@ const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const rateLimitConfig = getRateLimitConfig();
 
+export function getRefreshCookieOptions(nodeEnv = process.env.NODE_ENV) {
+  const isProduction = (nodeEnv || '').trim().toLowerCase() === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    // The browser app and API are hosted on different sites (Vercel and
+    // Render). A Lax cookie is omitted from the credentialed cross-site
+    // refresh POST, so use the required Secure/None pair in production.
+    sameSite: isProduction ? ('none' as const) : ('lax' as const),
+    path: '/api/auth',
+    maxAge: REFRESH_COOKIE_MAX_AGE_MS,
+  };
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -38,14 +52,7 @@ export class AuthController {
   // The refresh credential lives in an HttpOnly cookie scoped to /api/auth.
   // It is never exposed to browser JavaScript.
   private cookieOptions() {
-    const isProduction = (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
-    return {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax' as const,
-      path: '/api/auth',
-      maxAge: REFRESH_COOKIE_MAX_AGE_MS,
-    };
+    return getRefreshCookieOptions();
   }
 
   private setRefreshCookie(res: Response, token: string) {

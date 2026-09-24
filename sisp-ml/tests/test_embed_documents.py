@@ -5,6 +5,7 @@ import types
 import numpy as np
 
 from app.ml import embed_documents
+from app.services.embedding_model import load_embedding_model
 
 
 class FakeEngine:
@@ -24,7 +25,7 @@ class FakeEngine:
     def execute(self, query, params=None):
         sql = str(query)
         self.calls.append((sql, params or {}))
-        if "SELECT id, filename, title, category, content" in sql:
+        if "SELECT document.id, document.filename, document.title, document.category, document.content" in sql:
             return type("Rows", (), {"mappings": lambda _self: _self, "all": lambda _self: self.documents})()
         if "SELECT title, category, content, is_active" in sql:
             row = [self.current_document] if self.current_document else []
@@ -105,11 +106,15 @@ def test_failed_document_embedding_persists_failed_index_status(monkeypatch):
 
     monkeypatch.setattr(embed_documents, "engine", database)
     monkeypatch.setattr(embed_documents, "check_db_connection", lambda: True)
+    load_embedding_model.cache_clear()
     monkeypatch.setitem(sys.modules, "sentence_transformers", types.SimpleNamespace(
         SentenceTransformer=lambda _name: FailedModel(),
     ))
 
-    result = embed_documents.embed_and_index()
+    try:
+        result = embed_documents.embed_and_index()
+    finally:
+        load_embedding_model.cache_clear()
 
     assert result == {"indexed": 0, "failed": 1, "skipped": 0}
     status_update = [call for call in database.calls if "SET index_status = 'failed'" in call[0]]

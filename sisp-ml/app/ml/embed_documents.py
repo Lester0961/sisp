@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 
 from app.config import get_settings
 from app.database import check_db_connection, engine
+from app.services.embedding_model import load_embedding_model
 
 settings = get_settings()
 
@@ -104,27 +105,29 @@ def embed_and_index() -> dict:
     if engine is None or not check_db_connection():
         raise RuntimeError("Durable database is unavailable; no local-only indexing success is reported.")
 
-    with engine.begin() as connection:
-        connection.execute(text("""
-            UPDATE knowledge_documents
-            SET index_status = 'pending', index_error = NULL, indexed_at = NULL
-            WHERE is_active = TRUE
-        """))
-
     with engine.connect() as connection:
         documents = [dict(row) for row in connection.execute(text("""
-            SELECT id, filename, title, category, content
-            FROM knowledge_documents
-            WHERE is_active = TRUE
-            ORDER BY filename ASC
-        """)).mappings().all()]
+            SELECT document.id, document.filename, document.title, document.category, document.content
+            FROM knowledge_documents AS document
+            WHERE document.is_active = TRUE
+              AND (
+                document.index_status IS DISTINCT FROM 'indexed'
+                OR NOT EXISTS (
+                    SELECT 1
+                    FROM knowledge_chunks AS chunk
+                    WHERE chunk.document_id = document.id
+                      AND chunk.embedding IS NOT NULL
+                      AND chunk.embedding_model = :embedding_model
+                )
+              )
+            ORDER BY document.filename ASC
+        """), {"embedding_model": settings.embedding_model}).mappings().all()]
 
     if not documents:
         return {"indexed": 0, "failed": 0}
 
     try:
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer(settings.embedding_model)
+        model = load_embedding_model(settings.embedding_model)
     except Exception as exc:
         message = "Embedding model could not be loaded; retry indexing after service recovery."
         for document in documents:

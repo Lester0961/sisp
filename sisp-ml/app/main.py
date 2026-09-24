@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import asyncio
 from app.config import get_settings
 from app.database import check_db_connection
 from app.routers import chat, classify, retrieve, feedback, admin, knowledge_base
@@ -20,6 +21,27 @@ async def lifespan(app: FastAPI):
         print("   [OK] Database connection: OK")
     else:
         print("   [WARNING] Database connection: FAILED (will retry on requests)")
+
+    # In production the migration-managed pgvector corpus is authoritative.
+    # Keep its approved file sources in sync with this release, then index only
+    # new/changed/missing documents with the same FastEmbed model used by chat.
+    # Local/mock mode intentionally continues using the checked-in fallback.
+    if settings.require_pgvector and db_ok:
+        try:
+            from app.ml.sync_approved_sources import sync_approved_sources
+            from app.ml.embed_documents import embed_and_index
+
+            source_count = await asyncio.to_thread(sync_approved_sources)
+            index_result = await asyncio.to_thread(embed_and_index)
+            print(
+                "   [KB] Approved source sync complete: "
+                f"{source_count} sources; {index_result.get('indexed', 0)} indexed, "
+                f"{index_result.get('failed', 0)} failed."
+            )
+        except Exception as exc:
+            # Preserve the service's existing degraded-startup behavior while
+            # making the source/index failure explicit in Render logs/health.
+            print(f"   [KB] Approved source sync/index failed ({type(exc).__name__}).")
 
     yield
 

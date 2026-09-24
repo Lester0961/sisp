@@ -9,6 +9,7 @@ from sqlalchemy import text
 from app.config import get_settings
 from app.database import engine, check_db_connection
 from app.approved_sources import APPROVED_STATIC_SOURCES
+from app.services.embedding_model import load_embedding_model
 
 settings = get_settings()
 
@@ -21,32 +22,6 @@ STUDENT_SERVICES_QUERY_CATEGORIES = frozenset({
     "document_requests",
     "examination_permit_policy",
 })
-
-class _FastEmbedAdapter:
-    """ONNX (fastembed) adapter exposing the SentenceTransformer encode API.
-
-    Render's small instances cannot carry PyTorch/CUDA wheels; fastembed serves
-    the same all-MiniLM-L6-v2 model (384 dimensions) through ONNX.
-    """
-
-    def __init__(self, model_name: str):
-        from fastembed import TextEmbedding
-
-        # Single-threaded ONNX keeps the free 512 MB instance inside memory.
-        self._model = TextEmbedding(model_name=model_name, threads=1)
-
-    def encode(self, texts, show_progress_bar: bool = False, normalize_embeddings: bool = False):
-        import numpy as np
-
-        single = isinstance(texts, str)
-        batch = [texts] if single else list(texts)
-        vectors = np.array(list(self._model.embed(batch)), dtype="float32")
-        if normalize_embeddings and vectors.size:
-            norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-            norms[norms == 0] = 1.0
-            vectors = vectors / norms
-        return vectors[0] if single else vectors
-
 
 class RetrievalService:
     def __init__(self):
@@ -72,20 +47,11 @@ class RetrievalService:
         self.model_load_attempted = True
 
         try:
-            from sentence_transformers import SentenceTransformer
-
             print(f"[RETRIEVAL] Loading embedding model: {settings.embedding_model}...")
-            self.model = SentenceTransformer(settings.embedding_model)
-        except Exception as first_error:
-            print(
-                f"[RETRIEVAL] sentence-transformers unavailable ({first_error}); "
-                "trying fastembed (ONNX)"
-            )
-            try:
-                self.model = _FastEmbedAdapter(settings.embedding_model)
-            except Exception as second_error:
-                print(f"[RETRIEVAL] [ERROR] Failed to load embedding model: {second_error}")
-                return
+            self.model = load_embedding_model(settings.embedding_model)
+        except Exception as error:
+            print(f"[RETRIEVAL] [ERROR] Failed to load embedding model: {error}")
+            return
 
         try:
             self._embed_text_documents()
@@ -185,7 +151,12 @@ class RetrievalService:
 
     def is_ready(self) -> bool:
         if settings.require_pgvector:
-            return self.model is not None and self.pgvector_index_ready()
+            # The dense model is loaded lazily on the first query. A model that
+            # has not yet been loaded is not a retrieval outage; a failed load
+            # is. The durable source index itself must be complete.
+            return self.pgvector_index_ready() and (
+                self.model is not None or not self.model_load_attempted
+            )
         return bool(self.local_index or self.text_documents) or (self.model is not None and check_db_connection())
 
     @staticmethod
@@ -195,14 +166,25 @@ class RetrievalService:
         try:
             with engine.connect() as conn:
                 row = conn.execute(text("""
-                    SELECT 1
-                    FROM knowledge_chunks AS chunk
-                    JOIN knowledge_documents AS document ON document.id = chunk.document_id
-                    WHERE document.is_active = TRUE AND chunk.embedding IS NOT NULL
-                      AND chunk.embedding_model = :embedding_model
-                    LIMIT 1
-                """), {"embedding_model": settings.embedding_model}).first()
-            return row is not None
+                    SELECT EXISTS (
+                        SELECT 1 FROM knowledge_documents WHERE is_active = TRUE
+                    ) AND NOT EXISTS (
+                        SELECT 1
+                        FROM knowledge_documents AS document
+                        WHERE document.is_active = TRUE
+                          AND (
+                            document.index_status IS DISTINCT FROM 'indexed'
+                            OR NOT EXISTS (
+                                SELECT 1
+                                FROM knowledge_chunks AS chunk
+                                WHERE chunk.document_id = document.id
+                                  AND chunk.embedding IS NOT NULL
+                                  AND chunk.embedding_model = :embedding_model
+                            )
+                          )
+                    )
+                """), {"embedding_model": settings.embedding_model}).scalar_one()
+            return bool(row)
         except Exception as exc:
             print(f"[RETRIEVAL] pgvector index health check failed: {exc}")
             return False
@@ -502,6 +484,7 @@ class RetrievalService:
             "how to pay", "how do i pay", "how can i pay", "how should i pay",
             "pay online", "payment method", "payment methods", "payment option",
             "payment options", "online payment", "payment process", "proof of payment",
+            "proof of online payment", "who should receive proof", "send proof",
             "bank transfer", "gcash", "pnb", "deposit", "saan magbayad",
             "saan ako magbabayad", "saan ko babayaran", "paano magbayad",
             "paano ako magbayad", "magbayad", "magbabayad", "asa mobayad",
@@ -516,6 +499,16 @@ class RetrievalService:
                 "online payment methods GCash bank transfer deposit through PNB proof of payment "
                 "Treasury Office; bank transfer may be used when payment exceeds GCash limit"
             )
+        if has_phrase(("proof of online payment", "who should receive proof", "send proof")):
+            expansions.append(
+                "who is identified for proof-of-payment submission proof of payment recipient "
+                "Treasury Office send official receipt"
+            )
+        if has_phrase((
+            "school address", "school's address", "college address", "campus address",
+            "where is the school",
+        )):
+            expansions.append("office contact information official school address in memoranda")
         if any(term in normalized for term in ("late enrollment", "late enrol", "nahuli", "huli na")):
             expansions.append("late enrollment Registrar approval subjects already underway")
         if re.search(r"(?<!\w)inc(?!\w)|incomplete", normalized):
@@ -527,8 +520,14 @@ class RetrievalService:
             expansions.append(
                 "Academic Department Announcement 4th Year orientation 2nd and 3rd Year student schedule"
             )
-        if any(term in normalized for term in ("add/drop", "add and drop", "adding", "dropping", "dagdag", "bawas")):
-            expansions.append("adding or dropping units Admissions then Treasury")
+        if any(term in normalized for term in (
+            "add/drop", "add and drop", "add or drop", "adding", "dropping",
+            "dagdag", "bawas",
+        )):
+            expansions.append(
+                "procedure for adding dropping or changing subjects course approval "
+                "Registrar Office form new class schedule"
+            )
         if any(term in normalized for term in ("subject", "subjects", "kurso", "asignatura", "aralin")):
             expansions.append("course courses curriculum program")
         if "bscs" in normalized or "computer science" in normalized:

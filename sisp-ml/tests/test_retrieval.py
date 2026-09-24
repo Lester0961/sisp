@@ -4,6 +4,7 @@ import re
 from contextlib import contextmanager
 
 import numpy as np
+import pytest
 
 # Add parent directory to path so app module can be found
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -11,6 +12,16 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app.services import retrieval_service as service_module
 from app.services.retrieval_service import retrieval_service
 from app.approved_sources import APPROVED_STATIC_SOURCES
+
+
+@pytest.fixture(autouse=True)
+def use_deterministic_local_retrieval(monkeypatch):
+    # These tests assert corpus selection/ranking behavior, not model-download
+    # availability. Exercise the built-in sparse fallback without attempting
+    # to fetch FastEmbed assets during a test run.
+    monkeypatch.setattr(retrieval_service, "model", None)
+    monkeypatch.setattr(retrieval_service, "model_load_attempted", True)
+    monkeypatch.setattr(service_module.settings, "require_pgvector", False)
 
 
 def test_retrieval_service_is_ready():

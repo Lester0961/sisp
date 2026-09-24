@@ -7,12 +7,23 @@ describe('ChatQuotaService', () => {
   let service: ChatQuotaService;
   let usage: any;
 
+  const manilaUsageDate = () => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+    const value = (type: string) => parts.find((part) => part.type === type)?.value;
+    return new Date(`${value('year')}-${value('month')}-${value('day')}T00:00:00.000Z`);
+  };
+
   beforeEach(() => {
     process.env.SISP_LOCAL_CHAT_DAILY_LIMIT = '200';
     usage = {
       id: 'usage-1',
       userId: 'student-1',
-      usageDate: new Date(),
+      usageDate: manilaUsageDate(),
       count: 19,
     };
     prisma = {
@@ -54,17 +65,19 @@ describe('ChatQuotaService', () => {
   it('rejects additional messages after the twentieth message', async () => {
     usage.count = 20;
 
+    let error: unknown;
     try {
       await service.consume('student-1');
-      fail('Expected the quota limit to reject another message.');
-    } catch (error) {
-      expect(error).toBeInstanceOf(HttpException);
-      expect((error as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
-      expect((error as HttpException).getResponse()).toMatchObject({
-        dailyLimit: 20,
-        usedToday: 20,
-        remainingToday: 0,
-      });
+    } catch (caught) {
+      error = caught;
     }
+
+    expect(error).toBeInstanceOf(HttpException);
+    expect((error as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    expect((error as HttpException).getResponse()).toMatchObject({
+      dailyLimit: 20,
+      usedToday: 20,
+      remainingToday: 0,
+    });
   });
 });
