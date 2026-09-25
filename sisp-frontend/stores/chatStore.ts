@@ -196,25 +196,30 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         preferredLanguage: get().preferredLanguage === 'auto' ? undefined : get().preferredLanguage,
       });
 
+      const serverTimestamp = res.createdAt ? new Date(res.createdAt) : null;
       set((state) => ({
-        messages: state.messages.map((m) =>
-          m.id === assistantMsgId
-            ? {
-                ...m,
-                content: res.response,
-                timestamp: res.createdAt ? new Date(res.createdAt) : m.timestamp,
-                intent: res.intent,
-                confidence: res.confidence,
-                sources: res.sources,
-                escalated: res.escalated,
-                sessionId: res.sessionId,
-                chatLogId: res.chatId,
-                language: res.language,
-                quota: res.quota,
-                isLoading: false,
-              }
-            : m
-        ),
+        messages: state.messages.map((m) => {
+          if (m.id === userMsgId && serverTimestamp) {
+            return { ...m, timestamp: serverTimestamp };
+          }
+          if (m.id === assistantMsgId) {
+            return {
+              ...m,
+              content: res.response,
+              timestamp: serverTimestamp || m.timestamp,
+              intent: res.intent,
+              confidence: res.confidence,
+              sources: res.sources,
+              escalated: res.escalated,
+              sessionId: res.sessionId,
+              chatLogId: res.chatId,
+              language: res.language,
+              quota: res.quota,
+              isLoading: false,
+            };
+          }
+          return m;
+        }),
         isTyping: false,
         isLiveChatMode: false,
         activeSessionId: res.sessionId || null,

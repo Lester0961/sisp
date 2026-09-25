@@ -81,6 +81,7 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     delete (global as any).fetch;
     // Remove queued one-shot mock results when a case exits before that path
     // is reached, so later escalation tests always use the intended profile.
@@ -102,12 +103,13 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
       }),
     );
 
-    await service.sendMessage('user-1', { message: 'hi' } as any);
+    const result = await service.sendMessage('user-1', { message: 'hi' } as any);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('http://ml.test/chat');
     expect(init.headers['X-ML-Secret']).toBe('test-secret');
+    expect(init.headers['X-Request-ID']).toMatch(/^[0-9a-f-]{36}$/i);
     const body = JSON.parse(init.body);
     expect(body.student_id).toBeUndefined();
     expect(mockPrisma.chatLog.create).toHaveBeenCalledWith({
@@ -117,8 +119,10 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
         response: 'ok',
         intent: 'enrollment_inquiry',
         confidence: 0.9,
+        createdAt: expect.any(Date),
       }),
     });
+    expect(result.createdAt).toEqual(mockPrisma.chatLog.create.mock.calls[0][0].data.createdAt);
   });
 
   it('keeps policy chat working when the user has no profile', async () => {
@@ -213,6 +217,35 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.escalated).toBe(false);
   });
 
+  it('backs off across multiple gateway failures and recovers within the bounded window', async () => {
+    jest.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 502, headers: { get: () => null } })
+      .mockResolvedValueOnce({ ok: false, status: 503, headers: { get: () => null } })
+      .mockImplementationOnce(() =>
+        mlOk({
+          response: 'The curriculum source has the answer.',
+          intent: 'curriculum_inquiry',
+          confidence: 1,
+          escalate: false,
+          sources: [{ source: 'curriculum_BSCS_2024.txt' }],
+          route: 'policy',
+          language: { code: 'en' },
+          parts: [],
+        }),
+      );
+
+    const pending = service.sendMessage('user-1', {
+      message: 'What subjects are in the BSCS curriculum?',
+    } as any);
+    await jest.runAllTimersAsync();
+    const result = await pending;
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result.response).toContain('curriculum source');
+    expect(result.escalated).toBe(false);
+  });
+
   it('retries one transient ML transport failure before creating a handoff', async () => {
     fetchMock
       .mockRejectedValueOnce(new TypeError('fetch failed'))
@@ -238,14 +271,17 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
   });
 
   it('uses a truthful localized handoff when the ML service remains unavailable', async () => {
+    jest.useFakeTimers();
     fetchMock.mockResolvedValue({ ok: false, status: 429, headers: { get: () => null } });
 
-    const res = await service.sendMessage('user-1', {
+    const pending = service.sendMessage('user-1', {
       message: 'Paano mag-enroll?',
       preferredLanguage: 'fil',
     } as any);
+    await jest.runAllTimersAsync();
+    const res = await pending;
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(res.response).toContain('Hindi ko ma-access ngayon');
     expect(res.response).not.toContain('scheduled system updates');
     expect(res.escalated).toBe(true);

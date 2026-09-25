@@ -6,6 +6,30 @@ import { ChatSessionService } from './chat-session.service';
 import { ChatQuotaService } from './chat-quota.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { randomUUID } from 'node:crypto';
+
+const ML_TIMEOUT_MS = 60000;
+const ML_MAX_ATTEMPTS = 7;
+const ML_RETRY_BASE_DELAY_MS = 1000;
+const ML_RETRY_MAX_DELAY_MS = 20000;
+const ML_TRANSIENT_STATUSES = new Set([429, 502, 503, 504]);
+
+function getMlRetryDelayMs(retryNumber: number, retryAfter: string | null): number {
+  const exponentialDelay = Math.min(
+    ML_RETRY_BASE_DELAY_MS * 2 ** retryNumber,
+    ML_RETRY_MAX_DELAY_MS,
+  );
+  if (!retryAfter) return exponentialDelay;
+
+  const retryAfterSeconds = Number(retryAfter);
+  const retryAfterDate = Date.parse(retryAfter);
+  const retryAfterDelay = Number.isFinite(retryAfterSeconds)
+    ? Math.max(0, retryAfterSeconds * 1000)
+    : Number.isFinite(retryAfterDate)
+      ? Math.max(0, retryAfterDate - Date.now())
+      : 0;
+  return Math.max(exponentialDelay, retryAfterDelay);
+}
 
 @Injectable()
 export class ChatbotService {
@@ -27,29 +51,30 @@ export class ChatbotService {
   }
 
   async sendMessage(userId: string, sendMessageDto: SendMessageDto) {
+    const requestReceivedAt = new Date();
+    const requestId = randomUUID();
     const { message, history, preferredLanguage } = sendMessageDto;
     let quota = await this.chatQuotaService.consume(userId);
     let mlResponse: any;
-    // Keep the synchronous proxy comfortably below Render's request window.
-    // A sleeping/unavailable ML service should become a persisted live-agent
-    // handoff, not an abandoned HTTP request.
-    // The hosted ARIA service may need several seconds for provider routing
-    // and semantic retrieval, especially on a free-tier instance. Keep the
-    // request bounded while allowing the normal policy path to complete.
     // Render's free ML instance can take close to a minute to wake from idle.
-    // Keep the request bounded, but do not convert a normal cold start into a
-    // false live-agent escalation.
-    const ML_TIMEOUT_MS = 60000;
-    const transientStatuses = new Set([429, 502, 503, 504]);
+    // Retry transient gateway responses within one bounded request window.
+    const deadline = Date.now() + ML_TIMEOUT_MS;
+    const waitBeforeRetry = async (delayMs: number, attempt: number) => {
+      if (Date.now() + delayMs + 1000 >= deadline) return false;
+      this.logger.warn(
+        `[${requestId}] Retrying ML request (${attempt + 1}/${ML_MAX_ATTEMPTS - 1}) in ${delayMs}ms.`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return true;
+    };
 
     try {
       if (!this.mlSecret) {
         throw new Error('ML_SECRET_TOKEN is not configured');
       }
-      this.logger.log(`Forwarding query to ML service: ${this.mlServiceUrl}/chat`);
-      const deadline = Date.now() + ML_TIMEOUT_MS;
+      this.logger.log(`[${requestId}] Forwarding ARIA query to ML service: ${this.mlServiceUrl}/chat`);
       let response: Response | undefined;
-      for (let attempt = 0; attempt < 2; attempt += 1) {
+      for (let attempt = 0; attempt < ML_MAX_ATTEMPTS; attempt += 1) {
         const remainingMs = deadline - Date.now();
         if (remainingMs <= 0) throw new Error('ML Service request timed out');
 
@@ -60,6 +85,7 @@ export class ChatbotService {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'X-Request-ID': requestId,
               // Internal service authentication. Student identity and private
               // records remain inside Nest; the ML service receives only the
               // question and approved institutional knowledge.
@@ -73,48 +99,44 @@ export class ChatbotService {
             signal: controller.signal,
           });
         } catch (fetchError: any) {
-          // A short local connection reset can reject fetch before Nest gets an
-          // HTTP response. Retry that transport failure once, within the same
-          // overall deadline, just like a transient gateway response.
-          const retryDelayMs = 300;
+          // A connection reset can reject fetch before Nest gets an HTTP
+          // response. Retry it with the same bounded backoff as gateway errors.
           if (
-            attempt === 1 ||
+            attempt === ML_MAX_ATTEMPTS - 1 ||
             fetchError?.name === 'AbortError' ||
-            deadline - Date.now() <= retryDelayMs
+            deadline - Date.now() <= 1000
           ) {
             throw fetchError;
           }
-          this.logger.warn('ML transport request failed; retrying once.');
-          await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+          const delayMs = getMlRetryDelayMs(attempt, null);
+          if (!(await waitBeforeRetry(delayMs, attempt))) throw fetchError;
           continue;
         } finally {
           clearTimeout(timeout);
         }
 
         if (response.ok) break;
-        if (!transientStatuses.has(response.status) || attempt === 1) {
+        if (!ML_TRANSIENT_STATUSES.has(response.status) || attempt === ML_MAX_ATTEMPTS - 1) {
           throw new Error(`ML Service returned status ${response.status}`);
         }
 
-        // A single retry helps with short Render gateway/rate-limit blips
-        // without extending the request's overall 60-second budget.
-        const retryAfter = response.headers?.get('retry-after');
-        const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN;
-        const retryDelayMs = Number.isFinite(retryAfterSeconds)
-          ? Math.min(Math.max(retryAfterSeconds * 1000, 250), 3000)
-          : 300;
-        if (deadline - Date.now() <= retryDelayMs) {
+        const retryDelayMs = getMlRetryDelayMs(
+          attempt,
+          response.headers?.get('retry-after') || null,
+        );
+        if (!(await waitBeforeRetry(retryDelayMs, attempt))) {
           throw new Error(`ML Service returned status ${response.status}`);
         }
-        this.logger.warn(`ML service returned transient status ${response.status}; retrying once.`);
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
       }
 
       if (!response?.ok) throw new Error('ML Service did not return a successful response');
       mlResponse = await response.json();
+      this.logger.log(
+        `[${requestId}] ML response received: route=${mlResponse.route || 'unknown'}, intent=${mlResponse.intent || 'unknown'}.`,
+      );
     } catch (error: any) {
       const reason = error?.name === 'AbortError' ? 'timed out' : error?.message || 'unavailable';
-      this.logger.error(`ARIA answer service unavailable: ${reason}. Creating an advisor handoff.`);
+      this.logger.error(`[${requestId}] ARIA answer service unavailable: ${reason}. Creating an advisor handoff.`);
       const unavailableMessages: Record<string, string> = {
         en: 'I can’t reach ARIA’s verified answer service right now, so I can’t give you a reliable answer yet. I’ve referred your question to an academic adviser for follow-up.',
         fil: 'Hindi ko ma-access ngayon ang verified answer service ng ARIA, kaya hindi ako makapagbibigay ng tiyak na sagot. Naipasa ko na ang tanong mo sa academic adviser para matulungan ka.',
@@ -265,6 +287,7 @@ export class ChatbotService {
         response: mlResponse.response,
         intent: mlResponse.intent,
         confidence: mlResponse.confidence,
+        createdAt: requestReceivedAt,
       },
     });
 
