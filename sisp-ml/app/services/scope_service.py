@@ -31,7 +31,8 @@ ACADEMIC_PHRASES = (
 
 DOCUMENT_FEE_TERMS = (
     "good moral", "moral certificate", "2nd copy of grades", "second copy of grades",
-    "copy of grades", "certified true copy", "certificate of registration", "certificate of enrollment",
+    "2nd copy", "second copy", "grades copy", "copy of grades", "certified true copy",
+    "certificate of registration", "certificate of enrollment",
     "transcript of records", "transcript", "document request", "document requests",
     "request fees",
     "cor", "tor", "coe",
@@ -182,6 +183,18 @@ class ScopeService:
             ScopeService._contains_phrase(normalized, phrase)
             for phrase in POLICY_RECORD_COLLISION_PHRASES
         )
+
+        # Explicit document-fee questions must win over a personal-record cue.
+        # Phrases such as "the fee for a certified true copy of my grades"
+        # mention "my grades", but ask about the public fee schedule, not the
+        # student's private grade record.
+        asks_document_fee = (
+            any(ScopeService._contains_phrase(normalized, cue) for cue in DOCUMENT_FEE_CUES)
+            and any(ScopeService._contains_phrase(normalized, term) for term in DOCUMENT_FEE_TERMS)
+        )
+        if asks_document_fee:
+            return {"route": "policy", "action": None, "inScope": True}
+
         is_personal = not asks_policy_about_personal_topic and any(
             ScopeService._contains_phrase(normalized, marker)
             for marker in PERSONAL_MARKERS
@@ -193,13 +206,6 @@ class ScopeService:
 
         if any(ScopeService._contains_phrase(normalized, term) for term in OUT_OF_SCOPE_TERMS):
             return {"route": "out_of_scope", "action": None, "inScope": False}
-
-        asks_document_fee = (
-            any(ScopeService._contains_phrase(normalized, cue) for cue in DOCUMENT_FEE_CUES)
-            and any(ScopeService._contains_phrase(normalized, term) for term in DOCUMENT_FEE_TERMS)
-        )
-        if asks_document_fee:
-            return {"route": "policy", "action": None, "inScope": True}
 
         has_document_code = any(
             re.search(rf"(?<!\w){code}(?!\w)", normalized)

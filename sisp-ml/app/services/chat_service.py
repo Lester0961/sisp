@@ -214,6 +214,19 @@ class ChatService:
             name for name, terms, _ in fee_options
             if any(contains_term(term) for term in terms)
         ]
+        explicit_second_copy = any(contains_term(term) for term in (
+            "2nd copy", "second copy", "2nd grades copy", "second grades copy",
+            "grades copy", "ikalawang kopya ng grado",
+            "ikaduha nga kopya sa grado", "maikadua a kopya ti grado",
+            "ikaduha nga kopya sang grado", "ikaduha nga kopya han grado",
+        ))
+        # "Certified true copy of grades" also contains the generic phrase
+        # "copy of grades". Keep the specific CTC match and include the
+        # second-copy fee only when the user explicitly asks for a second copy.
+        if "certified true copy - copy of grades" in matched_names and not explicit_second_copy:
+            matched_names = [
+                name for name in matched_names if name != "2nd copy of grades"
+            ]
         matched = matched_names[0] if matched_names else None
         tuition_cues = ("tuition", "matrikula", "matriculation")
         asks_about_tuition = any(contains_term(term) for term in tuition_cues)

@@ -1,4 +1,4 @@
-from logging import getLogger
+from logging import INFO, getLogger
 from time import monotonic
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -14,6 +14,7 @@ from app.services.retrieval_service import retrieval_service
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 logger = getLogger("aria.chat")
+logger.setLevel(INFO)
 
 
 class ChatMessage(BaseModel):

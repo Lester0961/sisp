@@ -57,6 +57,12 @@ def test_language_and_scope_routing():
     assert scope_service.route(
         "How much does a Certificate of Good Moral cost?"
     )["route"] == "policy"
+    assert scope_service.route(
+        "What is the fee for a certified true copy of my grades?"
+    )["route"] == "policy"
+    assert scope_service.route(
+        "How much is the second copy of my grades?"
+    )["route"] == "policy"
     assert scope_service.route("Tagpila ang transcript of records kada pahina?")["route"] == "policy"
 
 
@@ -101,6 +107,23 @@ def test_approved_document_fee_answer_is_specific_and_source_cited():
     grades = asyncio.run(chat_service.process_query("How much is the 2nd copy of grades?"))
     assert "PHP 150 per copy" in grades["response"]
     assert "PHP 300 per copy" not in grades["response"]
+
+    certified_copy = asyncio.run(
+        chat_service.process_query("What is the fee for a certified true copy of my grades?")
+    )
+    assert certified_copy["intent"] == "document_request"
+    assert certified_copy["route"] == "policy"
+    assert "Certified true copy - copy of grades: PHP 300 per copy" in certified_copy["response"]
+    assert "2nd copy of grades" not in certified_copy["response"]
+    assert "PHP 150" not in certified_copy["response"]
+    assert certified_copy["sources"][0]["source"] == "document_fees_user_approved.txt"
+
+    personal_second_copy = asyncio.run(
+        chat_service.process_query("How much is the second copy of my grades?")
+    )
+    assert personal_second_copy["intent"] == "document_request"
+    assert "2nd copy of grades: PHP 150 per copy" in personal_second_copy["response"]
+    assert "Certified true copy" not in personal_second_copy["response"]
 
     tagpila_tor = asyncio.run(
         chat_service.process_query("Tagpila ang transcript of records kada pahina?")
