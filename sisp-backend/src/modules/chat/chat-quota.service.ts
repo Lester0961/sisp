@@ -1,5 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 
 const DAILY_LIMIT = 20;
@@ -44,34 +45,23 @@ export class ChatQuotaService {
         });
       }
     } else {
-      // Type-safe (TEXT or uuid id columns) quota increment via Prisma.
+      // This table uses TEXT IDs in the active schema. Upsert atomically so a
+      // normal repeat request (or concurrent first requests) does not produce
+      // an expected unique-constraint error in Postgres logs.
       const usageDate = new Date(`${window.dayKey}T00:00:00.000Z`);
-      try {
-        await this.prisma.chatDailyUsage.create({
-          data: { userId, usageDate, count: 1 },
-        });
-        usedToday = 1;
-      } catch (error) {
-        if (
-          !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-          error.code !== 'P2002'
-        ) {
-          throw error;
-        }
-        const updated = await this.prisma.chatDailyUsage.updateMany({
-          where: {
-            userId,
-            usageDate,
-            ...(isUnlimited ? {} : { count: { lt: DAILY_LIMIT } }),
-          },
-          data: { count: { increment: 1 } },
-        });
-        if (updated.count === 0) throw this.limitError(window.resetsAt);
-        const current = await this.prisma.chatDailyUsage.findUnique({
-          where: { userId_usageDate: { userId, usageDate } },
-        });
-        usedToday = Number(current?.count ?? DAILY_LIMIT);
-      }
+      const rows = await this.prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        INSERT INTO "chat_daily_usage"
+          ("id", "user_id", "usage_date", "count", "created_at", "updated_at")
+        VALUES
+          (${randomUUID()}, ${userId}, ${usageDate}, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT ("user_id", "usage_date") DO UPDATE SET
+          "count" = "chat_daily_usage"."count" + 1,
+          "updated_at" = CURRENT_TIMESTAMP
+        WHERE ${isUnlimited} OR "chat_daily_usage"."count" < ${DAILY_LIMIT}
+        RETURNING "count"
+      `);
+      if (rows.length === 0) throw this.limitError(window.resetsAt);
+      usedToday = Number(rows[0].count);
     }
 
     return this.toStatus(usedToday, window.resetsAt, isUnlimited);

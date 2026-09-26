@@ -217,6 +217,57 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.escalated).toBe(false);
   });
 
+  it('waits for ML readiness after a cold-start 429 and retries the same idempotent request', async () => {
+    jest.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 429, headers: { get: () => null } })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        json: () => Promise.resolve({
+          status: 'degraded',
+          llm_ready: false,
+          retrieval_ready: true,
+          database_connected: true,
+          approved_database_sources_ready: true,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: { get: () => null },
+        json: () => Promise.resolve({
+          status: 'ready',
+          llm_ready: true,
+          retrieval_ready: true,
+          database_connected: true,
+          approved_database_sources_ready: true,
+        }),
+      })
+      .mockImplementationOnce(() =>
+        mlOk({
+          response: 'ARIA is ready with verified sources.',
+          intent: 'general_inquiry',
+          confidence: 0.9,
+          escalate: false,
+          sources: [],
+          route: 'policy',
+          language: { code: 'en' },
+          parts: [],
+        }),
+      );
+
+    const pending = service.sendMessage('user-1', { message: 'How much is a TOR?' } as any);
+    await jest.runAllTimersAsync();
+    const result = await pending;
+
+    const postCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST');
+    const readinessCalls = fetchMock.mock.calls.filter(([url]) => url.endsWith('/chat/health'));
+    expect(result.response).toBe('ARIA is ready with verified sources.');
+    expect(postCalls).toHaveLength(2);
+    expect(readinessCalls).toHaveLength(2);
+    expect(postCalls[0][1].headers['X-Request-ID']).toBe(postCalls[1][1].headers['X-Request-ID']);
+  });
+
   it('does not replay an ML failure marked unsafe after processing began', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
@@ -295,7 +346,10 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     await jest.runAllTimersAsync();
     const res = await pending;
 
-    expect(fetchMock).toHaveBeenCalledTimes(7);
+    const postCalls = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST');
+    const readinessCalls = fetchMock.mock.calls.filter(([url]) => url.endsWith('/chat/health'));
+    expect(postCalls).toHaveLength(1);
+    expect(readinessCalls.length).toBeGreaterThan(1);
     expect(res.response).toContain('Hindi ko ma-access ngayon');
     expect(res.response).not.toContain('scheduled system updates');
     expect(res.escalated).toBe(true);

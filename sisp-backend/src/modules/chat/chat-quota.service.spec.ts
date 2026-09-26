@@ -124,4 +124,48 @@ describe('ChatQuotaService', () => {
       status: HttpStatus.TOO_MANY_REQUESTS,
     });
   });
+
+  it('increments database quota with one conflict-safe atomic upsert', async () => {
+    prisma.isOffline = false;
+    prisma.$queryRaw = jest.fn().mockResolvedValue([{ count: 1 }]);
+    service = new ChatQuotaService(prisma);
+
+    await expect(service.consume('student-1')).resolves.toEqual(expect.objectContaining({
+      usedToday: 1,
+      remainingToday: 19,
+    }));
+
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+    const query = prisma.$queryRaw.mock.calls[0][0];
+    const sql = query.strings.join('');
+    expect(sql).toContain('ON CONFLICT ("user_id", "usage_date") DO UPDATE SET');
+    expect(sql).toContain('"count" = "chat_daily_usage"."count" + 1');
+    expect(sql).toContain('RETURNING "count"');
+    expect(query.values).toEqual(expect.arrayContaining(['student-1', false, 20]));
+  });
+
+  it('enforces the daily limit when the atomic upsert declines a capped row', async () => {
+    prisma.isOffline = false;
+    prisma.$queryRaw = jest.fn().mockResolvedValue([]);
+    service = new ChatQuotaService(prisma);
+
+    await expect(service.consume('student-1')).rejects.toMatchObject({
+      status: HttpStatus.TOO_MANY_REQUESTS,
+    });
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('includes the unlimited allowlist in the atomic upsert condition', async () => {
+    process.env.SISP_CHAT_UNLIMITED_USER_IDS = 'student-1';
+    prisma.isOffline = false;
+    prisma.$queryRaw = jest.fn().mockResolvedValue([{ count: 21 }]);
+    service = new ChatQuotaService(prisma);
+
+    await expect(service.consume('student-1')).resolves.toEqual(expect.objectContaining({
+      isUnlimited: true,
+      usedToday: 21,
+      remainingToday: 0,
+    }));
+    expect(prisma.$queryRaw.mock.calls[0][0].values).toContain(true);
+  });
 });

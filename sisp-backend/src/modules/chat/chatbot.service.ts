@@ -8,8 +8,8 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { randomUUID } from 'node:crypto';
 
-const ML_TIMEOUT_MS = 60000;
-const ML_MAX_ATTEMPTS = 7;
+const ML_TIMEOUT_MS = 120000;
+const ML_MAX_ATTEMPTS = 9;
 const ML_RETRY_BASE_DELAY_MS = 1000;
 const ML_RETRY_MAX_DELAY_MS = 20000;
 const ML_TRANSIENT_STATUSES = new Set([429, 502, 503, 504]);
@@ -29,6 +29,16 @@ function getMlRetryDelayMs(retryNumber: number, retryAfter: string | null): numb
       ? Math.max(0, retryAfterDate - Date.now())
       : 0;
   return Math.max(exponentialDelay, retryAfterDelay);
+}
+
+function isMlChatReady(health: any): boolean {
+  return (
+    health?.status === 'ready' &&
+    health?.llm_ready === true &&
+    health?.retrieval_ready === true &&
+    health?.database_connected !== false &&
+    health?.approved_database_sources_ready !== false
+  );
 }
 
 @Injectable()
@@ -56,17 +66,68 @@ export class ChatbotService {
     const { message, history, preferredLanguage } = sendMessageDto;
     let quota = await this.chatQuotaService.consume(userId);
     let mlResponse: any;
-    // Render's free ML instance can take close to a minute to wake from idle.
+    // Render's free ML instance can take over a minute to wake from idle.
     // The stable request ID lets ML safely replay a completed attempt if a
     // transient gateway failure hides its response from this service.
     const deadline = Date.now() + ML_TIMEOUT_MS;
-    const waitBeforeRetry = async (delayMs: number, attempt: number) => {
+    const waitBeforeRetry = async (delayMs: number, attempt: number, phase = 'ML request') => {
       if (Date.now() + delayMs + 1000 >= deadline) return false;
       this.logger.warn(
-        `[${requestId}] Retrying ML request (${attempt + 1}/${ML_MAX_ATTEMPTS - 1}) in ${delayMs}ms.`,
+        `[${requestId}] ${phase}: waiting ${delayMs}ms before retry ${attempt + 1}.`,
       );
       await new Promise((resolve) => setTimeout(resolve, delayMs));
       return true;
+    };
+    const waitForMlReadiness = async (): Promise<boolean> => {
+      let probe = 0;
+      while (deadline - Date.now() > 1000) {
+        const remainingMs = deadline - Date.now();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), remainingMs);
+        let retryAfter: string | null = null;
+        try {
+          const healthResponse = await fetch(`${this.mlServiceUrl}/chat/health`, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            signal: controller.signal,
+          });
+          retryAfter = healthResponse.headers?.get('retry-after') || null;
+          if (healthResponse.ok) {
+            const health = await healthResponse.json();
+            if (isMlChatReady(health)) {
+              this.logger.log(`[${requestId}] ML chat readiness check passed.`);
+              return true;
+            }
+            this.logger.warn(
+              `[${requestId}] ML chat is not ready: status=${health?.status || 'unknown'}, ` +
+                `llm_ready=${health?.llm_ready === true}, retrieval_ready=${health?.retrieval_ready === true}.`,
+            );
+          } else {
+            this.logger.warn(
+              `[${requestId}] ML chat readiness endpoint returned status ${healthResponse.status}.`,
+            );
+          }
+        } catch (healthError: any) {
+          if (healthError?.name === 'AbortError' || deadline - Date.now() <= 1000) return false;
+          this.logger.warn(
+            `[${requestId}] ML chat readiness probe failed: ${healthError?.message || 'unavailable'}.`,
+          );
+        } finally {
+          clearTimeout(timeout);
+        }
+
+        if (
+          !(await waitBeforeRetry(
+            getMlRetryDelayMs(probe, retryAfter),
+            probe,
+            'ML readiness probe',
+          ))
+        ) {
+          return false;
+        }
+        probe += 1;
+      }
+      return false;
     };
 
     try {
@@ -129,6 +190,15 @@ export class ChatbotService {
           attempt,
           response.headers?.get('retry-after') || null,
         );
+        if (response.status === 429) {
+          if (!(await waitBeforeRetry(retryDelayMs, attempt))) {
+            throw new Error('ML Service returned status 429 and retry window expired');
+          }
+          if (!(await waitForMlReadiness())) {
+            throw new Error('ML Service did not become ready after status 429');
+          }
+          continue;
+        }
         if (!(await waitBeforeRetry(retryDelayMs, attempt))) {
           throw new Error(`ML Service returned status ${response.status}`);
         }
