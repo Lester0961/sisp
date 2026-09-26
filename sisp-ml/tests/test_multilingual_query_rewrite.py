@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from app.services.chat_service import chat_service
+from app.services.chat_service import _with_follow_up_context, chat_service
 from app.services.llm.errors import AllProvidersFailed
 from app.services.llm.models import LLMResponse
 from app.services.query_rewrite_service import query_rewrite_service, settings
@@ -16,6 +16,80 @@ def enable_rewrite(monkeypatch):
         "_deepseek_available",
         staticmethod(lambda: True),
     )
+
+
+def test_standalone_waray_enrollment_question_is_not_mixed_with_prior_balance_question():
+    query = "Ano it proseso pag-enroll ha sunod nga semester?"
+    history = [
+        {"role": "user", "content": "Magkano balance ko ngayon?"},
+        {"role": "assistant", "content": "Your current SISP balance is PHP 0.00."},
+    ]
+
+    assert _with_follow_up_context(query, history) == query
+
+
+def test_standalone_personal_balance_question_is_not_mixed_with_prior_enrollment_question():
+    query = "Magkano balance ko ngayon?"
+    history = [
+        {"role": "user", "content": "Ano it proseso pag-enroll ha sunod nga semester?"},
+        {"role": "assistant", "content": "Ask Admissions about enrollment."},
+    ]
+
+    assert _with_follow_up_context(query, history) == query
+
+
+def test_waray_enrollment_with_personal_balance_history_uses_enrollment_policy(monkeypatch):
+    query = "Ano it proseso pag-enroll ha sunod nga semester?"
+    history = [
+        {"role": "user", "content": "Magkano balance ko ngayon?"},
+        {"role": "assistant", "content": "Your current SISP balance is PHP 0.00."},
+    ]
+    searches = []
+
+    def retrieve(search_query, limit, category):
+        searches.append((search_query, limit, category))
+        return [{
+            "content": (
+                "According to the interview notes, continuing students clear any previous balance "
+                "with Treasury, then proceed to Admissions for enrollment."
+            ),
+            "source": "enrollment_interview_guidance.txt",
+            "category": "enrollment_policy",
+            "similarity": 0.86,
+        }]
+
+    async def generate(request):
+        assert request.user_prompt == query
+        return LLMResponse(
+            text=(
+                "Sumala han interview notes, limpyohi anay ha Treasury an bisan ano nga daan nga "
+                "balanse, katapos kumadto ha Admissions para mag-enroll."
+            ),
+            provider="deepseek",
+            model="test-model",
+            latency_ms=8,
+        )
+
+    monkeypatch.setattr(
+        "app.services.chat_service.settings.multilingual_query_rewrite_enabled", False
+    )
+    monkeypatch.setattr("app.services.chat_service.retrieval_service.retrieve", retrieve)
+    monkeypatch.setattr("app.services.chat_service.llm_router.generate", generate)
+
+    result = asyncio.run(
+        chat_service.process_query(
+            query,
+            conversation_history=history,
+            preferred_language="war",
+        )
+    )
+
+    assert result["route"] == "policy"
+    assert result["intent"] == "enrollment_inquiry"
+    assert result["language"]["code"] == "war"
+    assert searches == [(query, 4, "enrollment_policy")]
+    assert "Treasury" in result["response"]
+    assert "account balance" not in result["response"].casefold()
 
 
 def test_query_rewrite_calls_deepseek_for_search_only_and_keeps_named_terms(monkeypatch):

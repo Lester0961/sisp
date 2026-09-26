@@ -138,8 +138,17 @@ def _with_follow_up_context(query: str, history: list[dict]) -> str:
         "how much", "how many", "fee", "fees", "cost", "price", "prerequisite", "prereq",
         "course", "courses", "subject", "subjects", "curriculum", "schedule", "trimester",
         "term", "enrollment", "enrolment", "grade", "grades", "special exam", "inc", "document",
+        *ENROLLMENT_MARKERS,
+        *RETURNING_ENROLLMENT_MARKERS,
+        *TRANSFEREE_ENROLLMENT_MARKERS,
+        *NEW_STUDENT_ENROLLMENT_MARKERS,
+        *TUITION_MARKERS,
+        *PAYMENT_AMOUNT_MARKERS,
     )
-    if _has_query_marker(normalized, self_contained_markers):
+    if (
+        _has_query_marker(normalized, self_contained_markers)
+        or scope_service.route(normalized).get("route") == "database"
+    ):
         return query
     short_question = len(normalized.split()) <= 8 and bool(re.match(
         r"^(?:(?:and|also)\s+)?(?:who|where|when|what|how)\b", normalized
