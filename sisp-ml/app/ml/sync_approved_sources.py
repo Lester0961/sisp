@@ -9,6 +9,7 @@ from sqlalchemy import text
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
+from app.config import get_settings
 from app.approved_sources import APPROVED_STATIC_SOURCES
 from app.database import check_db_connection, engine
 
@@ -21,6 +22,7 @@ def sync_approved_sources() -> int:
         raise RuntimeError("Durable database is unavailable; approved sources were not synced.")
 
     files = sorted(APPROVED_STATIC_SOURCES)
+    index_status = "pending" if get_settings().use_dense_retrieval else "sparse"
     missing = [name for name in files if not (KB_DIR / name).is_file()]
     if missing:
         raise FileNotFoundError(f"Allowlisted knowledge source is missing: {', '.join(missing)}")
@@ -46,7 +48,7 @@ def sync_approved_sources() -> int:
                     (id, filename, title, category, content, version, is_active, index_status,
                      index_error, indexed_at, created_at, updated_at)
                 VALUES
-                    (:id, :filename, :title, :category, :content, :version, TRUE, 'pending',
+                    (:id, :filename, :title, :category, :content, :version, TRUE, :index_status,
                      NULL, NULL, NOW(), NOW())
                 ON CONFLICT (filename) DO UPDATE SET
                     title = EXCLUDED.title,
@@ -55,15 +57,18 @@ def sync_approved_sources() -> int:
                     version = EXCLUDED.version,
                     is_active = TRUE,
                     index_status = CASE
+                        WHEN :index_status = 'sparse' THEN 'sparse'
                         WHEN knowledge_documents.title IS DISTINCT FROM EXCLUDED.title
                           OR knowledge_documents.category IS DISTINCT FROM EXCLUDED.category
                           OR knowledge_documents.content IS DISTINCT FROM EXCLUDED.content
                           OR knowledge_documents.version IS DISTINCT FROM EXCLUDED.version
                         THEN 'pending' ELSE knowledge_documents.index_status END,
                     index_error = CASE
+                        WHEN :index_status = 'sparse' THEN NULL
                         WHEN knowledge_documents.content IS DISTINCT FROM EXCLUDED.content
                         THEN NULL ELSE knowledge_documents.index_error END,
                     indexed_at = CASE
+                        WHEN :index_status = 'sparse' THEN NULL
                         WHEN knowledge_documents.content IS DISTINCT FROM EXCLUDED.content
                         THEN NULL ELSE knowledge_documents.indexed_at END,
                     updated_at = NOW()
@@ -74,6 +79,7 @@ def sync_approved_sources() -> int:
                 "category": category,
                 "content": content,
                 "version": version,
+                "index_status": index_status,
             })
             synced += 1
     print(f"[KB] Synced {synced} explicitly allowlisted source documents.")

@@ -6,6 +6,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 
+from app.config import get_settings
+from app.database import check_db_connection
 from app.security import require_ml_secret
 from app.services.chat_service import chat_service
 from app.services.chat_request_deduplication import (
@@ -18,6 +20,7 @@ from app.services.retrieval_service import retrieval_service
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+settings = get_settings()
 logger = getLogger("aria.chat")
 logger.setLevel(INFO)
 
@@ -78,15 +81,20 @@ async def chat_health():
         for provider in providers
     )
     retrieval_ready = retrieval_service.is_ready()
+    sparse_database_mode = settings.require_pgvector and not settings.use_dense_retrieval
     return {
         "status": "ready" if llm_ready and retrieval_ready else "degraded",
         "router": "chat",
         "llm_ready": llm_ready,
         "deepseek_budget_ready": deepseek_budget_ready if deepseek_configured else None,
         "retrieval_ready": retrieval_ready,
+        "retrieval_mode": retrieval_service.retrieval_mode,
         "providers": providers,
-        "approved_static_chunks": len(retrieval_service.text_documents),
-        "database_connected": retrieval_service.pgvector_index_ready(),
+        "approved_static_chunks": 0 if sparse_database_mode else len(retrieval_service.text_documents),
+        "database_connected": check_db_connection(),
+        "approved_database_sources_ready": retrieval_service.approved_database_sources_ready()
+        if sparse_database_mode
+        else None,
     }
 
 

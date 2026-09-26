@@ -141,3 +141,18 @@ def test_chat_health_degrades_when_deepseek_budget_ledger_is_unavailable(monkeyp
     assert health["llm_ready"] is False
     assert health["deepseek_budget_ready"] is False
     assert health["status"] == "degraded"
+
+
+def test_chat_health_reports_database_tfidf_mode_in_production_without_local_chunks(monkeypatch):
+    monkeypatch.setattr(chat.settings, "require_pgvector", True)
+    monkeypatch.setattr(chat.settings, "dense_retrieval_enabled", False)
+    monkeypatch.setattr(chat.retrieval_service, "is_ready", lambda: True)
+    monkeypatch.setattr(chat.retrieval_service, "approved_database_sources_ready", lambda: True)
+    monkeypatch.setattr(chat, "check_db_connection", lambda: True)
+
+    health = asyncio.run(chat.chat_health())
+
+    assert health["retrieval_mode"] == "database-tfidf"
+    assert health["approved_static_chunks"] == 0
+    assert health["approved_database_sources_ready"] is True
+    assert health["database_connected"] is True

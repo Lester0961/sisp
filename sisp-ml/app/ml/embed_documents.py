@@ -102,6 +102,10 @@ def _index_document(model, document: dict) -> bool:
 
 
 def embed_and_index() -> dict:
+    if not settings.use_dense_retrieval:
+        print("[INDEXING] Dense embedding is disabled; live approved documents use sparse retrieval.")
+        return {"indexed": 0, "failed": 0, "skipped": 0, "mode": "sparse"}
+
     if engine is None or not check_db_connection():
         raise RuntimeError("Durable database is unavailable; no local-only indexing success is reported.")
 

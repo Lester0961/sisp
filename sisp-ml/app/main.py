@@ -22,22 +22,28 @@ async def lifespan(app: FastAPI):
     else:
         print("   [WARNING] Database connection: FAILED (will retry on requests)")
 
-    # In production the migration-managed pgvector corpus is authoritative.
-    # Keep its approved file sources in sync with this release, then index only
-    # new/changed/missing documents with the same FastEmbed model used by chat.
-    # Local/mock mode intentionally continues using the checked-in fallback.
+    # In production, keep approved source content synchronized with the
+    # database. Dense indexing is opt-in per deployment: the free 512 MB ML
+    # instance uses database-backed sparse retrieval to avoid loading ONNX.
     if settings.require_pgvector and db_ok:
         try:
             from app.ml.sync_approved_sources import sync_approved_sources
-            from app.ml.embed_documents import embed_and_index
 
             source_count = await asyncio.to_thread(sync_approved_sources)
-            index_result = await asyncio.to_thread(embed_and_index)
-            print(
-                "   [KB] Approved source sync complete: "
-                f"{source_count} sources; {index_result.get('indexed', 0)} indexed, "
-                f"{index_result.get('failed', 0)} failed."
-            )
+            if settings.use_dense_retrieval:
+                from app.ml.embed_documents import embed_and_index
+
+                index_result = await asyncio.to_thread(embed_and_index)
+                print(
+                    "   [KB] Approved source sync complete: "
+                    f"{source_count} sources; {index_result.get('indexed', 0)} indexed, "
+                    f"{index_result.get('failed', 0)} failed."
+                )
+            else:
+                print(
+                    "   [KB] Approved source sync complete: "
+                    f"{source_count} sources; sparse TF-IDF retrieval reads live database text."
+                )
         except Exception as exc:
             # Preserve the service's existing degraded-startup behavior while
             # making the source/index failure explicit in Render logs/health.
@@ -94,15 +100,21 @@ async def health():
     if settings.require_pgvector:
         from app.services.retrieval_service import retrieval_service
 
-        pgvector_ready = db_ok and retrieval_service.pgvector_index_ready()
-        if not pgvector_ready:
+        retrieval_ready = retrieval_service.is_ready()
+        pgvector_ready = (
+            db_ok and retrieval_service.pgvector_index_ready()
+            if settings.use_dense_retrieval else None
+        )
+        if not retrieval_ready:
             raise HTTPException(
                 status_code=503,
                 detail={
                     "status": "degraded",
                     "service": "sisp-ml",
                     "database": "connected" if db_ok else "disconnected",
-                    "pgvector_index": "ready" if pgvector_ready else "unavailable",
+                    "retrieval_mode": retrieval_service.retrieval_mode,
+                    "approved_sources": "ready" if retrieval_ready else "unavailable",
+                    "pgvector_index": "ready" if pgvector_ready else "not_used",
                 },
             )
     return {
@@ -110,7 +122,17 @@ async def health():
         "service": "sisp-ml",
         "version": settings.app_version,
         "database": "connected" if db_ok else "disconnected",
-        "pgvector_index": "ready" if pgvector_ready else ("not_required" if pgvector_ready is None else "unavailable"),
+        "pgvector_index": (
+            "ready" if pgvector_ready
+            else "not_used" if settings.require_pgvector and not settings.use_dense_retrieval
+            else "not_required" if pgvector_ready is None
+            else "unavailable"
+        ),
+        "retrieval_mode": (
+            "database-tfidf" if settings.require_pgvector and not settings.use_dense_retrieval
+            else "database-dense+tfidf" if settings.require_pgvector
+            else "local-dense+tfidf"
+        ),
         "embedding_model": settings.embedding_model,
         "embedding_dimension": settings.embedding_dimension,
     }

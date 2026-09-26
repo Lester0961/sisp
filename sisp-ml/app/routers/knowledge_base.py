@@ -7,11 +7,15 @@ from pydantic import BaseModel, constr
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
+from app.approved_sources import APPROVED_STATIC_SOURCES
+from app.config import get_settings
 from app.database import check_db_connection, engine
 from app.ml.embed_documents import embed_and_index
 from app.security import verify_ml_secret_value
 
 router = APIRouter(prefix="/kb", tags=["knowledge_base"])
+settings = get_settings()
+APPROVED_SOURCE_NAMES = {name.casefold() for name in APPROVED_STATIC_SOURCES}
 
 SAFE_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,123}\.txt$")
 SAFE_CATEGORY_RE = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
@@ -65,6 +69,7 @@ def _document_response(row, include_content: bool = True) -> dict:
         "effectiveDate": _iso(row["effective_date"]),
         "updatedAt": _iso(row["updated_at"]),
         "active": row["is_active"],
+        "retrievalEligible": bool(row["is_active"]) and str(row["filename"]).casefold() in APPROVED_SOURCE_NAMES,
         "indexStatus": row["index_status"],
         "indexError": row["index_error"],
         "indexedAt": _iso(row["indexed_at"]),
@@ -123,31 +128,46 @@ async def update_document(filename: str, body: DocumentUpdate, x_ml_secret: str 
         raise HTTPException(status_code=422, detail="Document content must include non-whitespace text.")
     filename = normalize_filename(filename)
     database = _require_database()
+    index_status = "pending" if settings.use_dense_retrieval else "sparse"
+    retrieval_eligible = filename.casefold() in APPROVED_SOURCE_NAMES
     try:
         with database.begin() as connection:
             result = connection.execute(text("""
                 UPDATE knowledge_documents
                 SET content = :content,
                     title = :title,
-                    index_status = 'pending',
+                    index_status = :index_status,
                     index_error = NULL,
                     indexed_at = NULL,
                     updated_at = NOW()
                 WHERE filename = :filename AND is_active = TRUE
                 RETURNING id, filename
-            """), {"filename": filename, "content": body.content, "title": _title(body.content, filename)})
+            """), {
+                "filename": filename,
+                "content": body.content,
+                "title": _title(body.content, filename),
+                "index_status": index_status,
+            })
             document = result.mappings().first()
             if document is None:
                 raise HTTPException(status_code=404, detail=f"Document '{filename}' not found.")
-            connection.execute(text("""
-                UPDATE knowledge_chunks
-                SET embedding = NULL, embedding_model = NULL, embedded_at = NULL
-                WHERE document_id = :document_id
-            """), {"document_id": document["id"]})
+            if settings.use_dense_retrieval:
+                connection.execute(text("""
+                    UPDATE knowledge_chunks
+                    SET embedding = NULL, embedding_model = NULL, embedded_at = NULL
+                    WHERE document_id = :document_id
+                """), {"document_id": document["id"]})
+        if index_status == "sparse" and retrieval_eligible:
+            message = f"Document '{filename}' was saved and is available for sparse retrieval."
+        elif index_status == "sparse":
+            message = f"Document '{filename}' was saved; ARIA retrieval requires this source to be approved."
+        else:
+            message = f"Document '{filename}' was saved to durable storage; retrieval synchronization is pending."
         return {
-            "message": f"Document '{filename}' was saved to durable storage; retrieval synchronization is pending.",
+            "message": message,
             "filename": filename,
-            "indexStatus": "pending",
+            "indexStatus": index_status,
+            "retrievalEligible": retrieval_eligible,
         }
     except HTTPException:
         raise
@@ -165,6 +185,8 @@ async def create_document(body: DocumentCreate, x_ml_secret: str = Header(None))
     if not SAFE_CATEGORY_RE.fullmatch(body.category):
         raise HTTPException(status_code=400, detail="Invalid document category.")
     database = _require_database()
+    index_status = "pending" if settings.use_dense_retrieval else "sparse"
+    retrieval_eligible = filename.casefold() in APPROVED_SOURCE_NAMES
     try:
         with database.begin() as connection:
             row = connection.execute(text("""
@@ -173,7 +195,7 @@ async def create_document(body: DocumentCreate, x_ml_secret: str = Header(None))
                      is_active, index_status, index_error, indexed_at, created_at, updated_at)
                 VALUES
                     (:id, :filename, :title, :category, :content, NULL, NULL,
-                     TRUE, 'pending', NULL, NULL, NOW(), NOW())
+                     TRUE, :index_status, NULL, NULL, NOW(), NOW())
                 RETURNING id, filename
             """), {
                 "id": str(uuid.uuid4()),
@@ -181,12 +203,20 @@ async def create_document(body: DocumentCreate, x_ml_secret: str = Header(None))
                 "title": _title(body.content, filename),
                 "category": body.category,
                 "content": body.content,
+                "index_status": index_status,
             }).mappings().one()
+        if index_status == "sparse" and retrieval_eligible:
+            message = f"Document '{filename}' was saved and is available for sparse retrieval."
+        elif index_status == "sparse":
+            message = f"Document '{filename}' was saved; ARIA retrieval requires this source to be approved."
+        else:
+            message = f"Document '{filename}' was saved to durable storage; retrieval synchronization is pending."
         return {
-            "message": f"Document '{filename}' was saved to durable storage; retrieval synchronization is pending.",
+            "message": message,
             "id": row["id"],
             "filename": filename,
-            "indexStatus": "pending",
+            "indexStatus": index_status,
+            "retrievalEligible": retrieval_eligible,
         }
     except IntegrityError as exc:
         raise HTTPException(status_code=409, detail=f"Document '{filename}' already exists.") from exc
@@ -244,6 +274,12 @@ def run_reindex_task():
 async def reindex_embeddings(background_tasks: BackgroundTasks, x_ml_secret: str = Header(None)):
     verify_secret(x_ml_secret)
     database = _require_database()
+    if not settings.use_dense_retrieval:
+        return {
+            "status": "not_required",
+            "documentsQueued": 0,
+            "message": "Dense embeddings are disabled; approved database documents are searched directly with TF-IDF.",
+        }
     try:
         with database.begin() as connection:
             count = connection.execute(text("""

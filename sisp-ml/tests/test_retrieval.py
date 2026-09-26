@@ -2,6 +2,7 @@ import sys
 import os
 import re
 from contextlib import contextmanager
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -223,6 +224,7 @@ def test_retrieval_threshold_filters_weak_matches(monkeypatch):
 
 def test_production_pgvector_mode_never_falls_back_to_local_data(monkeypatch):
     monkeypatch.setattr(service_module.settings, "require_pgvector", True)
+    monkeypatch.setattr(service_module.settings, "dense_retrieval_enabled", True)
     monkeypatch.setattr(service_module, "check_db_connection", lambda: False)
     monkeypatch.setattr(
         retrieval_service,
@@ -254,6 +256,7 @@ def test_production_pgvector_search_uses_active_model_and_similarity_threshold(m
             yield FakeConnection()
 
     monkeypatch.setattr(service_module.settings, "require_pgvector", True)
+    monkeypatch.setattr(service_module.settings, "dense_retrieval_enabled", True)
     monkeypatch.setattr(service_module.settings, "retrieval_similarity_threshold", 0.7)
     monkeypatch.setattr(service_module, "engine", FakeEngine())
     monkeypatch.setattr(service_module, "check_db_connection", lambda: True)
@@ -305,6 +308,7 @@ def test_pgvector_policy_search_also_includes_student_services_faq(monkeypatch):
             yield FakeConnection()
 
     monkeypatch.setattr(service_module.settings, "require_pgvector", True)
+    monkeypatch.setattr(service_module.settings, "dense_retrieval_enabled", True)
     monkeypatch.setattr(service_module.settings, "retrieval_similarity_threshold", 0.3)
     monkeypatch.setattr(service_module, "engine", FakeEngine())
     monkeypatch.setattr(service_module, "check_db_connection", lambda: True)
@@ -343,6 +347,7 @@ def test_production_pgvector_empty_result_does_not_fall_back_to_local_index(monk
             yield FakeConnection()
 
     monkeypatch.setattr(service_module.settings, "require_pgvector", True)
+    monkeypatch.setattr(service_module.settings, "dense_retrieval_enabled", True)
     monkeypatch.setattr(service_module, "engine", FakeEngine())
     monkeypatch.setattr(service_module, "check_db_connection", lambda: True)
     monkeypatch.setattr(
@@ -357,3 +362,238 @@ def test_production_pgvector_empty_result_does_not_fall_back_to_local_index(monk
     )
 
     assert retrieval_service.retrieve("Unsupported content", limit=2) == []
+
+
+def test_production_sparse_mode_searches_live_approved_database_text_without_loading_onnx(monkeypatch):
+    captured = {}
+
+    class Rows:
+        def mappings(self):
+            return self
+
+        def all(self):
+            return [
+                {
+                    "filename": "enrollment_interview_guidance.txt",
+                    "category": "enrollment_policy",
+                    "content": (
+                        "Continuing Student Enrollment Guidance\n\n"
+                        "Continuing students should first visit Treasury to clear any previous "
+                        "outstanding balance, then proceed to Admissions for enrollment. "
+                        "The exact dates and tuition amount are not specified."
+                    ),
+                },
+                {
+                    "filename": "unapproved_private_notes.txt",
+                    "category": "enrollment_policy",
+                    "content": "Unapproved notes should never be retrieved.",
+                },
+            ]
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, statement, params):
+            captured["sql"] = str(statement)
+            captured["params"] = params
+            return Rows()
+
+    class FakeEngine:
+        @contextmanager
+        def connect(self):
+            yield FakeConnection()
+
+    monkeypatch.setattr(service_module.settings, "require_pgvector", True)
+    monkeypatch.setattr(service_module.settings, "dense_retrieval_enabled", False)
+    monkeypatch.setattr(service_module.settings, "retrieval_similarity_threshold", 0.3)
+    monkeypatch.setattr(service_module, "engine", FakeEngine())
+    monkeypatch.setattr(service_module, "check_db_connection", lambda: True)
+    monkeypatch.setattr(retrieval_service, "model", None)
+    monkeypatch.setattr(retrieval_service, "model_load_attempted", False)
+    monkeypatch.setattr(
+        retrieval_service,
+        "load_model",
+        lambda: (_ for _ in ()).throw(AssertionError("production sparse mode must not load ONNX")),
+    )
+
+    results = retrieval_service.retrieve(
+        "Ano it proseso pag-enroll ha sunod nga semester?",
+        limit=4,
+        category="enrollment_policy",
+    )
+
+    assert results
+    assert results[0]["source"] == "enrollment_interview_guidance.txt"
+    assert "Treasury" in results[0]["content"]
+    assert all(item["source"] in APPROVED_STATIC_SOURCES for item in results)
+    assert "embedding <=>" not in captured["sql"]
+    assert captured["params"]["approved_source_0"] in APPROVED_STATIC_SOURCES
+
+
+def test_production_sparse_mode_never_falls_back_when_database_is_unavailable(monkeypatch):
+    monkeypatch.setattr(service_module.settings, "require_pgvector", True)
+    monkeypatch.setattr(service_module.settings, "dense_retrieval_enabled", False)
+    monkeypatch.setattr(service_module, "check_db_connection", lambda: False)
+    monkeypatch.setattr(
+        retrieval_service,
+        "_lexical_retrieve",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("local data must not run")),
+    )
+
+    assert retrieval_service.retrieve("How do I enroll?", limit=3) == []
+
+
+def test_production_sparse_exact_source_reads_approved_database_content_without_chunks(monkeypatch):
+    source_content = (
+        "Bachelor of Science in Computer Science (BSCS)\n\n"
+        "First Year — First Trimester:\n"
+        "- GE 6100 — Understanding the Self | Units 3\n"
+        "- GE 6103 — Living in IT Era | Units 3"
+    )
+
+    class Mappings:
+        def first(self):
+            return {
+                "filename": "curriculum_BSCS_2024.txt",
+                "category": "curriculum",
+                "content": source_content,
+            }
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, statement, params):
+            assert "knowledge_documents" in str(statement)
+            assert "knowledge_chunks" not in str(statement)
+            assert params == {"source": "curriculum_BSCS_2024.txt"}
+            return type("Result", (), {"mappings": lambda _self: Mappings()})()
+
+    class FakeEngine:
+        @contextmanager
+        def connect(self):
+            yield FakeConnection()
+
+    monkeypatch.setattr(service_module.settings, "require_pgvector", True)
+    monkeypatch.setattr(service_module.settings, "dense_retrieval_enabled", False)
+    monkeypatch.setattr(service_module, "engine", FakeEngine())
+    monkeypatch.setattr(service_module, "check_db_connection", lambda: True)
+
+    results = retrieval_service.retrieve_source("curriculum_BSCS_2024.txt")
+
+    assert results
+    assert results[0]["source"] == "curriculum_BSCS_2024.txt"
+    assert results[0]["category"] == "programs_curriculum"
+    assert any("GE 6100" in item["content"] for item in results)
+
+
+def test_production_sparse_mode_retrieves_100_fee_and_curriculum_paraphrases(monkeypatch):
+    """Exercise Render's sparse DB path with the same 100 local chat questions."""
+    knowledge_base_dir = Path(service_module.__file__).resolve().parents[1] / "data" / "knowledge_base"
+    database_documents = []
+    for filename in sorted(APPROVED_STATIC_SOURCES):
+        content = (knowledge_base_dir / filename).read_text(encoding="utf-8")
+        if filename.startswith("curriculum_"):
+            category = "curriculum"
+        elif filename == "document_fees_user_approved.txt":
+            category = "document_fees"
+        elif filename == "enrollment_interview_guidance.txt":
+            category = "enrollment_policy"
+        elif filename == "student_services_faq_2026.txt":
+            category = "student_services_faq"
+        else:
+            category = "program_catalog"
+        database_documents.append({"filename": filename, "category": category, "content": content})
+
+    class Rows:
+        def mappings(self):
+            return self
+
+        def all(self):
+            return database_documents
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, _statement, _params):
+            return Rows()
+
+    class FakeEngine:
+        @contextmanager
+        def connect(self):
+            yield FakeConnection()
+
+    monkeypatch.setattr(service_module.settings, "require_pgvector", True)
+    monkeypatch.setattr(service_module.settings, "dense_retrieval_enabled", False)
+    monkeypatch.setattr(service_module.settings, "retrieval_similarity_threshold", 0.3)
+    monkeypatch.setattr(service_module, "engine", FakeEngine())
+    monkeypatch.setattr(service_module, "check_db_connection", lambda: True)
+    monkeypatch.setattr(retrieval_service, "model", None)
+    monkeypatch.setattr(retrieval_service, "model_load_attempted", False)
+    monkeypatch.setattr(
+        retrieval_service,
+        "load_model",
+        lambda: (_ for _ in ()).throw(AssertionError("production sparse mode must not load ONNX")),
+    )
+
+    fee_targets = (
+        ("a certified true copy of my grades", "document_fees_user_approved.txt"),
+        ("the second copy of my grades", "document_fees_user_approved.txt"),
+        ("a certificate of good moral", "document_fees_user_approved.txt"),
+        ("a TOR", "document_fees_user_approved.txt"),
+        ("a COE", "document_fees_user_approved.txt"),
+    )
+    fee_forms = (
+        "How much is {target}?", "What is the fee for {target}?",
+        "What is the price of {target}?", "How much do I pay for {target}?",
+        "How much does {target} cost?", "Please tell me the fee for {target}.",
+        "How much would {target} cost?", "What are the listed fees for {target}?",
+        "What fee does the College list for {target}?", "Can you confirm the cost of {target}?",
+    )
+    count = 0
+    for target, expected_source in fee_targets:
+        for form in fee_forms:
+            results = retrieval_service.retrieve(
+                form.format(target=target), limit=5, category="document_request"
+            )
+            assert any(item["source"] == expected_source for item in results), form.format(target=target)
+            assert all(item["source"] in APPROVED_STATIC_SOURCES for item in results)
+            count += 1
+
+    terms = (
+        "first year and first trimester", "1st year and trimester 1",
+        "year one and first term", "freshman year and trimester 1",
+        "unang taon at unang trimester",
+    )
+    curriculum_forms = (
+        "What subjects are listed for BSCS in the {term}?",
+        "Which courses appear in BSCS during the {term}?",
+        "List the BSCS subjects for the {term}.",
+        "Show me the courses in the BSCS curriculum for the {term}.",
+        "Which subjects are part of the BSCS program in the {term}?",
+        "Can you show the course list for BSCS during the {term}?",
+        "What courses are taught in BSCS in the {term}?",
+        "Give me the BSCS subject list for the {term}.",
+        "Anong mga subject ang nasa BSCS para sa {term}?",
+        "Unsa nga mga subjects ang naa sa BSCS sa {term}?",
+    )
+    for term in terms:
+        for form in curriculum_forms:
+            query = form.format(term=term)
+            results = retrieval_service.retrieve(query, limit=5, category="programs_curriculum")
+            assert any(item["source"] == "curriculum_BSCS_2024.txt" for item in results), query
+            assert all(item["source"] in APPROVED_STATIC_SOURCES for item in results)
+            count += 1
+
+    assert count == 100

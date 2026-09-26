@@ -38,7 +38,8 @@ interface KbDocument {
   version?: string | null;
   effectiveDate?: string | null;
   active?: boolean;
-  indexStatus?: 'pending' | 'indexed' | 'failed' | 'unknown';
+  retrievalEligible?: boolean;
+  indexStatus?: 'pending' | 'indexed' | 'sparse' | 'failed' | 'unknown';
   indexError?: string | null;
   indexedAt?: string | null;
 }
@@ -86,9 +87,17 @@ export default function KbManagementPage() {
   const handleSaveEdit = async () => {
     if (!editingDoc) return;
     try {
-      await adminApi.updateKbDocument(editingDoc.filename, editingDoc.content);
-      toast.success(`Saved ${editingDoc.filename}. Re-indexing is required before retrieval reflects the change.`);
-      setIndexStatusMessage(`Saved ${editingDoc.filename}; retrieval synchronization is pending and has not been confirmed.`);
+      const result = await adminApi.updateKbDocument(editingDoc.filename, editingDoc.content);
+      if (result?.indexStatus === 'sparse' && result?.retrievalEligible) {
+        toast.success(`Saved ${editingDoc.filename}; it is ready for retrieval.`);
+        setIndexStatusMessage(`Saved ${editingDoc.filename}; approved sparse retrieval now reads the updated database content.`);
+      } else if (result?.indexStatus === 'sparse') {
+        toast.success(`Saved ${editingDoc.filename}; ARIA source approval is required before retrieval.`);
+        setIndexStatusMessage(`Saved ${editingDoc.filename}; add it to ARIA's approved source list before retrieval can use it.`);
+      } else {
+        toast.success(`Saved ${editingDoc.filename}. Re-indexing is required before retrieval reflects the change.`);
+        setIndexStatusMessage(`Saved ${editingDoc.filename}; retrieval synchronization is pending and has not been confirmed.`);
+      }
       setEditingDoc(null);
       loadDocuments();
     } catch (err) {
@@ -112,13 +121,17 @@ export default function KbManagementPage() {
     }
     const filenameWithExt = newFilename.endsWith('.txt') ? newFilename : `${newFilename}.txt`;
     try {
-      await adminApi.createKbDocument({
+      const result = await adminApi.createKbDocument({
         filename: filenameWithExt,
         content: newContent,
         category: newCategory,
       });
       toast.success(`Created document ${filenameWithExt} successfully.`);
-      setIndexStatusMessage(`Created ${filenameWithExt}; retrieval synchronization is pending and has not been confirmed.`);
+      setIndexStatusMessage(result?.indexStatus === 'sparse' && result?.retrievalEligible
+        ? `Created ${filenameWithExt}; approved sparse retrieval can use its database content immediately.`
+        : result?.indexStatus === 'sparse'
+        ? `Created ${filenameWithExt}; add it to ARIA's approved source list before retrieval can use it.`
+        : `Created ${filenameWithExt}; retrieval synchronization is pending and has not been confirmed.`);
       setIsAdding(false);
       loadDocuments();
     } catch (err) {
@@ -149,6 +162,9 @@ export default function KbManagementPage() {
       if (result?.status === 'indexed') {
         toast.success('Knowledge base indexing completed.');
         setIndexStatusMessage('The service confirmed indexing completed.');
+      } else if (result?.status === 'not_required') {
+        toast.success('Approved sources are read directly in sparse mode; vector re-indexing is not needed.');
+        setIndexStatusMessage(result.message ?? 'Vector re-indexing is not required in sparse retrieval mode.');
       } else if (result?.status === 'accepted' || result?.status === 'pending') {
         toast.message('Knowledge base indexing is pending; completion has not been confirmed.');
         setIndexStatusMessage('Indexing was accepted. Per-document completion status appears in the table.');
@@ -179,7 +195,7 @@ export default function KbManagementPage() {
               Policy library
             </h1>
             <p className="portal-description mt-2">
-              Manage ARIA source documents stored in the portal database. Index state is tracked separately from document edits.
+              Manage ARIA source documents stored in the portal database. Retrieval availability is shown with each source.
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
@@ -256,7 +272,11 @@ export default function KbManagementPage() {
                         <TableCell className="text-xs text-slate-600">
                           <div>{doc.updatedAt ? new Date(doc.updatedAt).toLocaleString() : 'Update time unavailable'}</div>
                           <div className="mt-1">{doc.active === false ? 'Archived' : 'Active'}</div>
-                          <div className="mt-1 text-[10px] uppercase tracking-wide">Index: {doc.indexStatus ?? 'unknown'}</div>
+                          <div className="mt-1 text-[10px] uppercase tracking-wide">
+                            {doc.indexStatus === 'sparse'
+                              ? doc.retrievalEligible ? 'Retrieval: sparse ready' : 'Retrieval: source approval required'
+                              : `Index: ${doc.indexStatus ?? 'unknown'}`}
+                          </div>
                           {doc.indexedAt && <div>Indexed: {new Date(doc.indexedAt).toLocaleString()}</div>}
                           {doc.indexError && <div className="mt-1 text-rose-700" role="status">{doc.indexError}</div>}
                           {doc.version && <div>Version: {doc.version}</div>}

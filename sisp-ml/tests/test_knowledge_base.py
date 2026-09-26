@@ -81,6 +81,7 @@ def test_metadata_projection_preserves_source_fields_without_inventing_version()
     assert document["version"] is None
     assert document["effectiveDate"] is None
     assert document["active"] is True
+    assert document["retrievalEligible"] is True
     assert document["indexStatus"] == "pending"
     assert document["sizeBytes"] == len(row["content"].encode("utf-8"))
 
@@ -180,3 +181,53 @@ def test_reindex_persists_pending_before_scheduling_background_work(monkeypatch)
     assert result["documentsQueued"] == 3
     assert "index_status = 'pending'" in database.calls[0][0]
     assert len(tasks.tasks) == 1
+
+
+def test_sparse_mode_create_and_update_are_immediately_searchable_without_vector_writes(monkeypatch):
+    def responder(sql, _params):
+        if "INSERT INTO knowledge_documents" in sql:
+            return Result([{"id": "doc-1", "filename": "guide.txt"}])
+        if "UPDATE knowledge_documents" in sql:
+            return Result([{"id": "doc-1", "filename": "guide.txt"}])
+        return Result()
+
+    database = FakeEngine(responder)
+    monkeypatch.setattr(kb, "verify_secret", lambda _secret: None)
+    monkeypatch.setattr(kb, "engine", database)
+    monkeypatch.setattr(kb, "check_db_connection", lambda: True)
+    monkeypatch.setattr(kb.settings, "dense_retrieval_enabled", False)
+
+    created = asyncio.run(kb.create_document(
+        kb.DocumentCreate(filename="guide", content="Academic Guide\n\nSource content", category="academic_guide"),
+        "test",
+    ))
+    updated = asyncio.run(kb.update_document(
+        "guide.txt", kb.DocumentUpdate(content="Updated Academic Guide"), "test"
+    ))
+
+    assert created["indexStatus"] == "sparse"
+    assert updated["indexStatus"] == "sparse"
+    assert created["retrievalEligible"] is False
+    assert updated["retrievalEligible"] is False
+    assert "requires this source to be approved" in created["message"]
+    assert "requires this source to be approved" in updated["message"]
+    assert database.calls[0][1]["index_status"] == "sparse"
+    assert database.calls[1][1]["index_status"] == "sparse"
+    assert len(database.calls) == 2
+    assert all("knowledge_chunks" not in sql for sql, _params in database.calls)
+
+
+def test_sparse_mode_reindex_is_not_required_and_does_not_schedule_embedding_work(monkeypatch):
+    database = FakeEngine()
+    monkeypatch.setattr(kb, "verify_secret", lambda _secret: None)
+    monkeypatch.setattr(kb, "engine", database)
+    monkeypatch.setattr(kb, "check_db_connection", lambda: True)
+    monkeypatch.setattr(kb.settings, "dense_retrieval_enabled", False)
+    tasks = BackgroundTasks()
+
+    result = asyncio.run(kb.reindex_embeddings(tasks, "test"))
+
+    assert result["status"] == "not_required"
+    assert result["documentsQueued"] == 0
+    assert not database.calls
+    assert not tasks.tasks

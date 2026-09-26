@@ -94,6 +94,19 @@ def test_indexing_fails_closed_without_database(monkeypatch):
         assert "no local-only indexing success" in str(exc)
 
 
+def test_dense_embedding_job_exits_without_loading_model_in_sparse_mode(monkeypatch):
+    monkeypatch.setattr(embed_documents.settings, "dense_retrieval_enabled", False)
+    monkeypatch.setattr(
+        embed_documents,
+        "load_embedding_model",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("sparse mode must not load an embedding model")),
+    )
+
+    result = embed_documents.embed_and_index()
+
+    assert result == {"indexed": 0, "failed": 0, "skipped": 0, "mode": "sparse"}
+
+
 def test_failed_document_embedding_persists_failed_index_status(monkeypatch):
     database = FakeEngine([{
         "id": "doc-1", "filename": "guide.txt", "title": "Guide",

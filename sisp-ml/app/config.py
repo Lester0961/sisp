@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     intent_min_margin: float = Field(default=0.15, ge=0.0, le=1.0)
     retrieval_similarity_threshold: float = Field(default=0.36, ge=0.0, le=1.0)
     require_pgvector: bool = False
+    # Dense retrieval is opt-in on database-required deployments so a missed
+    # Render Blueprint sync cannot start the 512 MB instance's ONNX model.
+    # Local/mocked development defaults to dense retrieval.
+    dense_retrieval_enabled: bool | None = None
     # Load the embedding model at startup only when the host has headroom
     # (Render's 512 MB free instance OOMs on eager ONNX load).
     embedding_eager_load: bool = False
@@ -72,6 +76,12 @@ class Settings(BaseSettings):
         env_file = (str(env_path), str(env_path.with_name(".env.local")))
         env_file_encoding = "utf-8"
         case_sensitive = False
+
+    @property
+    def use_dense_retrieval(self) -> bool:
+        if self.dense_retrieval_enabled is not None:
+            return self.dense_retrieval_enabled
+        return not self.require_pgvector
 
 
 @lru_cache()

@@ -151,6 +151,8 @@ class RetrievalService:
 
     def is_ready(self) -> bool:
         if settings.require_pgvector:
+            if not settings.use_dense_retrieval:
+                return self.approved_database_sources_ready()
             # The dense model is loaded lazily on the first query. A model that
             # has not yet been loaded is not a retrieval outage; a failed load
             # is. The durable source index itself must be complete.
@@ -158,6 +160,110 @@ class RetrievalService:
                 self.model is not None or not self.model_load_attempted
             )
         return bool(self.local_index or self.text_documents) or (self.model is not None and check_db_connection())
+
+    @property
+    def retrieval_mode(self) -> str:
+        if settings.require_pgvector and not settings.use_dense_retrieval:
+            return "database-tfidf"
+        return "database-dense+tfidf" if settings.require_pgvector else "local-dense+tfidf"
+
+    @staticmethod
+    def _approved_source_filter(alias: str = "document") -> tuple[str, dict[str, str]]:
+        """Build a parameterized SQL allowlist for approved static source names."""
+        source_names = sorted(APPROVED_STATIC_SOURCES)
+        params = {f"approved_source_{index}": name for index, name in enumerate(source_names)}
+        placeholders = ", ".join(f":{name}" for name in params)
+        return f"{alias}.filename IN ({placeholders})", params
+
+    @staticmethod
+    def approved_database_sources_ready() -> bool:
+        """Require the full approved file set before production lexical search."""
+        if engine is None or not check_db_connection():
+            return False
+        source_filter, params = RetrievalService._approved_source_filter()
+        try:
+            with engine.connect() as connection:
+                count = connection.execute(text(f"""
+                    SELECT COUNT(DISTINCT document.filename)
+                    FROM knowledge_documents AS document
+                    WHERE document.is_active = TRUE AND {source_filter}
+                      AND NULLIF(BTRIM(document.content), '') IS NOT NULL
+                """), params).scalar_one()
+            return int(count or 0) == len(APPROVED_STATIC_SOURCES)
+        except Exception as exc:
+            print(f"[RETRIEVAL] Approved-source readiness check failed: {type(exc).__name__}.")
+            return False
+
+    @staticmethod
+    def _database_source_category(filename: str, category: str | None) -> str:
+        normalized = os.path.basename(filename).casefold()
+        if normalized == "student_services_faq_2026.txt":
+            return STUDENT_SERVICES_CATEGORY
+        if normalized == "enrollment_interview_guidance.txt":
+            return "enrollment_policy"
+        if normalized == "document_fees_user_approved.txt":
+            return "document_request"
+        if normalized == "program_catalog.txt" or normalized.startswith("curriculum_"):
+            return "programs_curriculum"
+        return category or "policy"
+
+    def _retrieve_database_lexical(
+        self,
+        query: str,
+        limit: int,
+        category: str | None,
+    ) -> list[dict]:
+        """Run source-allowlisted sparse retrieval on live DB document content.
+
+        This avoids loading ONNX on memory-constrained production instances.
+        Reading the active document rows (rather than old chunks) also keeps
+        edited knowledge immediately searchable without a vector re-index.
+        """
+        if engine is None or not check_db_connection():
+            print("[RETRIEVAL] Durable database is unavailable; refusing local fallback.")
+            return []
+
+        source_filter, params = self._approved_source_filter()
+        sql = f"""
+            SELECT document.filename, document.category, document.content
+            FROM knowledge_documents AS document
+            WHERE document.is_active = TRUE AND {source_filter}
+            ORDER BY document.filename ASC
+            LIMIT 32
+        """
+        candidates: list[dict] = []
+        try:
+            with engine.connect() as connection:
+                rows = connection.execute(text(sql), params).mappings().all()
+            for row in rows:
+                source = str(row["filename"])
+                if not self._is_approved_static_source(source):
+                    continue
+                source_category = self._database_source_category(source, row.get("category"))
+                if not self._category_matches(source_category, category):
+                    continue
+                content = str(row.get("content") or "")
+                if os.path.basename(source).casefold() == "document_fees_user_approved.txt":
+                    # Keep each approved fee isolated so retrieval does not
+                    # return six prices as one overly broad answer context.
+                    paragraphs = [line.strip() for line in content.splitlines() if line.strip()]
+                else:
+                    paragraphs = [part.strip() for part in content.split("\n\n") if part.strip()]
+                if not paragraphs and content.strip():
+                    paragraphs = [content.strip()]
+                candidates.extend({
+                    "content": paragraph,
+                    "source": source,
+                    "category": source_category,
+                } for paragraph in paragraphs)
+        except Exception as exc:
+            print(f"[RETRIEVAL] Durable sparse search failed: {type(exc).__name__}.")
+            return []
+
+        if not candidates:
+            return []
+        matches = self._hybrid_rank(query, candidates, limit)
+        return self._above_threshold(matches)
 
     @staticmethod
     def pgvector_index_ready() -> bool:
@@ -191,6 +297,9 @@ class RetrievalService:
 
     def retrieve(self, query: str, limit: int = 3, category: str = None) -> list:
         """Retrieve top matching document chunks using pgvector or in-memory fallback."""
+        if settings.require_pgvector and not settings.use_dense_retrieval:
+            return self._retrieve_database_lexical(query, limit, category)
+
         if not settings.require_pgvector and (
             category in {None, "programs_curriculum"}
             and self._is_program_catalog_query(query)
@@ -337,6 +446,37 @@ class RetrievalService:
             if not check_db_connection():
                 print("[RETRIEVAL] pgvector is required but the database is unavailable; refusing source fallback.")
                 return []
+            if not settings.use_dense_retrieval:
+                try:
+                    with engine.connect() as conn:
+                        row = conn.execute(text("""
+                            SELECT document.filename, document.category, document.content
+                            FROM knowledge_documents AS document
+                            WHERE document.is_active = TRUE
+                              AND document.filename = :source
+                        """), {"source": os.path.basename(source)}).mappings().first()
+                    if row is None:
+                        return []
+                    filename = str(row["filename"])
+                    if not self._is_approved_static_source(filename):
+                        return []
+                    category = self._database_source_category(filename, row.get("category"))
+                    content = str(row.get("content") or "")
+                    paragraphs = [part.strip() for part in content.split("\n\n") if part.strip()]
+                    if not paragraphs and content.strip():
+                        paragraphs = [content.strip()]
+                    return [
+                        {
+                            "content": paragraph,
+                            "source": filename,
+                            "category": category,
+                            "similarity": 1.0,
+                        }
+                        for paragraph in paragraphs
+                    ]
+                except Exception as exc:
+                    print(f"[RETRIEVAL] Exact approved database source lookup failed: {type(exc).__name__}.")
+                    return []
             try:
                 with engine.connect() as conn:
                     rows = conn.execute(text("""
@@ -466,6 +606,16 @@ class RetrievalService:
                 "outstanding balance then proceed to Admissions for enrollment; dates, tuition "
                 "amount and complete document checklist are not specified"
             )
+        if has_phrase(("second copy", "2nd copy", "two copies", "second set")):
+            expansions.append("second 2nd copy of grades")
+        if has_phrase(("coe", "certificate of enrollment")):
+            expansions.append("Certificate of Enrollment COE PHP 300 per copy")
+        if has_phrase(("certificate of good moral", "good moral")):
+            expansions.append("Certificate of good moral PHP 500 per copy")
+        if has_phrase(("certified true copy", "true copy of grades")):
+            expansions.append("Certified true copy - copy of grades PHP 300 per copy")
+        if has_phrase(("tor", "transcript of records", "transcript")):
+            expansions.append("TOR Transcript of Records PHP 500 per page")
         if any(term in normalized for term in ("returning", "return student", "bumalik", "pagbalik", "nagbalik")):
             expansions.append(
                 "returning after a break Treasury clearance evaluate previously taken subjects Admissions"
