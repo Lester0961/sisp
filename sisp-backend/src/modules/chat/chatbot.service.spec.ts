@@ -443,6 +443,33 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.sessionId).toBe('sess-1');
   });
 
+  it('does not resolve a Waray enrollment and tuition-price question as a personal balance', async () => {
+    fetchMock.mockImplementation(() =>
+      mlOk({
+        response: 'incorrect balance hint',
+        intent: 'payment_inquiry',
+        confidence: 0.9,
+        escalate: false,
+        sources: [],
+        route: 'database',
+        action: 'balance',
+        language: { code: 'war' },
+        data: null,
+        parts: [],
+      }),
+    );
+
+    const res = await service.sendMessage('user-1', {
+      message: 'Ano it proseso hit pag-enroll para ha sunod nga semester, ngan tag-pira it angay ko bayaran ha matrikula?',
+    } as any);
+
+    expect(mockPrisma.studentProfile.findUnique).not.toHaveBeenCalled();
+    expect(res.response).toContain('Waray ko mapamatud-i');
+    expect(res.response).not.toContain('account balance');
+    expect(res.response).not.toContain('0.00');
+    expect(res.route).toBe('knowledge_gap');
+  });
+
   it('never exposes personal grades when ML misroutes a grade-appeal policy question', async () => {
     fetchMock.mockImplementation(() =>
       mlOk({

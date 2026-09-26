@@ -45,6 +45,24 @@ def test_language_and_scope_routing():
         "action": "balance",
         "inScope": True,
     }
+    assert scope_service.route("How much is my tuition?") == {
+        "route": "policy",
+        "action": None,
+        "inScope": True,
+    }
+    assert scope_service.route(
+        "Ano it proseso hit pag-enroll para ha sunod nga semester, ngan "
+        "tag-pira it angay ko bayaran ha matrikula?"
+    ) == {
+        "route": "policy",
+        "action": None,
+        "inScope": True,
+    }
+    assert scope_service.route("How much tuition do I owe?") == {
+        "route": "database",
+        "action": "balance",
+        "inScope": True,
+    }
     assert scope_service.route("How much do I owe?") == {
         "route": "database",
         "action": "balance",

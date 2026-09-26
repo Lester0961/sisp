@@ -136,7 +136,10 @@ PERSONAL_ROUTES = {
         "subject ti klasek", "iskediul ko", "iskediulko", "kurso ko",
     },
     "balance": {
-        "account balance", "balance", "bayranan", "matrikula", "tuition",
+        # Tuition and matricula by themselves are public pricing questions.
+        # Require an actual balance/debt cue before opening a private student
+        # balance record; first-person words also occur in ordinary questions.
+        "account balance", "balance", "bayranan",
         "owe", "amount due", "outstanding amount", "how much do i owe",
         "balanse", "balanse ko", "balanse nako", "balanse han akon", "utang nako",
         "bayranan nako", "bayranan ko", "bayranan han akon", "bayranan sang akon",

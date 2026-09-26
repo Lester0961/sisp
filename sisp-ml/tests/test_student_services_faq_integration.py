@@ -148,6 +148,31 @@ def test_waray_enrollment_and_tuition_question_preserves_the_supported_steps(mon
     assert any(source["source"] == "enrollment_interview_guidance.txt" for source in result["sources"])
 
 
+def test_waray_enrollment_tuition_wording_with_first_person_routes_to_policy(monkeypatch):
+    monkeypatch.setattr(retrieval_module.settings, "require_pgvector", False)
+    monkeypatch.setattr(retrieval_service, "model", None)
+    monkeypatch.setattr(retrieval_service, "model_load_attempted", True)
+
+    async def unavailable_provider(_request):
+        raise AllProvidersFailed(["nvidia"])
+
+    monkeypatch.setattr(chat_module.llm_router, "generate", unavailable_provider)
+    query = (
+        "Ano it proseso hit pag-enroll para ha sunod nga semester, "
+        "ngan tag-pira it angay ko bayaran ha matrikula?"
+    )
+    result = asyncio.run(chat_module.chat_service.process_query(query))
+
+    assert result["language"]["code"] == "war"
+    assert result["intent"] == "enrollment_inquiry"
+    assert result["route"] == "partially_answered"
+    assert "Treasury" in result["response"]
+    assert "Admissions" in result["response"]
+    assert "Waray ako hin napamatud-an nga kantidad" in result["response"]
+    assert result["action"] is None
+    assert any(source["source"] == "enrollment_interview_guidance.txt" for source in result["sources"])
+
+
 @pytest.mark.parametrize("query", [
     "Where to pay my tuition?",
     "Saan ako magbabayad ng tuition?",

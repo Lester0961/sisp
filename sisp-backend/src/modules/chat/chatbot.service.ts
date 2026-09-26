@@ -577,7 +577,9 @@ export class ChatbotService {
     const patterns: Record<string, RegExp> = {
       grades: /\b(grades?|marks?|scores?|gpa)\b/,
       schedule: /\b(classes?|schedule|subjects?|courses?|enrolled)\b/,
-      balance: /\b(balance|owe|amount due|tuition|matrikula|bayranan)\b/,
+      // Tuition and matricula can mean public pricing. A private balance
+      // lookup needs an explicit balance, debt, or amount-due request.
+      balance: /\b(balance|owe|amount due|outstanding amount|bayranan|balanse|utang)\b/,
       enrollment_status: /\b(enrollment|enrolment|enrolled|registration)\b/,
       document_request_status: /\b(document|request|status)\b/,
     };
@@ -586,7 +588,11 @@ export class ChatbotService {
 
   private isPolicyQuestion(message: string): boolean {
     const normalized = (message || '').toLocaleLowerCase().replace(/[’]/g, "'");
+    const asksExplicitBalance = /\b(balance|owe|amount due|outstanding amount|bayranan|balanse|utang)\b/.test(normalized);
+    const asksEnrollmentOrTuitionInformation = /\b(enroll(?:ment)?|enrol(?:ment)?|semester|tuition|matrikula)\b/.test(normalized)
+      && !asksExplicitBalance;
     return /\b(appeal|policy|policies|rule|rules|guideline|deadline|passing grade|grade scale|probation)\b/.test(normalized)
+      || asksEnrollmentOrTuitionInformation
       || this.isPersonalRecordMutationRequest(normalized)
       || this.isEnrollmentStatusPolicyQuestion(normalized);
   }
