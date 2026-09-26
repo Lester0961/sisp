@@ -26,16 +26,17 @@ class DeepSeekProvider(LLMProvider):
     name = "deepseek"
     endpoint = "https://api.deepseek.com/chat/completions"
 
-    # Hard ceilings for one local QA run. The input bound uses UTF-8 bytes as
-    # a deliberately conservative token estimate; output tokens are API-capped.
+    # Hard ceilings for all ARIA calls through this provider. Production uses
+    # the shared PostgreSQL reservation row; local runs may use a file ledger.
+    # The input bound uses UTF-8 bytes as a conservative token estimate.
     MAX_RUN_USD = 1.00
     MAX_RUN_TOKENS = 5_000_000
     MAX_INPUT_BYTES = 3_500
     MAX_OUTPUT_TOKENS = 384
     TOKEN_OVERHEAD_RESERVE = 64
 
-    # DeepSeek Flash's peak rates verified 2026-09-24. Reserving every token
-    # at the highest current per-token rate keeps preflight below the $1 cap.
+    # DeepSeek Flash's official peak rates verified 2026-09-26. Reserving every
+    # token at the highest current per-token rate keeps preflight below $1.
     WORST_CASE_USD_PER_MILLION_TOKENS = 1.20
     PEAK_INPUT_USD_PER_MILLION = 0.30
     PEAK_OUTPUT_USD_PER_MILLION = 1.20
@@ -294,14 +295,17 @@ class DeepSeekProvider(LLMProvider):
         return messages, input_byte_ceiling + self.TOKEN_OVERHEAD_RESERVE
 
     def usage_snapshot(self) -> dict[str, int | float | str]:
+        ledger_available = not self._usage_backend_error
         if self.usage_backend == "postgres" and not self._usage_backend_error:
             try:
                 self._apply_usage_row(self._read_persistent_usage())
             except Exception:
                 logger.error("DeepSeek persistent usage ledger could not be read.")
+                ledger_available = False
         return {
+            "provider": self.name,
             "usage_backend": self.usage_backend,
-            "usage_ledger_available": not self._usage_backend_error,
+            "usage_ledger_available": ledger_available,
             "model": self.model,
             "actual_input_tokens": self.actual_input_tokens,
             "actual_output_tokens": self.actual_output_tokens,
@@ -333,17 +337,17 @@ class DeepSeekProvider(LLMProvider):
                 logger.error("DeepSeek request refused: persistent usage ledger unavailable (%s).", type(exc).__name__)
                 raise ProviderError(self.name, "usage_ledger_unavailable", retryable=False) from exc
             if row is None:
-                logger.error("DeepSeek request refused: persistent spend/token budget reached.")
-                raise ProviderError(self.name, "local_spend_budget_exhausted", retryable=False)
+                logger.error("DeepSeek request refused: provider spend/token budget reached.")
+                raise ProviderError(self.name, "spend_budget_exhausted", retryable=False)
             self._apply_usage_row(row)
         elif self.usage_backend == "file":
             max_cost_tokens = int(self.MAX_RUN_USD * 1_000_000 / self.WORST_CASE_USD_PER_MILLION_TOKENS)
             if self.reserved_tokens + reserve > self.MAX_RUN_TOKENS:
-                logger.error("DeepSeek request refused: local token budget reached.")
-                raise ProviderError(self.name, "local_token_budget_exhausted", retryable=False)
+                logger.error("DeepSeek request refused: provider token budget reached.")
+                raise ProviderError(self.name, "token_budget_exhausted", retryable=False)
             if self.reserved_tokens + reserve > max_cost_tokens:
-                logger.error("DeepSeek request refused: local $1 spend ceiling reached.")
-                raise ProviderError(self.name, "local_spend_budget_exhausted", retryable=False)
+                logger.error("DeepSeek request refused: $1 provider spend ceiling reached.")
+                raise ProviderError(self.name, "spend_budget_exhausted", retryable=False)
 
             # Reserve before the network call. A timeout may occur after the
             # provider has processed/billed the request, so failed calls still

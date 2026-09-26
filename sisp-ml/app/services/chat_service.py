@@ -5,6 +5,7 @@ from app.services.entity_service import entity_service
 from app.services.response_service import response_service
 from app.services.response_validator import response_validator
 from app.services.language_service import language_service
+from app.services.query_rewrite_service import query_rewrite_service
 from app.services.llm.errors import AllProvidersFailed
 from app.services.llm.models import LLMRequest
 from app.services.llm.router import llm_router
@@ -962,6 +963,35 @@ class ChatService:
                 selected.append(match)
         return ChatService._sanitize_faq_payment_identifiers(selected)
 
+    @staticmethod
+    def _combine_query_variant_results(
+        primary: list[dict], translated: list[dict], limit: int
+    ) -> list[dict]:
+        """Rank two source-filtered result sets without losing good matches."""
+        if not primary:
+            return translated
+        if not translated:
+            return primary
+
+        primary_score = float(primary[0].get("similarity", 0.0))
+        translated_score = float(translated[0].get("similarity", 0.0))
+        if translated_score >= primary_score + 0.08:
+            return translated
+        if primary_score >= translated_score + 0.08:
+            return primary
+
+        merged: dict[tuple[str, str], dict] = {}
+        for chunk in [*primary, *translated]:
+            key = (str(chunk.get("source", "")), str(chunk.get("content", "")))
+            current = merged.get(key)
+            if current is None or float(chunk.get("similarity", 0.0)) > float(current.get("similarity", 0.0)):
+                merged[key] = dict(chunk)
+        return sorted(
+            merged.values(),
+            key=lambda chunk: float(chunk.get("similarity", 0.0)),
+            reverse=True,
+        )[:limit]
+
     async def process_query(
         self,
         query: str,
@@ -980,8 +1010,16 @@ class ChatService:
             == str(query or "").strip().casefold()
         ):
             history = history[:-1]
+        detected_input_language = language_service.detect(query, history)
         language = language_service.detect(query, history, preferred_language)
+        # `preferred_language` controls the answer language in the UI. Keep
+        # the detected input language separately so retrieval can still
+        # normalize a Tagalog/dialect question when the user requests an
+        # English response (or the reverse).
+        language["inputCode"] = detected_input_language["code"]
+        language["inputConfidence"] = detected_input_language["confidence"]
         language_code = language["code"]
+        input_language_code = detected_input_language["code"]
         moderation = moderation_service.evaluate(query)
         normalized_query = _normalize_common_question_typos(query)
         routing_query = _with_follow_up_context(normalized_query, history)
@@ -1183,6 +1221,59 @@ class ChatService:
                 else:
                     return fee_answer
 
+        # Rewriting is a second-pass retrieval aid. Run the existing source-
+        # filtered search first, then spend a provider call only when the
+        # original wording has no result or its best match is weak. Cache one
+        # attempt per user request so enrollment/payment searches cannot each
+        # trigger a separate translation call.
+        rewrite_state: dict[str, str | bool | None] = {
+            "attempted": False,
+            "query": None,
+        }
+
+        async def retrieve_grounded_context(limit: int, category: str | None) -> list[dict]:
+            primary = retrieval_service.retrieve(routing_query, limit, category)
+            translated_query = rewrite_state["query"]
+            best_similarity = max(
+                (float(chunk.get("similarity", 0.0)) for chunk in primary),
+                default=0.0,
+            )
+            should_try_rewrite = (
+                not curriculum_source
+                and settings.multilingual_query_rewrite_enabled
+                and not bool(rewrite_state["attempted"])
+                and input_language_code != "en"
+                and (
+                    not primary
+                    or best_similarity < settings.multilingual_query_rewrite_min_similarity
+                )
+            )
+            if should_try_rewrite:
+                rewrite_state["attempted"] = True
+                reason = "no_match" if not primary else "weak_match"
+                logger.info(
+                    "query_rewrite_attempt language=%s category=%s reason=%s top_similarity=%.3f",
+                    input_language_code,
+                    category or "any",
+                    reason,
+                    best_similarity,
+                )
+                translated_query = await query_rewrite_service.rewrite_for_search(
+                    routing_query,
+                    input_language_code,
+                )
+                rewrite_state["query"] = translated_query
+
+            if (
+                not isinstance(translated_query, str)
+                or not translated_query
+                or translated_query.casefold() == routing_query.casefold()
+            ):
+                return primary
+
+            translated = retrieval_service.retrieve(translated_query, limit, category)
+            return self._combine_query_variant_results(primary, translated, limit)
+
         asks_enrollment = (
             _has_query_marker(routing_query, ENROLLMENT_MARKERS)
             or _has_query_marker(routing_query, lifecycle_enrollment_markers)
@@ -1195,11 +1286,11 @@ class ChatService:
         combined_context_chunks = None
         if asks_enrollment or asks_tuition:
             enrollment_chunks = (
-                retrieval_service.retrieve(routing_query, limit=4, category="enrollment_policy")
+                await retrieve_grounded_context(4, "enrollment_policy")
                 if asks_enrollment else []
             )
             payment_chunks = (
-                retrieval_service.retrieve(routing_query, limit=4, category="payment_policy")
+                await retrieve_grounded_context(4, "payment_policy")
                 if asks_tuition else []
             )
             if asks_tuition:
@@ -1354,7 +1445,7 @@ class ChatService:
                     course_name=curriculum_entities.get("course_name"),
                 )
         else:
-            context_chunks = retrieval_service.retrieve(routing_query, limit=3, category=category)
+            context_chunks = await retrieve_grounded_context(3, category)
 
         context_chunks = self._sanitize_faq_payment_identifiers(context_chunks)
 

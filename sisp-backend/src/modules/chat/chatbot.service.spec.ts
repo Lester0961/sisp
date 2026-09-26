@@ -217,6 +217,20 @@ describe('ChatbotService (multi-intent + secure identity)', () => {
     expect(res.escalated).toBe(false);
   });
 
+  it('does not replay an ML failure marked unsafe after processing began', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 503,
+      headers: { get: (name: string) => name === 'x-aria-retry-safe' ? 'false' : null },
+    });
+
+    const result = await service.sendMessage('user-1', { message: 'How much is a TOR?' } as any);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.escalated).toBe(true);
+    expect(mockSessions.createSession).toHaveBeenCalledTimes(1);
+  });
+
   it('backs off across multiple gateway failures and recovers within the bounded window', async () => {
     jest.useFakeTimers();
     fetchMock

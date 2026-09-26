@@ -90,7 +90,7 @@ class LLMRouter:
     def usage_snapshot(self) -> list[dict[str, int | float | str]]:
         """Return provider usage counters without exposing credentials or prompts."""
         return [
-            provider.usage_snapshot()
+            {"provider": provider.name, **provider.usage_snapshot()}
             for provider in self.providers
             if callable(getattr(provider, "usage_snapshot", None))
         ]

@@ -95,7 +95,7 @@ def test_deepseek_refuses_before_network_when_local_token_budget_is_exhausted(mo
     provider = DeepSeekProvider("test-key", "deepseek-flash", 1)
     provider.MAX_RUN_TOKENS = 1
 
-    with pytest.raises(ProviderError, match="local_token_budget_exhausted"):
+    with pytest.raises(ProviderError, match="token_budget_exhausted"):
         asyncio.run(provider.generate(make_request()))
 
     assert provider.reserved_tokens == 0
@@ -211,10 +211,21 @@ def test_deepseek_persistent_budget_refuses_before_network_at_spend_cap(monkeypa
     monkeypatch.setattr("app.services.llm.deepseek_provider.httpx.AsyncClient", FakeClient)
 
     provider = DeepSeekProvider("test-key", "deepseek-flash", 1)
-    with pytest.raises(ProviderError, match="local_spend_budget_exhausted"):
+    with pytest.raises(ProviderError, match="spend_budget_exhausted"):
         asyncio.run(provider.generate(make_request()))
 
     assert FakeClient.requests == []
+    engine.dispose()
+
+
+def test_deepseek_health_reports_missing_persistent_budget_row(monkeypatch):
+    engine = _persistent_test_engine()
+    monkeypatch.setattr(database, "engine", engine)
+    monkeypatch.setenv("DEEPSEEK_USAGE_BACKEND", "postgres")
+
+    provider = DeepSeekProvider("test-key", "deepseek-flash", 1)
+
+    assert provider.usage_snapshot()["usage_ledger_available"] is False
     engine.dispose()
 
 

@@ -57,7 +57,8 @@ export class ChatbotService {
     let quota = await this.chatQuotaService.consume(userId);
     let mlResponse: any;
     // Render's free ML instance can take close to a minute to wake from idle.
-    // Retry transient gateway responses within one bounded request window.
+    // The stable request ID lets ML safely replay a completed attempt if a
+    // transient gateway failure hides its response from this service.
     const deadline = Date.now() + ML_TIMEOUT_MS;
     const waitBeforeRetry = async (delayMs: number, attempt: number) => {
       if (Date.now() + delayMs + 1000 >= deadline) return false;
@@ -116,7 +117,11 @@ export class ChatbotService {
         }
 
         if (response.ok) break;
-        if (!ML_TRANSIENT_STATUSES.has(response.status) || attempt === ML_MAX_ATTEMPTS - 1) {
+        if (
+          !ML_TRANSIENT_STATUSES.has(response.status) ||
+          response.headers?.get('x-aria-retry-safe') === 'false' ||
+          attempt === ML_MAX_ATTEMPTS - 1
+        ) {
           throw new Error(`ML Service returned status ${response.status}`);
         }
 

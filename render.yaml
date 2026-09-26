@@ -100,6 +100,11 @@ services:
         value: "true"
       - key: DEEPSEEK_USAGE_BACKEND
         value: postgres
+      # Enable only after the source, budget ledger, and release checks pass.
+      - key: MULTILINGUAL_QUERY_REWRITE_ENABLED
+        value: "false"
+      - key: MULTILINGUAL_QUERY_REWRITE_MIN_SIMILARITY
+        value: "0.5"
       - key: DEEPSEEK_REQUEST_TIMEOUT_SECONDS
         value: "18"
       - key: LLM_PROVIDER_ORDER

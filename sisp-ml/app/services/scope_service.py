@@ -15,6 +15,7 @@ ACADEMIC_TERMS = {
     "guro", "titser", "tagapayo", "opisina", "patakaran", "payong", "payo",
     "eskuelaan", "eskwelahan", "pangutana", "pamangkot", "pakiana", "saludsod",
     "iskediul", "iskedyul", "bayad", "matrikula", "grado", "kurso", "dokumento",
+    "balanse", "utang",
 }
 
 # Common question forms should route to the verified academic corpus even when
@@ -119,6 +120,8 @@ OUT_OF_SCOPE_TERMS = {
 
 PERSONAL_MARKERS = {
     "ko", "ako", "mine", "akong", "siak", "current", "akin", "my", "akon", "i owe",
+    "balance nako", "balanse nako", "bayranan nako", "grades nako", "grado nako", "marka nako",
+    "subjects nako", "subject nako", "iskedyul nako", "kurso nako", "mga kurso nako",
 }
 PERSONAL_ROUTES = {
     "grades": {"grades", "grado", "grade", "marka"},
@@ -127,10 +130,16 @@ PERSONAL_ROUTES = {
         "my courses", "my classes", "subjects ko", "subject ko", "courses ko", "mga subject ko",
         "mga kurso ko", "subjects nako", "akong mga subject", "akong kurso", "akong mga kurso",
         "subject ko ha", "subjects ko ha", "mga subject ko ha", "class list ko",
+        "klase nako", "mga klase nako", "iskedyul nako", "iskedyul ko", "subject nako",
+        "mga subject nako", "mga subjects nako", "kurso nako", "mga kurso nako",
+        "subject sang akon", "mga subject sang akon", "klase sang akon",
+        "subject ti klasek", "iskediul ko", "iskediulko", "kurso ko",
     },
     "balance": {
         "account balance", "balance", "bayranan", "matrikula", "tuition",
         "owe", "amount due", "outstanding amount", "how much do i owe",
+        "balanse", "balanse ko", "balanse nako", "balanse han akon", "utang nako",
+        "bayranan nako", "bayranan ko", "bayranan han akon", "bayranan sang akon",
     },
     "enrollment_status": {"enrolled", "naka enroll", "nakapag enroll", "enrollment status"},
     "document_request_status": {"document request status", "status ng request", "request status"},

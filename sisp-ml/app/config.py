@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # Explicit opt-in. A request-scoped budget guard in DeepSeekProvider still
     # caps local QA usage even when this provider is enabled.
     deepseek_enabled: bool = False
+    # Query translation adds a separate provider request before retrieval.
+    # Keep it opt-in so installations do not incur surprise API usage.
+    multilingual_query_rewrite_enabled: bool = False
+    multilingual_query_rewrite_min_similarity: float = Field(default=0.5, ge=0.0, le=1.0)
 
     # ML Config
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
